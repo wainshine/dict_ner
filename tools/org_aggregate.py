@@ -57,11 +57,11 @@ def prune(merged: dict, quality: dict) -> dict:
 
 def print_report(merged: dict, pruned: dict):
     total = merged["total"]
-    print(f"\n{'='*60}")
-    print(f"ORG AGGREGATE {VERSION} ({total:,} records)")
-    print(f"{'='*60}")
+    print(f"\n{'='*60}", flush=True)
+    print(f"ORG AGGREGATE {VERSION} ({total:,} records)", flush=True)
+    print(f"{'='*60}", flush=True)
 
-    print(f"\nStats:")
+    print(f"\nStats:", flush=True)
     coverage = {
         "d1": len(merged["d1_freqs"]),
         "d2": len(merged["d2_freqs"]),
@@ -69,26 +69,26 @@ def print_report(merged: dict, pruned: dict):
         "d4": len(merged["d4_freqs"]),
     }
     for k, v in coverage.items():
-        print(f"  {k}: {v:>10,} unique (pruned→{len(pruned.get(k+'_freqs', {})):>6,})")
+        print(f"  {k}: {v:>10,} unique (pruned→{len(pruned.get(k+'_freqs', {})):>6,})", flush=True)
 
     hit = {"d1": "-", "d2": merged["d2_hit"], "d3": merged["d3_hit"], "d4": merged["d4_hit"]}
     for k, v in hit.items():
         if v == "-":
-            print(f"  {k}_hit: ---")
+            print(f"  {k}_hit: ---", flush=True)
         else:
-            print(f"  {k}_hit: {v:>10,} ({100*v/total:.1f}%)")
+            print(f"  {k}_hit: {v:>10,} ({100*v/total:.1f}%)", flush=True)
 
-    print(f"\nPruned dict sizes:")
+    print(f"\nPruned dict sizes:", flush=True)
     for k in ["d1_freqs", "d3_freqs", "d4_freqs"]:
-        print(f"  {k}: {len(pruned[k]):>8,}")
+        print(f"  {k}: {len(pruned[k]):>8,}", flush=True)
 
-    print(f"\nSeg dist (top):")
+    print(f"\nSeg dist (top):", flush=True)
     for n, c in merged["seg_dist"].most_common(10):
-        print(f"  {n}seg: {c:>12,} ({100*c/total:.1f}%)")
+        print(f"  {n}seg: {c:>12,} ({100*c/total:.1f}%)", flush=True)
 
-    print(f"\nd4 Categories (top 15):")
+    print(f"\nd4 Categories (top 15):", flush=True)
     for cat, cnt in merged["d4_cats"].most_common(15):
-        print(f"  {cat:20s}: {cnt:>12,} ({100*cnt/total:.1f}%)")
+        print(f"  {cat:20s}: {cnt:>12,} ({100*cnt/total:.1f}%)", flush=True)
 
 
 def main():
@@ -105,12 +105,12 @@ def main():
     dict_path = os.path.join(STATS_DIR, f"org_{VERSION}.pkl")
     with open(dict_path, "wb") as f:
         pickle.dump(pruned, f)
-    print(f"\nSaved: {dict_path} ({os.path.getsize(dict_path)/1024/1024:.1f}MB)")
+    print(f"\nSaved: {dict_path} ({os.path.getsize(dict_path)/1024/1024:.1f}MB)", flush=True)
 
     merged_path = os.path.join(OUT_DIR, "org_merged_stats.pkl")
     with open(merged_path, "wb") as f:
         pickle.dump(merged, f)
-    print(f"Saved: {merged_path}")
+    print(f"Saved: {merged_path}", flush=True)
 
     csv_path = os.path.join(OUT_DIR, f"org_d2_freqs_{VERSION}.csv")
     export_d2_csv(merged["d2_freqs"], csv_path)

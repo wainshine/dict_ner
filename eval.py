@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """评估脚本：从地名T采样 → 识别 → 统计 → 诊断"""
-
-import os
-import sys
-import time
-import random
+import os, sys, time, random, logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

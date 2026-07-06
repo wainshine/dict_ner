@@ -1,6 +1,7 @@
 """机构名识别器 V5 — Viterbi DP (复用地址DP框架)"""
 
-import os, csv, math, pickle
+import os, csv, math, pickle, logging
+logger = logging.getLogger(__name__)
 from typing import Dict, List, Tuple
 from core.types import SegType, AddressSegment, AddressResult, LEVEL_ORDER
 from loc.importer import classify_suffix
@@ -46,9 +47,9 @@ class OrgDPRecognizer:
             bm = BrandModel(dict_dir, version=ver) if ver else BrandModel(dict_dir)
             if bm.load():
                 self._brand_model = bm
-                print(f"  Loaded brand model {ver}", flush=True)
+                logger.info(f"  Loaded brand model {ver}")
                 return
-        print(f"  No brand model found", flush=True)
+        logger.info(f"  No brand model found")
 
     # ── Trie: areas/ (d1) + d333 (d3) + d444 (d4) ──
 
@@ -81,7 +82,7 @@ class OrgDPRecognizer:
             d1_freqs = cached.get("d1_freqs", {})
             d3_freqs = cached.get("d3_freqs", {})
             d4_freqs = cached.get("d4_freqs", {})
-        print(f"  Loaded pruned: d1={len(d1_freqs)}, d3={len(d3_freqs)}, d4={len(d4_freqs)}", flush=True)
+        logger.info(f"  Loaded pruned: d1={len(d1_freqs)}, d3={len(d3_freqs)}, d4={len(d4_freqs)}")
 
         # d1: from pruned freqs (type inferred by suffix, bare name as fallback)
         from core.types import ADMIN_SUFFIX_MAP
@@ -146,7 +147,7 @@ class OrgDPRecognizer:
                   SegType.VILLAGE: "VILLAGE", SegType.COMMUNITY: "COMMUNITY",
                   SegType.ROAD: "ROAD", SegType.INDUSTRY: "d3", SegType.POI: "d4"}
         for st, label in counts.items():
-            print(f"  {label:12s}: {freq.get(st, 0):>8,}", flush=True)
+            logger.info(f"  {label:12s}: {freq.get(st, 0):>8,}")
 
     def _build_bare_name_table(self, data_dir: str) -> dict:
         """Build {bare_name: SegType} from areas/ for province/city/district/town bare names."""
@@ -237,7 +238,7 @@ class OrgDPRecognizer:
                         injected += 1
                         break
 
-        print(f"  Injected {injected} d111 admin names into d1", flush=True)
+        logger.info(f"  Injected {injected} d111 admin names into d1")
 
     def _inject_poi_seed_d4(self, seed_path: str, d4_freqs: dict, trie: dict) -> int:
         """Inject POI suffix seed into d4_freqs to bootstrap DP recognition."""
@@ -264,7 +265,7 @@ class OrgDPRecognizer:
                     node["#"] = (SegType.POI, tf)
                 self._d4_set.add(sfx)
                 injected += 1
-        print(f"  Injected {injected} POI seed d4 entries", flush=True)
+        logger.info(f"  Injected {injected} POI seed d4 entries")
         return injected
 
     # ── Transition costs ──

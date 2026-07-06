@@ -18,11 +18,11 @@ AGGREGATE = os.path.join(BASE_DIR, "tools", "poi_aggregate.py")
 
 
 def cmd_dedup():
-    print(f"Deduping A+T → {CLEANED}")
+    print(f"Deduping A+T → {CLEANED}", flush=True)
     subprocess.run([sys.executable, FILTER, CLEANED, POI_A, POI_T], check=True)
     total = count_lines(CLEANED)
     mb = os.path.getsize(CLEANED) / 1024 / 1024
-    print(f"Deduped POI: {total:,} unique, {mb:.0f}MB")
+    print(f"Deduped POI: {total:,} unique, {mb:.0f}MB", flush=True)
 
 
 def cmd_split():
@@ -42,10 +42,10 @@ def _check_sources():
         if not os.path.exists(path):
             missing.append(path)
     if missing:
-        print(f"ERROR: POI source file(s) not found. Cannot rebuild chunks.")
+        print(f"ERROR: POI source file(s) not found. Cannot rebuild chunks.", flush=True)
         for m in missing:
-            print(f"  Missing: {m}")
-        print(f"  To restore chunks without rebuilding: copy from backup to {SPLIT_DIR}/")
+            print(f"  Missing: {m}", flush=True)
+        print(f"  To restore chunks without rebuilding: copy from backup to {SPLIT_DIR}/", flush=True)
         sys.exit(1)
 
 
@@ -59,7 +59,7 @@ def main():
         cmd_split()
     if cmd == "all":
         if chunks_exist:
-            print(f"Split chunks exist at {SPLIT_DIR}, skipping dedup+split")
+            print(f"Split chunks exist at {SPLIT_DIR}, skipping dedup+split", flush=True)
         else:
             _check_sources()
             cmd_dedup()

@@ -27,8 +27,8 @@ def split_file(source: str, dest_dir: str, num_chunks: int = NUM_CHUNKS,
     if not os.path.exists(source):
         raise FileNotFoundError(f"Source file not found: {source}")
     total = count_lines(source)
-    per = total // num_chunks + 1
-    print(f"Split: {total:,} lines -> {num_chunks} chunks x ~{per:,}")
+    per = (total + num_chunks - 1) // num_chunks  # ceil division
+    print(f"Split: {total:,} lines -> {num_chunks} chunks x ~{per:,}", flush=True)
     os.makedirs(dest_dir, exist_ok=True)
 
     writers = [open(os.path.join(dest_dir, f"chunk_{i:02d}.csv"), "w", encoding=dest_encoding)
@@ -40,10 +40,10 @@ def split_file(source: str, dest_dir: str, num_chunks: int = NUM_CHUNKS,
             chunk_id = min(i // per, num_chunks - 1)
             writers[chunk_id].write(line)
             if (i + 1) % 10000000 == 0:
-                print(f"  {i // 10000:>4}w written")
+                print(f"  {i // 10000:>4}w written", flush=True)
     for w in writers:
         w.close()
-    print("  Split done")
+    print("  Split done", flush=True)
     return total
 
 
@@ -58,7 +58,7 @@ def clean_stats(stats_dir: str, prefix: str):
 
 def launch_parallel(chunk_stats_script: str, split_dir: str, stats_dir: str,
                     output_prefix: str, extra_args: list = None, label: str = "chunk") -> bool:
-    print(f"\nLaunching {NUM_CHUNKS} parallel {label} workers...")
+    print(f"\nLaunching {NUM_CHUNKS} parallel {label} workers...", flush=True)
     t0 = time.time()
     procs = []
     os.makedirs(stats_dir, exist_ok=True)
@@ -67,7 +67,7 @@ def launch_parallel(chunk_stats_script: str, split_dir: str, stats_dir: str,
         chunk = os.path.join(split_dir, f"chunk_{i:02d}.csv")
         out_pkl = os.path.join(stats_dir, f"{output_prefix}_{i:02d}.pkl")
         if not os.path.exists(chunk):
-            print(f"  SKIP {label}_{i:02d}: missing")
+            print(f"  SKIP {label}_{i:02d}: missing", flush=True)
             continue
         cmd = [sys.executable, "-u", chunk_stats_script, chunk, out_pkl]
         if extra_args:
@@ -78,31 +78,31 @@ def launch_parallel(chunk_stats_script: str, split_dir: str, stats_dir: str,
             text=True, bufsize=1,
         )
         procs.append((i, p))
-        print(f"  Started {label}_{i:02d} [pid={p.pid}]")
+        print(f"  Started {label}_{i:02d} [pid={p.pid}]", flush=True)
 
     failed = []
     for i, p in procs:
         out_text = p.communicate(timeout=3600)[0]
         if out_text:
             for line in out_text.strip().split("\n")[-2:]:
-                print(f"  [{label}_{i:02d}] {line}")
+                print(f"  [{label}_{i:02d}] {line}", flush=True)
         if p.returncode != 0:
             failed.append(i)
-            print(f"  [{label}_{i:02d}] FAILED rc={p.returncode}")
+            print(f"  [{label}_{i:02d}] FAILED rc={p.returncode}", flush=True)
         else:
-            print(f"  [{label}_{i:02d}] done")
+            print(f"  [{label}_{i:02d}] done", flush=True)
 
     elapsed = time.time() - t0
-    print(f"\n{len(procs) - len(failed)}/{len(procs)} {label}s done in {elapsed:.0f}s ({elapsed / 60:.1f}min)")
+    print(f"\n{len(procs) - len(failed)}/{len(procs)} {label}s done in {elapsed:.0f}s ({elapsed / 60:.1f}min)", flush=True)
 
     if failed:
-        print(f"ERROR: {len(failed)} chunks failed: {failed}", file=sys.stderr)
+        print(f"{len(failed)} chunks failed: {failed}", file=sys.stderr, flush=True)
         return False
     return True
 
 
 def run_aggregate(aggregate_script: str):
-    print("\nAggregating stats...")
+    print("\nAggregating stats...", flush=True)
     subprocess.run([sys.executable, aggregate_script], check=True)
 
 
@@ -152,4 +152,4 @@ def export_d2_csv(d2_freqs: Counter, out_path: str, csv_module=None):
         for text, freq in d2_freqs.most_common():
             w.writerow([text, freq])
     mb = os.path.getsize(out_path) / 1024 / 1024
-    print(f"  Exported d2 CSV: {out_path} ({mb:.1f}MB, {len(d2_freqs):,} unique)")
+    print(f"  Exported d2 CSV: {out_path} ({mb:.1f}MB, {len(d2_freqs):,} unique)", flush=True)

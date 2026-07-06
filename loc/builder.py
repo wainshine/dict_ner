@@ -1,6 +1,8 @@
 """词典构建器 V5 — loc3.6kw idf词频 + areas五级区划 + d444 POI"""
 
 import os, time, pickle, csv
+import logging
+logger = logging.getLogger(__name__)
 from collections import Counter, defaultdict
 from typing import Dict, List, Set, Tuple, Optional
 from core.types import SegType, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_SET, POI_SUFFIX_MAP
@@ -27,18 +29,20 @@ class DictBuilder:
             t0 = time.time()
             with open(cache_path, "rb") as f:
                 counters = pickle.load(f)
-            print(f"  Loaded loc3.6kw counters from cache ({time.time()-t0:.1f}s)")
+            logger.info(f"  Loaded loc3.6kw counters from cache ({time.time()-t0:.1f}s)")
         else:
             counters = self._scan_loc36kw_chunks(chunk_files)
             with open(cache_path, "wb") as f:
                 pickle.dump(counters, f, pickle.HIGHEST_PROTOCOL)
-            print(f"  Cached loc3.6kw counters ({os.path.getsize(cache_path)/1024/1024:.0f}MB)")
+            logger.info(f"  Cached loc3.6kw counters ({os.path.getsize(cache_path)/1024/1024:.0f}MB)")
 
+        # Minimum cumulative IDF sum to keep an entry (empirically tuned thresholds)
         thresholds = {
             SegType.DISTRICT: 5, SegType.TOWN: 5, SegType.VILLAGE: 5,
             SegType.COMMUNITY: 5, SegType.ROAD: 3, SegType.PROVINCE: 3,
             SegType.CITY: 5,
         }
+        # Maximum entries per type to prevent dictionary bloat
         caps = {SegType.VILLAGE: 150000, SegType.COMMUNITY: 150000,
                 SegType.ROAD: 150000}
 
@@ -53,12 +57,12 @@ class DictBuilder:
                 if idf_sum > cur:
                     self.dict_data[st][word] = idf_sum
                     kept += 1
-            print(f"  {st.value:15s}: {kept:>8,} (idf>={thresh})")
+            logger.info(f"  {st.value:15s}: {kept:>8,} (idf>={thresh})")
 
     def _scan_loc36kw_chunks(self, files: list):
         from loc.importer import _split_admin
         total_size_mb = sum(os.path.getsize(f) for f in files) / 1024 / 1024
-        print(f"  Scanning loc3.6kw from {len(files)} chunks ({total_size_mb:.0f}MB)...")
+        logger.info(f"  Scanning loc3.6kw from {len(files)} chunks ({total_size_mb:.0f}MB)...")
         t0 = time.time()
         counters = defaultdict(Counter)
         i = 0
@@ -84,9 +88,9 @@ class DictBuilder:
                     i += 1
                     if i % 5000000 == 0:
                         elapsed = time.time() - t0
-                        print(f"    {i//10000:>4}w rows ({elapsed:.0f}s)")
+                        logger.info(f"    {i//10000:>4}w rows ({elapsed:.0f}s)")
 
-        print(f"    {i:,} rows in {time.time()-t0:.0f}s")
+        logger.info(f"    {i:,} rows in {time.time()-t0:.0f}s")
         return counters
 
     # ── Phase 2: d444 POI suffixes ──
@@ -109,7 +113,7 @@ class DictBuilder:
                     self.dict_data[SegType.POI].get(sfx, 0), tf
                 )
                 c += 1
-        print(f"  POI from d444: {c:,} entries")
+        logger.info(f"  POI from d444: {c:,} entries")
 
     # ── Phase 3: Official 5-level admin areas ──
 
@@ -120,7 +124,7 @@ class DictBuilder:
             for w, f in entries.items():
                 self.dict_data[st][w] = max(self.dict_data[st].get(w, 0), f)
         counts = {k.value: len(v) for k, v in areas.items()}
-        print(f"  Areas: {counts}")
+        logger.info(f"  Areas: {counts}")
 
     # ── Post-processing ──
 
@@ -139,7 +143,7 @@ class DictBuilder:
         for w in rm:
             del d[w]
         if rm:
-            print(f"  Cleaned {len(rm):,} road")
+            logger.info(f"  Cleaned {len(rm):,} road")
 
     def _cleanup_poi_entries(self):
         d = self.dict_data.get(SegType.POI, {})
@@ -150,7 +154,7 @@ class DictBuilder:
         for w in rm:
             del d[w]
         if rm:
-            print(f"  Cleaned {len(rm):,} poi")
+            logger.info(f"  Cleaned {len(rm):,} poi")
 
     def _cleanup_compound_entries(self):
         all_multi = set()
@@ -164,7 +168,7 @@ class DictBuilder:
             for w in rm:
                 del d[w]
             if rm:
-                print(f"  Cleaned {len(rm):,} compound {st.value}")
+                logger.info(f"  Cleaned {len(rm):,} compound {st.value}")
 
         d = self.dict_data.get(SegType.COMMUNITY, {})
         own = {x for x in ADMIN_SUFFIX_MAP.get(SegType.COMMUNITY, set()) if len(x) >= 2}
@@ -173,7 +177,7 @@ class DictBuilder:
         for w in rm:
             del d[w]
         if rm:
-            print(f"  Cleaned {len(rm):,} compound COMMUNITY")
+            logger.info(f"  Cleaned {len(rm):,} compound COMMUNITY")
 
     def build_orientation_dict(self):
         for o in {"东","南","西","北","中","东北","西北","东南","西南",
@@ -190,7 +194,7 @@ class DictBuilder:
         path = os.path.join(self.cache_dir, f"{self.version}.pkl")
         with open(path, "wb") as f:
             pickle.dump(dict(self.dict_data), f, pickle.HIGHEST_PROTOCOL)
-        print(f"  Saved: {path} ({os.path.getsize(path)/1024/1024:.0f}MB)")
+        logger.info(f"  Saved: {path} ({os.path.getsize(path)/1024/1024:.0f}MB)")
 
     @classmethod
     def load(cls, cache_dir: str, version: str = "loc_v1.1.2"):

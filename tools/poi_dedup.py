@@ -46,13 +46,13 @@ def main():
 
     found = [s for s in sources if os.path.exists(s)]
     if not found:
-        print(f"ERROR: No POI source files found.")
+        print(f"ERROR: No POI source files found.", flush=True)
         for s in sources:
-            print(f"  Missing: {s}")
+            print(f"  Missing: {s}", flush=True)
         sys.exit(1)
 
     area_set = load_area_set()
-    print(f"Loaded {len(area_set):,} area names")
+    print(f"Loaded {len(area_set):,} area names", flush=True)
 
     counter = Counter()
     total = 0
@@ -62,9 +62,9 @@ def main():
 
     for src in sources:
         if not os.path.exists(src):
-            print(f"  SKIP: {src}")
+            print(f"  SKIP: {src}", flush=True)
             continue
-        print(f"  Counting: {os.path.basename(src)}...")
+        print(f"  Counting: {os.path.basename(src)}...", flush=True)
         with open(src, 'r', encoding='gbk', errors='replace') as f:
             for line in f:
                 text = line.strip()

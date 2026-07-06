@@ -22,13 +22,13 @@ def load_samples():
 
 
 def main():
-    print("Loading OrgRecognizer V2...")
+    print("Loading OrgRecognizer V2...", flush=True)
     t0 = time.time()
     rec = OrgDPRecognizer(DICT_DIR, DATA_DIR)
-    print(f"  Loaded in {time.time()-t0:.1f}s")
+    print(f"  Loaded in {time.time()-t0:.1f}s", flush=True)
 
     samples = load_samples()
-    print(f"\nRecognizing {len(samples):,} org names...")
+    print(f"\nRecognizing {len(samples):,} org names...", flush=True)
     t0 = time.time()
 
     stats = {"d4_hit": 0, "d3_hit": 0, "d1_hit": 0, "branch_found": 0}
@@ -78,18 +78,18 @@ def main():
 
     elapsed = time.time() - t0
     total = len(samples)
-    print(f"  Done: {total:,} in {elapsed:.1f}s ({total/elapsed:.0f} rec/s)\n")
+    print(f"  Done: {total:,} in {elapsed:.1f}s ({total/elapsed:.0f} rec/s)\n", flush=True)
 
-    print("=== Coverage ===")
+    print("=== Coverage ===", flush=True)
     for k, v in stats.items():
-        print(f"  {k}: {v} ({100*v/total:.1f}%)")
+        print(f"  {k}: {v} ({100*v/total:.1f}%)", flush=True)
 
-    print(f"\n=== d4 Categories ===")
+    print(f"\n=== d4 Categories ===", flush=True)
     for cat, cnt in d4_cats.most_common(12):
-        print(f"  {cat:20s}: {cnt:>6,}")
+        print(f"  {cat:20s}: {cnt:>6,}", flush=True)
 
     # Sample predictions with branch detection
-    print(f"\n=== Examples (with branch markers) ===")
+    print(f"\n=== Examples (with branch markers) ===", flush=True)
     seen = set()
     for text, _ in samples:
         if any(m in text for m in ["分公司", "支行", "分行", "子公司"]):
@@ -97,25 +97,25 @@ def main():
                 seen.add(text)
                 res = rec.recognize(text)
                 segs = " | ".join(f"「{s.text}」" for s in res.segments)
-                print(f"  [{len(res.segments)}seg] {segs}")
+                print(f"  [{len(res.segments)}seg] {segs}", flush=True)
         if len(seen) >= 8: break
 
     # Regular examples
-    print(f"\n=== Regular Examples ===")
+    print(f"\n=== Regular Examples ===", flush=True)
     for text, _ in samples[:12]:
         res = rec.recognize(text)
         segs = " | ".join(f"「{s.text}」" for s in res.segments)
-        print(f"  [{len(res.segments)}seg] {segs}")
+        print(f"  [{len(res.segments)}seg] {segs}", flush=True)
 
     # Brand scores
-    print(f"\n=== Brand Scores (higher=more likely brand) ===")
+    print(f"\n=== Brand Scores (higher=more likely brand) ===", flush=True)
     brand_scores.sort(key=lambda x: -x[1])
     for text, score in brand_scores[:12]:
-        print(f"  \"{text:20s}\"  score={score:.4f}  ✓ brand")
-    print("  ...")
+        print("  \"{text:20s}\"  score={score:.4f}  ✓ brand", flush=True)
+    print("  ...", flush=True)
     brand_scores.sort(key=lambda x: x[1])
     for text, score in brand_scores[:12]:
-        print(f"  \"{text:20s}\"  score={score:.4f}  ✗ non-brand")
+        print("  \"{text:20s}\"  score={score:.4f}  ✗ non-brand", flush=True)
 
 
 if __name__ == "__main__":

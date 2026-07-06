@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """dict_ner v1.2.2 — 中文地名/机构名/POI/品牌识别系统 CLI"""
 import os, sys, json
+import logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 VERSION = "v1.2.2"
 BASE = os.path.dirname(os.path.abspath(__file__))

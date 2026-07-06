@@ -1,6 +1,8 @@
 """品牌词 bigram 概率模型 — 从 d2_freqs CSV 训练"""
 
 import os, csv, pickle, math, time
+import logging
+logger = logging.getLogger(__name__)
 from collections import Counter
 
 
@@ -22,7 +24,7 @@ class BrandModel:
         """Train from org_d2_freqs CSV (columns: d2_text, freq) exported by org_aggregate."""
         t0 = time.time()
         size_mb = os.path.getsize(csv_path) / 1024 / 1024
-        print(f"  Training brand model from d2 CSV ({size_mb:.0f}MB,"
+        logger.info(f"  Training brand model from d2 CSV ({size_mb:.0f}MB,"
               f" d2_freq>={min_freq}, bigram_count>={min_bigram_count})...")
 
         total_in = 0
@@ -60,13 +62,13 @@ class BrandModel:
                 if (i + 1) % 3000000 == 0:
                     elapsed = time.time() - t0
                     row_rate = (i + 1) / elapsed if elapsed > 0 else 0
-                    print(f"    {i//10000:>4}w rows, kept={total_kept:,}, "
+                    logger.info(f"    {i//10000:>4}w rows, kept={total_kept:,}, "
                           f"{len(self.bigram_counts):,} bigrams, {row_rate:,.0f} rows/s")
 
         self.total_bigrams = sum(self.bigram_counts.values())
         elapsed = time.time() - t0
-        print(f"    Input: {total_in:,}, Kept (freq>={min_freq}): {total_kept:,}")
-        print(f"    {len(self.bigram_counts):,} bigrams (raw), "
+        logger.info(f"    Input: {total_in:,}, Kept (freq>={min_freq}): {total_kept:,}")
+        logger.info(f"    {len(self.bigram_counts):,} bigrams (raw), "
               f"{len(self.unigram_counts):,} unigrams ({elapsed:.0f}s)")
 
         if min_bigram_count > 1:
@@ -75,7 +77,7 @@ class BrandModel:
                 k: v for k, v in self.bigram_counts.items() if v >= min_bigram_count
             })
             self.total_bigrams = sum(self.bigram_counts.values())
-            print(f"    Bigram filter count>={min_bigram_count}: "
+            logger.info(f"    Bigram filter count>={min_bigram_count}: "
                   f"{before:,} → {len(self.bigram_counts):,} "
                   f"(-{before-len(self.bigram_counts):,}, "
                   f"{-100*(before-len(self.bigram_counts))/max(1,before):.0f}%)")
@@ -86,7 +88,7 @@ class BrandModel:
         count_pair = self.bigram_counts.get(pair, 0)
         count_ch1 = self.unigram_counts.get(ch1, 0)
         if count_ch1 == 0:
-            return 1.0 / (self.total_bigrams + self.smoothing)
+            return 1.0 / (len(self.unigram_counts) + self.smoothing)
         return (count_pair + self.smoothing) / (count_ch1 + self.smoothing * len(self.unigram_counts))
 
     def _avg_log_prob(self, text: str) -> float:
@@ -126,7 +128,7 @@ class BrandModel:
                 "total_bigrams": self.total_bigrams,
                 "smoothing": self.smoothing,
             }, f, pickle.HIGHEST_PROTOCOL)
-        print(f"  Saved brand model ({os.path.getsize(self._path)/1024/1024:.0f}MB)")
+        logger.info(f"  Saved brand model ({os.path.getsize(self._path)/1024/1024:.0f}MB)")
 
     def load(self) -> bool:
         path = self._path

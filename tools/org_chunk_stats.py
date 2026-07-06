@@ -59,7 +59,7 @@ def process_line(rec, text, d1_freqs, d2_freqs, d3_freqs, d4_freqs, d4_cats, seg
 
 def main():
     if len(sys.argv) < 3:
-        print(f"Usage: {sys.argv[0]} <chunk.csv> <output.pkl>")
+        print(f"Usage: {sys.argv[0]} <chunk.csv> <output.pkl>", flush=True)
         sys.exit(1)
     inp, out_pkl = sys.argv[1], sys.argv[2]
     rec = OrgDPRecognizer(os.path.join(BASE_DIR, "data"), version="v1.1.1")

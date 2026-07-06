@@ -1,6 +1,7 @@
 """新数据源 — areas/五级行政区划 + loc3.6kw"""
 
 import os, csv, time
+import logging
 from collections import Counter, defaultdict
 from typing import Dict, List, Tuple
 from core.types import SegType, ADMIN_SUFFIX_MAP, POI_SUFFIX_MAP
@@ -40,7 +41,9 @@ def normalize_village_name(name: str) -> List[str]:
 
 
 def import_areas(data_dir: str) -> Dict[SegType, Dict[str, int]]:
-    """Import five-level admin division data, return {type: {name: freq}}."""
+    """Import five-level admin division data, return {type: {name: freq}}.
+    Pseudo-frequencies: 1000 for confirmed admin names, 800 for village/community.
+    """
     areas_dir = os.path.join(data_dir, "areas")
     result = defaultdict(dict)
 
@@ -91,14 +94,14 @@ def import_areas(data_dir: str) -> Dict[SegType, Dict[str, int]]:
                     result[SegType.VILLAGE][n] = 800
 
     counts = {k: len(v) for k, v in result.items()}
-    print(f"  Imported areas: {counts}")
+    logger.info(f"  Imported areas: {counts}")
     return result
 
 
 def import_loc36kw(data_dir: str) -> Dict[SegType, Counter]:
     """Import loc_corpus.csv, split compound entries, return {type: Counter(entry: idf)}."""
     path = os.path.join(data_dir, "loc_corpus.csv")
-    print(f"  Importing loc_corpus.csv ({os.path.getsize(path)/1024/1024:.0f}MB)...")
+    logger.info(f"  Importing loc_corpus.csv ({os.path.getsize(path)/1024/1024:.0f}MB)...")
     t0 = time.time()
 
     counters = defaultdict(Counter)
@@ -137,9 +140,9 @@ def import_loc36kw(data_dir: str) -> Dict[SegType, Counter]:
                 print(f"    {raw//10000:>4}w rows, split={split:,}, "
                       f"POI={len(counters[SegType.POI]):,}")
 
-    print(f"    {raw:,} rows → {split:,} split ({time.time()-t0:.0f}s)")
+    logger.info(f"    {raw:,} rows → {split:,} split ({time.time()-t0:.0f}s)")
     for t, c in counters.items():
-        print(f"    {t.value:15s}: {len(c):>10,} unique")
+        logger.info(f"    {t.value:15s}: {len(c):>10,} unique")
     return counters
 
 
