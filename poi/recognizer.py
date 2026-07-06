@@ -1,5 +1,6 @@
 """POI识别器 — 复用OrgDP, POI专用参数"""
 import os
+import warnings
 from org.recognizer import OrgDPRecognizer
 
 
@@ -8,6 +9,8 @@ class PoiRecognizer:
         seed_path = os.path.join(os.path.dirname(data_dir), "data", "suffix_seed.csv")
         if not os.path.exists(seed_path):
             seed_path = os.path.join(data_dir, "suffix_seed.csv")
+        if not os.path.exists(seed_path):
+            warnings.warn(f"POI seed file not found (tried data/ + dicts/), POI recognition may be degraded")
         self._rec = OrgDPRecognizer(
             data_dir, dict_name=dict_name,
             disable_short_d4_penalty=True,

@@ -85,8 +85,10 @@ def process_line(rec, text, weight, d1_freqs, d2_freqs, d3_freqs, d4_freqs, d4_c
 
 
 def main():
+    if len(sys.argv) < 3:
+        print(f"Usage: {sys.argv[0]} <chunk.csv> <output.pkl>")
+        sys.exit(1)
     inp, out_pkl = sys.argv[1], sys.argv[2]
-    version = sys.argv[3] if len(sys.argv) > 3 else "poi_v1.1.0"
     seed_path = os.path.join(BASE_DIR, "data", "suffix_seed.csv")
     rec = OrgDPRecognizer(os.path.join(BASE_DIR, "data"),
                            dict_name="poi_v1.1.2.pkl",

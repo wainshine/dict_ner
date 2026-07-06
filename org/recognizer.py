@@ -390,6 +390,9 @@ class OrgDPRecognizer:
 
             for start, end, seg_type, freq in by_start.get(i, []):
                 wc = self._word_cost(seg_type, freq, end - start)
+                # Short-d4 penalty: 2-3 char POI suffixes with freq<50K and not near end of text
+                # get a heavy cost boost (7.0) to prevent short, common suffixes from
+                # hijacking the DP path. Disabled for POI mode (disable_short_d4_penalty=True).
                 if not self._disable_short_d4_penalty and seg_type == SegType.POI and 2 <= (end - start) <= 3 and freq < 50000 and end < n * 0.8:
                     wc = max(wc, 7.0)
                 tc = self._transition_cost(prev_type, seg_type)

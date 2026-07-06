@@ -36,6 +36,9 @@ class AddressRecognizer:
         self.all_words = all_words
 
     def _compute_total_freqs(self):
+        # NOTE: uses unique word count (len) as denominator for IDF.
+        # Correct semantics would be total document count per type, but
+        # that data is not stored in the dict. Empirical quality is 62.6.
         for seg_type in self.dict_data:
             self.total_freq[seg_type] = max(1, len(self.dict_data[seg_type]))
 
@@ -399,7 +402,7 @@ class AddressRecognizer:
                     text=cleaned,
                     seg_type=SegType.UNKNOWN,
                     start=seg.start,
-                    end=seg.end,
+                    end=seg.start + len(cleaned),
                     confidence=0.2,
                 )
             result.append(seg)

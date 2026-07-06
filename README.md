@@ -154,6 +154,27 @@ python tools/poi_aggregate.py
 
 Python 3.10+, 纯标准库 (无第三方依赖)。
 
+## 测试
+
+```bash
+cd /Users/wainshine/newAI/dict_ner
+python3 -m unittest discover -v -s tests/
+```
+
+| 文件 | 用例 | 类型 |
+|------|:--:|------|
+| `tests/test_suffix_matcher.py` | 6 | P1: 后缀边界合并 |
+| `tests/test_importer.py` | 12 | P1: _split_admin + classify_suffix |
+| `tests/test_loc_builder.py` | 2 | P1: chunk 加载 |
+| `tests/test_pipeline_base.py` | 8 | P1: 共享 pipeline 函数 |
+| `tests/test_loc_recognizer.py` | 9 | P2: 地名识别 (真实词典) |
+| `tests/test_org_recognizer.py` | 9 | P2: 机构名识别 (真实词典) |
+| `tests/test_brand_model.py` | 7 | P2: 品牌模型 (真实模型) |
+| `tests/test_types.py` | 12 | P3: 枚举/类型 |
+| `tests/test_config.py` | 6 | P3: 路径常量 |
+| `tests/test_pipeline.py` | 8 | P3: 集成+POI |
+| **总计** | **77** | |
+
 ## 踩过的坑
 
 1. **macOS spawn 模式**: Pool 子进程必须独立 .py 文件 + `if __name__ == '__main__'`, 最稳方案是 bash `&` 16进程后台
@@ -162,3 +183,12 @@ Python 3.10+, 纯标准库 (无第三方依赖)。
 4. **d111 注入**: 只能fallback时用, POI用dict_name独立加载后必须跳过
 5. **LOCATION 语义混用**: 地名用LOCATION(方位), 机构用INDUSTRY(行业), 通过SegType分离
 6. **POI dict_name vs version**: POI训练时必须传dict_name而非version, 否则加载org词典
+
+## 版本记录
+
+| 版本 | 日期 | 变更 |
+|------|------|------|
+| v1.2.2 | 2026-07-06 | 架构重构: 修复审计 H1-H4 (工具链去重、后缀合并、POI词典统一、子进程错误处理)。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`。词典升级至 v1.1.2。新增 77 条单元测试 |
+| v1.2.1 | 2026-07-06 | 审计修复: 22/50 (Critical 2, High 4, Medium 10, Low 6) |
+| v1.1.1 | — | 词典收敛版: 四词典统一 v1.1.1, brand 分离度 4.1, poi d4 覆盖 113% |
+| v1.1.0 | — | 初版收敛词典 |
