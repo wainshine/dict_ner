@@ -3,7 +3,8 @@
 import os, csv, time
 from collections import Counter, defaultdict
 from typing import Dict, List, Tuple
-from core.types import SegType, ADMIN_SUFFIX_MAP
+from core.types import SegType, ADMIN_SUFFIX_MAP, POI_SUFFIX_MAP
+from core.suffix_matcher import find_suffix_boundaries
 
 
 # Village name normalization patterns
@@ -17,47 +18,8 @@ VILLAGE_NORMALIZE = [
 ]
 
 
-# d444 suffix → category mapping (same as before, kept for classify_suffix)
-SUFFIX_TO_CATEGORY = {
-    "医院": "医院", "卫生院": "医院", "诊所": "医院", "医务室": "医院",
-    "卫生室": "医院", "卫生所": "医院", "大药房": "医院", "药店": "医院",
-    "门诊部": "医院", "医疗": "医院", "药房": "医院", "卫生站": "医院",
-    "大学": "学校", "中学": "学校", "小学": "学校", "学院": "学校",
-    "幼儿园": "学校", "学校": "学校", "培训": "学校", "教育": "学校",
-    "托管": "学校", "托儿所": "学校", "辅导": "学校",
-    "酒店": "酒店", "宾馆": "酒店", "旅馆": "酒店", "招待所": "酒店",
-    "客栈": "酒店", "民宿": "酒店", "旅社": "酒店",
-    "饭店": "餐饮", "餐厅": "餐饮", "酒楼": "餐饮", "饭馆": "餐饮",
-    "食堂": "餐饮", "小吃": "餐饮", "面馆": "餐饮", "火锅": "餐饮",
-    "烧烤": "餐饮", "快餐": "餐饮",
-    "银行": "金融", "信用社": "金融", "保险": "金融", "证券": "金融",
-    "政府": "政府", "派出所": "政府", "公安局": "政府",
-    "法院": "政府", "检察院": "政府", "办事处": "政府", "大队": "政府",
-    "中队": "政府", "支队": "政府",
-    "车站": "交通", "火车站": "交通", "汽车站": "交通", "地铁站": "交通",
-    "机场": "交通", "加油站": "交通", "收费站": "交通", "驾校": "交通",
-    "超市": "商场", "商场": "商场", "百货": "商场", "商城": "商场",
-    "市场": "商场", "购物": "商场",
-    "大厦": "建筑", "大楼": "建筑", "广场": "建筑", "中心": "建筑",
-    "花园": "住宅", "小区": "住宅", "家园": "住宅", "新村": "住宅",
-    "新城": "住宅", "公寓": "住宅", "别墅": "住宅",
-    "公园": "景点", "景区": "景点", "寺": "景点", "庙": "景点",
-    "陵园": "景点", "博物馆": "景点", "纪念馆": "景点",
-    "度假村": "旅游", "山庄": "旅游", "乐园": "旅游",
-    "工厂": "工业", "厂": "工业", "车间": "工业", "制造": "工业",
-    "加工": "工业", "机械厂": "工业",
-    "农场": "农业", "合作社": "农业", "养殖": "农业", "种植": "农业",
-    "水库": "水利", "电站": "能源", "泵站": "水利",
-    "公司": "商业", "有限公司": "商业", "集团": "商业", "企业": "商业",
-    "店": "商业", "铺": "商业", "商行": "商业",
-    "局": "政府", "所": "政府", "委": "政府", "部": "政府", "会": "政府",
-    "苑": "住宅", "庭": "住宅", "阁": "住宅",
-    "城": "建筑", "园": "景点", "行": "商业",
-}
-
-
 def classify_suffix(sfx: str) -> str:
-    for kw, cat in sorted(SUFFIX_TO_CATEGORY.items(), key=lambda x: -len(x[0])):
+    for kw, cat in sorted(POI_SUFFIX_MAP.items(), key=lambda x: -len(x[0])):
         if sfx.endswith(kw):
             return cat
     return "建筑"
@@ -179,35 +141,13 @@ def import_loc36kw(data_dir: str) -> Dict[SegType, Counter]:
 
 
 def _split_admin(text: str) -> List[Tuple[str, SegType]]:
-    """Same logic as DictBuilder._split_by_admin_suffixes."""
-    all_boundaries = []
-    for stype, sfx_set in ADMIN_SUFFIX_MAP.items():
-        for sfx in sfx_set:
-            pos = text.find(sfx)
-            while pos >= 0:
-                end = pos + len(sfx)
-                all_boundaries.append((end, sfx, stype, pos))
-                pos = text.find(sfx, end)
-
-    if not all_boundaries:
+    boundaries = find_suffix_boundaries(text, ADMIN_SUFFIX_MAP)
+    if not boundaries:
         return []
-
-    all_boundaries.sort(key=lambda x: (x[0], -len(x[1])))
-    merged = []
-    for end, sfx, stype, spos in all_boundaries:
-        if not merged:
-            merged.append((end, sfx, stype))
-            continue
-        prev_end, prev_sfx, prev_type = merged[-1]
-        if end <= prev_end or spos < prev_end:
-            if len(sfx) > len(prev_sfx):
-                merged[-1] = (end, sfx, stype)
-            continue
-        merged.append((end, sfx, stype))
 
     components = []
     start = 0
-    for end, sfx, stype in merged:
+    for end, _spos, _sfx, stype in boundaries:
         comp = text[start:end]
         if comp and len(comp) > 1:
             components.append((comp, stype))

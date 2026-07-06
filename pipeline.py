@@ -12,9 +12,9 @@ DICT_DIR = os.path.join(BASE_DIR, "dicts")
 
 
 class DictNerPipeline:
-    def __init__(self, loc_dict: str = "loc_v1.1.1",
-                 org_dict: str = "v1.1.1",
-                 poi_dict: str = "poi_v1.1.1"):
+    def __init__(self, loc_dict: str = "loc_v1.1.2",
+                 org_dict: str = "v1.1.2",
+                 poi_dict: str = "poi_v1.1.2"):
         self.loc_version = loc_dict
         self.org_version = org_dict
         self.poi_version = poi_dict

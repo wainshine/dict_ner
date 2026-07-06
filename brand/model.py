@@ -1,4 +1,4 @@
-"""品牌词 bigram 概率模型 — 从 d222 或 d2 CSV 训练"""
+"""品牌词 bigram 概率模型 — 从 d2_freqs CSV 训练"""
 
 import os, csv, pickle, math, time
 from collections import Counter
@@ -16,33 +16,6 @@ class BrandModel:
     @property
     def _path(self):
         return os.path.join(self.cache_dir, f"brand_{self.version}.pkl")
-
-    def train_from_d222(self, data_dir: str, max_lines: int = 0):
-        path = os.path.join(data_dir, "brand_segments_sql.csv")
-        t0 = time.time()
-        print(f"  Training brand model from d222 ({os.path.getsize(path)/1024/1024:.0f}MB)...")
-
-        with open(path, encoding="utf-8-sig") as f:
-            for i, row in enumerate(csv.DictReader(f)):
-                text = row["d2"].strip()
-                if not text or len(text) < 2:
-                    continue
-                if max_lines and i >= max_lines:
-                    break
-
-                for j in range(len(text)):
-                    self.unigram_counts[text[j]] += 1
-
-                for j in range(len(text) - 1):
-                    pair = text[j] + text[j + 1]
-                    self.bigram_counts[pair] += 1
-
-                if (i + 1) % 2000000 == 0:
-                    print(f"    {i//10000:>4}w lines, {len(self.bigram_counts):,} bigrams")
-
-        self.total_bigrams = sum(self.bigram_counts.values())
-        print(f"    {len(self.bigram_counts):,} bigrams, "
-              f"{len(self.unigram_counts):,} unigrams ({time.time()-t0:.0f}s)")
 
     def train_from_d2_csv(self, csv_path: str, min_freq: int = 2,
                           min_bigram_count: int = 5, max_lines: int = 0):

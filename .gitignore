@@ -1,6 +1,8 @@
 *.pyc
-/dicts/iter_v1.1.1
+/dicts/iter_v*
 /data
-dicts/suffix_seed.csv
+data/suffix_seed.csv
 /output
 .DS_Store
+dicts/poi_suffix_category.csv
+dicts/loc36kw_counters_*.pkl

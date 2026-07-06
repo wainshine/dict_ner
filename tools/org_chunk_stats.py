@@ -6,10 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from org.recognizer import OrgDPRecognizer
 from core.types import SegType
-
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ADDR_TYPES = {SegType.PROVINCE, SegType.CITY, SegType.DISTRICT,
-              SegType.TOWN, SegType.VILLAGE, SegType.COMMUNITY, SegType.ROAD}
+from core.config import BASE_DIR, ADDR_TYPES
 
 
 def is_header(line: str) -> bool:
@@ -51,7 +48,7 @@ def process_line(rec, text, d1_freqs, d2_freqs, d3_freqs, d4_freqs, d4_cats, seg
         elif s.text in rec.d3_set:
             d3_hit += 1
             d3_freqs[s.text] += 1
-        elif s.seg_type == SegType.UNKNOWN:
+        elif s.seg_type in (SegType.UNKNOWN, SegType.BRAND):
             cleaned = clean_d2(s.text)
             if is_good_d2(cleaned):
                 d2_hit += 1
@@ -62,7 +59,7 @@ def process_line(rec, text, d1_freqs, d2_freqs, d3_freqs, d4_freqs, d4_cats, seg
 
 def main():
     inp, out_pkl = sys.argv[1], sys.argv[2]
-    rec = OrgDPRecognizer(os.path.join(BASE, "dicts"), os.path.join(BASE, "data"))
+    rec = OrgDPRecognizer(os.path.join(BASE_DIR, "dicts"), os.path.join(BASE_DIR, "data"))
 
     total = 0
     d1_freqs = Counter()

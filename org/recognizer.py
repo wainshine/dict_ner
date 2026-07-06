@@ -42,7 +42,7 @@ class OrgDPRecognizer:
         from brand.model import BrandModel
         base = os.path.dirname(os.path.dirname(__file__))
         dict_dir = os.path.join(base, "dicts")
-        for ver in (self._version, "v1.1.0", ""):
+        for ver in (self._version, "v1.1.2", "v1.1.1", ""):
             bm = BrandModel(dict_dir, version=ver) if ver else BrandModel(dict_dir)
             if bm.load():
                 self._brand_model = bm
@@ -63,7 +63,7 @@ class OrgDPRecognizer:
             cache_path = os.path.join(os.path.dirname(data_dir), "dicts",
                                       f"org_{self._version}.pkl")
             if not os.path.exists(cache_path):
-                for fallback in ("v1.1.0", ""):
+                for fallback in ("v1.1.1", ""):
                     fb = os.path.join(os.path.dirname(data_dir), "dicts",
                                       f"org_{fallback}.pkl" if fallback else "org.pkl")
                     if os.path.exists(fb):

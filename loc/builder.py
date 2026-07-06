@@ -16,7 +16,11 @@ class DictBuilder:
     # ── Phase 1: loc3.6kw idf-based counters (replaces self-mined + d111) ──
 
     def build_from_loc36kw(self, data_dir: str):
-        path = os.path.join(data_dir, "loc_corpus.csv")
+        split_dir = os.path.join(data_dir, "split", "loc")
+        chunk_files = sorted([
+            os.path.join(split_dir, f) for f in os.listdir(split_dir)
+            if f.startswith("chunk_") and f.endswith(".csv")
+        ])
         cache_path = os.path.join(self.cache_dir, f"loc36kw_counters_{self.version}.pkl")
 
         if os.path.exists(cache_path):
@@ -25,7 +29,7 @@ class DictBuilder:
                 counters = pickle.load(f)
             print(f"  Loaded loc3.6kw counters from cache ({time.time()-t0:.1f}s)")
         else:
-            counters = self._scan_loc36kw(path)
+            counters = self._scan_loc36kw_chunks(chunk_files)
             with open(cache_path, "wb") as f:
                 pickle.dump(counters, f, pickle.HIGHEST_PROTOCOL)
             print(f"  Cached loc3.6kw counters ({os.path.getsize(cache_path)/1024/1024:.0f}MB)")
@@ -51,33 +55,38 @@ class DictBuilder:
                     kept += 1
             print(f"  {st.value:15s}: {kept:>8,} (idf>={thresh})")
 
-    def _scan_loc36kw(self, path: str):
+    def _scan_loc36kw_chunks(self, files: list):
         from loc.importer import _split_admin
-        print(f"  Scanning loc3.6kw ({os.path.getsize(path)/1024/1024:.0f}MB)...")
+        total_size_mb = sum(os.path.getsize(f) for f in files) / 1024 / 1024
+        print(f"  Scanning loc3.6kw from {len(files)} chunks ({total_size_mb:.0f}MB)...")
         t0 = time.time()
         counters = defaultdict(Counter)
-        with open(path, encoding="gbk", errors="replace") as f:
-            for i, line in enumerate(f):
-                parts = line.strip().rsplit(",", 1)
-                if len(parts) != 2:
-                    continue
-                text, idf_s = parts[0].strip(), parts[1].strip()
-                if not text or len(text) < 2:
-                    continue
-                try:
-                    idf = max(1, int(float(idf_s)))
-                except ValueError:
-                    idf = 1
+        i = 0
+        for fp in files:
+            with open(fp, encoding="utf-8") as f:
+                next(f)  # skip header
+                for line in f:
+                    parts = line.strip().rsplit(",", 1)
+                    if len(parts) != 2:
+                        continue
+                    text, idf_s = parts[0].strip(), parts[1].strip()
+                    if not text or len(text) < 2:
+                        continue
+                    try:
+                        idf = max(1, int(float(idf_s)))
+                    except ValueError:
+                        idf = 1
 
-                comps = _split_admin(text)
-                for comp, st in comps:
-                    counters[st][comp] += idf
+                    comps = _split_admin(text)
+                    for comp, st in comps:
+                        counters[st][comp] += idf
 
-                if (i + 1) % 5000000 == 0:
-                    elapsed = time.time() - t0
-                    print(f"    {i//10000:>4}w rows ({elapsed:.0f}s)")
+                    i += 1
+                    if i % 5000000 == 0:
+                        elapsed = time.time() - t0
+                        print(f"    {i//10000:>4}w rows ({elapsed:.0f}s)")
 
-        print(f"    {i+1:,} rows in {time.time()-t0:.0f}s")
+        print(f"    {i:,} rows in {time.time()-t0:.0f}s")
         return counters
 
     # ── Phase 2: d444 POI suffixes ──

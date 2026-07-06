@@ -6,10 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from org.recognizer import OrgDPRecognizer
 from core.types import SegType
-
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ADDR_TYPES = {SegType.PROVINCE, SegType.CITY, SegType.DISTRICT,
-              SegType.TOWN, SegType.VILLAGE, SegType.COMMUNITY, SegType.ROAD}
+from core.config import BASE_DIR, ADDR_TYPES
 
 
 def clean_d2(text: str) -> str:
@@ -78,7 +75,7 @@ def process_line(rec, text, weight, d1_freqs, d2_freqs, d3_freqs, d4_freqs, d4_c
         elif s.text in rec.d3_set:
             d3_hit += weight
             d3_freqs[s.text] += weight
-        elif s.seg_type == SegType.UNKNOWN:
+        elif s.seg_type in (SegType.UNKNOWN, SegType.BRAND):
             cleaned = clean_d2(s.text)
             if is_good_d2(cleaned):
                 d2_hit += weight
@@ -90,9 +87,9 @@ def process_line(rec, text, weight, d1_freqs, d2_freqs, d3_freqs, d4_freqs, d4_c
 def main():
     inp, out_pkl = sys.argv[1], sys.argv[2]
     version = sys.argv[3] if len(sys.argv) > 3 else "poi_v1.1.0"
-    seed_path = os.path.join(BASE, "dicts", "suffix_seed.csv")
-    rec = OrgDPRecognizer(os.path.join(BASE, "data"),
-                          dict_name="poi_v1.1.0.pkl",
+    seed_path = os.path.join(BASE_DIR, "data", "suffix_seed.csv")
+    rec = OrgDPRecognizer(os.path.join(BASE_DIR, "data"),
+                           dict_name="poi_v1.1.2.pkl",
                           disable_short_d4_penalty=True, allow_adjacent_d4=True,
                           poi_seed_path=seed_path)
 

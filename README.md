@@ -1,4 +1,4 @@
-# dict_ner v1.2.1
+# dict_ner v1.2.2
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型。
 
@@ -43,45 +43,47 @@ pipeline.py  统一总线
 run.py       CLI入口
 ```
 
-## 词典 (v1.1.1, 已收敛)
+## 词典 (v1.1.2, 当前版)
 
 | 词典 | 条目 | 大小 | 说明 |
 |------|------|:--:|------|
-| `dicts/loc_v1.1.1.pkl` | 120万 | 25MB | 省/市/区/镇/村/路 10类 |
-| `dicts/org_v1.1.1.pkl` | d1=66K d3=20K d4=9.6K | 1.8MB | d1≥5阈值 |
-| `dicts/poi_v1.1.1.pkl` | d1=55K d3=4.8K d4=17K | 1.3MB | d1≥5 d3≥10 |
-| `dicts/brand_v1.1.1.pkl` | 90万bigram | 10MB | 分离度4.1 |
+| `dicts/loc_v1.1.2.pkl` | 120万 | 25MB | 省/市/区/镇/村/路 10类 |
+| `dicts/org_v1.1.2.pkl` | d1=64K d3=20K d4=9.6K | 1.8MB | d1≥5阈值 |
+| `dicts/poi_v1.1.2.pkl` | d1=44K d3=4.8K d4=16K | 1.2MB | d1≥5 d3≥10 |
+| `dicts/brand_v1.1.2.pkl` | 90万bigram | 10MB | 分离度4.1 |
+
+> v1.1.1 版本保留在 `dicts/` 中作为兜底。
 
 ## 目录结构
 
 ```
 dict_ner/
-├── core/         共享类型和常量 (SegType, Trie)
-├── loc/          地名识别器 + 词典构建器
-├── org/          机构名识别器
-├── poi/          POI识别器 (thin wrapper over org DP)
-├── brand/        品牌词概率模型
-├── geomodel/     pickle 兼容层
-├── pipeline.py   统一识别总线
-├── run.py        CLI 入口
-├── eval.py       评估脚本
-├── tools/        训练/迭代工具
+├── core/                共享类型和常量 (SegType, Trie, config, suffix_matcher)
+├── loc/                 地名识别器 + 词典构建器
+├── org/                 机构名识别器
+├── poi/                 POI识别器 (thin wrapper over org DP)
+├── brand/               品牌词概率模型
+├── pipeline.py          统一识别总线
+├── run.py               CLI 入口
+├── eval.py              评估脚本
+├── tools/               训练/迭代工具
 │   ├── org_launch.py / org_chunk_stats.py / org_aggregate.py
 │   ├── poi_launch.py / poi_chunk_stats.py / poi_aggregate.py / poi_dedup.py
-│   ├── org_sample_jsonl.py / org_eval.py
-├── data/         语料与分片
-│   ├── loc_corpus.csv (1.3GB)
-│   ├── poi_deduped.txt (960MB, 去重后4000万条)
-│   ├── addr/brand/trade/suffix_segments_sql.csv
+│   ├── pipeline_base.py (共享pipeline函数, org/poi 去重后提取)
+│   ├── org_eval.py / org_sample_jsonl.py / compare_versions.py
+├── data/                语料与分片
+│   ├── addr/trade/suffix_segments_sql.csv
+│   ├── suffix_seed.csv (POI后缀种子, 429KB)
 │   ├── areas/ (五级行政区划)
 │   ├── 公司名input.txt (1.2GB, 备用语料)
 │   ├── 地名A/T input.txt (测试集)
 │   └── split/{loc,org,poi}/ (16 chunk 分片)
-├── dicts/        词典
-│   ├── *v1.1.1.pkl (4个, 当前版)
-│   ├── *v1.1.0.pkl (4个, 兜底旧版)
-│   ├── suffix_seed.csv (POI后缀种子)
-│   └── iter_v1.1.1/ (当前迭代数据)
+├── dicts/               词典
+│   ├── *v1.1.2.pkl (4个, 当前版)
+│   ├── *v1.1.1.pkl (4个, 兜底版)
+│   └── poi_suffix_category.csv (131条后缀→类别映射)
+├── audit/               审计报告 (50条问题清单 + 修复建议)
+│   └── HANDOVER.md      交接手册
 └── output/
     └── org_sample_100k.jsonl (10万条机构识别样本)
 ```
@@ -90,7 +92,7 @@ dict_ner/
 
 | 指标 | 值 |
 |------|:--:|
-| 地名 Score | 60.8 (5000条采样) |
+| 地名 Score | 62.6 (5000条采样, v1.1.2) |
 | 机构 OK 率 | 93.3% (2万条采样) |
 | 机构 d2_as_d4 | 3.6% |
 | POI d4 覆盖 | 113% |
@@ -99,17 +101,32 @@ dict_ner/
 
 ## 如何训练
 
-### 地名
+### 地名 (~4min)
 
 ```bash
-python -c "from loc.builder import DictBuilder; ..."
+python -c "
+from loc.builder import DictBuilder
+b = DictBuilder('dicts', 'loc_v1.1.2')
+b.build_from_loc36kw('data'); b.build_from_areas('data')
+b.build_from_d444('data'); b.cleanup()
+b.build_orientation_dict(); b.build_location_dict(); b.save()
+"
 ```
 
 ### 机构名 (16并行, ~6min)
 
 ```bash
-python tools/org_launch.py clean stats
+python tools/org_launch.py split stats
 python tools/org_aggregate.py
+```
+
+### 品牌模型 (~1min)
+
+```python
+from brand.model import BrandModel
+model = BrandModel('dicts', version='v1.1.2')
+model.train_from_d2_csv("dicts/iter_v1.1.2/org_d2_freqs_v1.1.2.csv", min_freq=3, min_bigram_count=10)
+model.save()
 ```
 
 ### POI (16并行, ~4min)
@@ -118,13 +135,6 @@ python tools/org_aggregate.py
 python tools/poi_dedup.py              # 去重
 python tools/poi_launch.py split stats
 python tools/poi_aggregate.py
-```
-
-### 品牌模型 (~1min)
-
-```python
-from brand.model import BrandModel
-model.train_from_d2_csv("dicts/iter_v1.1.1/org_d2_freqs_v1.1.1.csv", min_freq=3, min_bigram_count=10)
 ```
 
 ## 段类型说明

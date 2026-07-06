@@ -17,7 +17,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DICT_DIR = os.path.join(BASE_DIR, "dicts")
 
 SAMPLE_SIZE = 5000
-VERSION = os.environ.get("DICT_VERSION", "loc_v1.1.0")
+VERSION = os.environ.get("DICT_VERSION", "loc_v1.1.1")
 
 
 def sample_from_gbk(filepath, n):

@@ -4,6 +4,7 @@ from core.types import (
     SegType, AddressSegment, AddressResult,
     LEVEL_ORDER, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_MAP, POI_SUFFIX_MAP,
 )
+from core.suffix_matcher import find_suffix_boundaries
 
 
 STOP_CHARS = set("，。；、！？：,.!?;: \t")
@@ -184,14 +185,6 @@ class AddressRecognizer:
                 suffix_positions.append((end, pos, sfx, SegType.POI))
                 pos = text.find(sfx, end)
 
-        for sfx in LOCATION_SUFFIX_MAP:
-            if len(sfx) >= 2:
-                pos = text.find(sfx)
-                while pos >= 0:
-                    end = pos + len(sfx)
-                    suffix_positions.append((end, pos, sfx, SegType.LOCATION))
-                    pos = text.find(sfx, end)
-
         if not suffix_positions:
             return []
 
@@ -199,7 +192,7 @@ class AddressRecognizer:
 
     def _find_location_patterns(self, text: str, n: int) -> List[Tuple[int, int, SegType, int]]:
         matches = []
-        for sfx in sorted(LOCATION_SUFFIX_MAP, key=lambda x: -len(x)):
+        for sfx in LOCATION_SUFFIX_MAP:
             pos = text.find(sfx)
             while pos >= 0:
                 end = pos + len(sfx)

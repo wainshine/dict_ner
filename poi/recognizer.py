@@ -5,9 +5,9 @@ from org.recognizer import OrgDPRecognizer
 
 class PoiRecognizer:
     def __init__(self, data_dir: str, dict_name: str = "poi_v1.1.1.pkl"):
-        seed_path = os.path.join(os.path.dirname(data_dir), "dicts", "suffix_seed.csv")
+        seed_path = os.path.join(os.path.dirname(data_dir), "data", "suffix_seed.csv")
         if not os.path.exists(seed_path):
-            seed_path = os.path.join(data_dir, "dicts", "suffix_seed.csv")
+            seed_path = os.path.join(data_dir, "suffix_seed.csv")
         self._rec = OrgDPRecognizer(
             data_dir, dict_name=dict_name,
             disable_short_d4_penalty=True,

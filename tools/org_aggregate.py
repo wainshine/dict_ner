@@ -4,12 +4,10 @@ import os, sys, pickle, csv as csv_mod
 from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from core.config import BASE_DIR, DICT_DIR, DATA_DIR, VERSION, NUM_CHUNKS
+from tools.pipeline_base import aggregate_stats_files, export_d2_csv
 
-VERSION = "v1.1.1"
-NUM_CHUNKS = 16
-STATS_DIR = os.path.join(BASE, "dicts")
-DATA_DIR = os.path.join(BASE, "data")
+STATS_DIR = DICT_DIR
 OUT_DIR = os.path.join(STATS_DIR, f"iter_{VERSION}")
 
 MANUAL_EXCLUDE_D4 = {
@@ -50,58 +48,11 @@ def is_good_d4_suffix(sfx: str, freq: int, quality: dict) -> bool:
     return True
 
 
-def aggregate(stats_files: list, quality: dict):
-    merged = Counter()
-    d1_freqs = Counter()
-    d2_freqs = Counter()
-    d3_freqs = Counter()
-    d4_freqs = Counter()
-    d4_cats = Counter()
-    seg_dist = Counter()
-    total = 0
-    d2_hit = d3_hit = d4_hit = 0
-
-    for path in stats_files:
-        if not os.path.exists(path):
-            print(f"  MISSING: {path}", flush=True)
-            continue
-        with open(path, "rb") as f:
-            s = pickle.load(f)
-        total += s["total"]
-        d2_hit += s.get("d2_hit", 0)
-        d3_hit += s.get("d3_hit", 0)
-        d4_hit += s.get("d4_hit", 0)
-        d1_freqs += s.get("d1_freqs", Counter())
-        d2_freqs += s.get("d2_freqs", Counter())
-        d3_freqs += s.get("d3_freqs", Counter())
-        d4_freqs += s.get("d4_freqs", Counter())
-        d4_cats += s.get("d4_cats", Counter())
-        seg_dist += s.get("seg_dist", Counter())
-
-    return {
-        "total": total, "d2_hit": d2_hit, "d3_hit": d3_hit, "d4_hit": d4_hit,
-        "d1_freqs": d1_freqs, "d2_freqs": d2_freqs,
-        "d3_freqs": d3_freqs, "d4_freqs": d4_freqs,
-        "d4_cats": d4_cats, "seg_dist": seg_dist,
-    }
-
-
 def prune(merged: dict, quality: dict) -> dict:
     d1 = {w: f for w, f in merged["d1_freqs"].items() if f >= THRESHOLDS["d1"]}
     d3 = {w: f for w, f in merged["d3_freqs"].items() if f >= THRESHOLDS["d3"]}
     d4 = {w: f for w, f in merged["d4_freqs"].items() if is_good_d4_suffix(w, f, quality)}
     return {"d1_freqs": d1, "d3_freqs": d3, "d4_freqs": d4}
-
-
-def export_d2_csv(d2_freqs: Counter, out_path: str):
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w", encoding="utf-8", newline="") as f:
-        w = csv_mod.writer(f)
-        w.writerow(["d2_text", "freq"])
-        for text, freq in d2_freqs.most_common():
-            w.writerow([text, freq])
-    mb = os.path.getsize(out_path) / 1024 / 1024
-    print(f"  Exported d2 CSV: {out_path} ({mb:.1f}MB, {len(d2_freqs):,} unique)")
 
 
 def print_report(merged: dict, pruned: dict):
@@ -145,7 +96,7 @@ def main():
     print(f"Loaded d444 quality data: {len(quality):,} suffixes", flush=True)
 
     stats_files = [os.path.join(STATS_DIR, f"iter_{VERSION}", f"org_stats_{i:02d}.pkl") for i in range(NUM_CHUNKS)]
-    merged = aggregate(stats_files, quality)
+    merged = aggregate_stats_files(stats_files)
     pruned = prune(merged, quality)
     print_report(merged, pruned)
 

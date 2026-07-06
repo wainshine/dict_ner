@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""dict_ner v1.2.1 — 中文地名/机构名/POI/品牌识别系统 CLI"""
+"""dict_ner v1.2.2 — 中文地名/机构名/POI/品牌识别系统 CLI"""
 import os, sys, json
 
-VERSION = "v1.2.1"
+VERSION = "v1.2.2"
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
