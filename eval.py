@@ -17,7 +17,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DICT_DIR = os.path.join(BASE_DIR, "dicts")
 
 SAMPLE_SIZE = 5000
-VERSION = os.environ.get("DICT_VERSION", "loc_v1.1.1")
+VERSION = os.environ.get("DICT_VERSION", "loc_v1.1.2")
 
 
 def sample_from_gbk(filepath, n):
@@ -175,6 +175,8 @@ def print_report(stats):
     else:
         print(f"  Valid transitions:  N/A (no transitions)")
 
+    # Quality score: penalties for unknown chars (weight 1.5) and invalid transitions (weight 0.5)
+    # Max score 100. Unknown char rate penalized harder than bad transitions.
     score = max(0, 100 - unknown_rate * 1.5 - (100 - valid_rate) * 0.5)
     print(f"  Quality score:      {score:.1f}/100")
 

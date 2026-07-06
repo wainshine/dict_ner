@@ -20,19 +20,22 @@ VILLAGE_NORMALIZE = [
 
 def classify_suffix(sfx: str) -> str:
     for kw, cat in sorted(POI_SUFFIX_MAP.items(), key=lambda x: -len(x[0])):
-        if sfx.endswith(kw):
+        if len(kw) == 1:
+            if sfx == kw:
+                return cat
+        elif sfx.endswith(kw):
             return cat
     return "建筑"
 
 
 def normalize_village_name(name: str) -> List[str]:
-    """Return both original and normalized forms of a village name."""
     results = {name}
-    for pattern, replacement in VILLAGE_NORMALIZE:
-        if pattern in name:
-            norm = name.replace(pattern, replacement)
-            if norm != name and len(norm) >= 2:
-                results.add(norm)
+    accumulated = name
+    for pattern, replacement in sorted(VILLAGE_NORMALIZE, key=lambda x: -len(x[0])):
+        if pattern in accumulated:
+            accumulated = accumulated.replace(pattern, replacement)
+            if len(accumulated) >= 2:
+                results.add(accumulated)
     return list(results)
 
 

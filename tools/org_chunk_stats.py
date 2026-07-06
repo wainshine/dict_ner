@@ -62,7 +62,7 @@ def main():
         print(f"Usage: {sys.argv[0]} <chunk.csv> <output.pkl>")
         sys.exit(1)
     inp, out_pkl = sys.argv[1], sys.argv[2]
-    rec = OrgDPRecognizer(os.path.join(BASE_DIR, "dicts"), os.path.join(BASE_DIR, "data"))
+    rec = OrgDPRecognizer(os.path.join(BASE_DIR, "data"), version="v1.1.1")
 
     total = 0
     d1_freqs = Counter()

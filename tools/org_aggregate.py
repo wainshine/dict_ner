@@ -32,7 +32,7 @@ def load_d444_quality(data_dir: str) -> dict:
                 org = int(row.get("org", 0) or 0)
                 loc = int(row.get("loc", 0) or 0)
             except (ValueError, KeyError):
-                com = org = loc = 0
+                continue  # malformed row: can't determine quality, skip
             quality[sfx] = {"com": com, "org": org, "loc": loc}
     return quality
 

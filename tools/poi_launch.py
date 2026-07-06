@@ -36,6 +36,19 @@ def cmd_stats():
         sys.exit(1)
 
 
+def _check_sources():
+    missing = []
+    for path in (POI_A, POI_T):
+        if not os.path.exists(path):
+            missing.append(path)
+    if missing:
+        print(f"ERROR: POI source file(s) not found. Cannot rebuild chunks.")
+        for m in missing:
+            print(f"  Missing: {m}")
+        print(f"  To restore chunks without rebuilding: copy from backup to {SPLIT_DIR}/")
+        sys.exit(1)
+
+
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "all"
     chunks_exist = os.path.exists(os.path.join(SPLIT_DIR, "chunk_00.csv"))
@@ -48,6 +61,7 @@ def main():
         if chunks_exist:
             print(f"Split chunks exist at {SPLIT_DIR}, skipping dedup+split")
         else:
+            _check_sources()
             cmd_dedup()
             cmd_split()
     if cmd in ("clean", "all"):

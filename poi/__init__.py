@@ -1,1 +1,3 @@
-"""dict_ner.poi"""
+from poi.recognizer import PoiRecognizer
+
+__all__ = ["PoiRecognizer"]

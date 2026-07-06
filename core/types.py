@@ -19,7 +19,7 @@ class SegType(str, Enum):
     NUMERIC = "NUMERIC"
     LOCATION = "LOCATION"
     INDUSTRY = "INDUSTRY"
-    BRAND = "BRAND"
+    BRAND = "BRAND"  # used by OrgDPRecognizer to relabel UNKNOWN segments
     UNKNOWN = "UNKNOWN"
     CHAR = "CHAR"
 
@@ -61,7 +61,7 @@ ADMIN_SUFFIX_MAP = {
 }
 
 
-LOCATION_SUFFIX_MAP = {
+LOCATION_SUFFIX_SET = {
     "院内", "场内", "楼内", "校内", "园内", "店内", "屋内", "室内", "局内",
     "旁", "旁边", "东旁", "西旁", "南旁", "北旁",
     "对面", "对过", "斜对面", "正对面",

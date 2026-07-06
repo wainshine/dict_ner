@@ -3,11 +3,11 @@
 import os, time, pickle, csv
 from collections import Counter, defaultdict
 from typing import Dict, List, Set, Tuple, Optional
-from core.types import SegType, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_MAP, POI_SUFFIX_MAP
+from core.types import SegType, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_SET, POI_SUFFIX_MAP
 
 
 class DictBuilder:
-    def __init__(self, cache_dir: str, version: str = "v5"):
+    def __init__(self, cache_dir: str, version: str = "v1.1.2"):
         self.cache_dir = cache_dir
         self.version = version
         self.dict_data: Dict[SegType, Dict[str, int]] = defaultdict(dict)
@@ -146,7 +146,7 @@ class DictBuilder:
         comp = set()
         for s in ADMIN_SUFFIX_MAP.values():
             comp.update(x for x in s if len(x) >= 2)
-        rm = [w for w in d if any(s in w for s in comp)]
+        rm = [w for w in d if any(s != w and s in w for s in comp)]
         for w in rm:
             del d[w]
         if rm:
@@ -181,7 +181,7 @@ class DictBuilder:
             self.dict_data[SegType.ORIENTATION][o] = 100
 
     def build_location_dict(self):
-        for loc in LOCATION_SUFFIX_MAP:
+        for loc in LOCATION_SUFFIX_SET:
             self.dict_data[SegType.LOCATION][loc] = 80
 
     # ── IO ──
@@ -193,12 +193,15 @@ class DictBuilder:
         print(f"  Saved: {path} ({os.path.getsize(path)/1024/1024:.0f}MB)")
 
     @classmethod
-    def load(cls, cache_dir: str, version: str = "loc_v1.1.1"):
+    def load(cls, cache_dir: str, version: str = "loc_v1.1.2"):
         path = os.path.join(cache_dir, f"{version}.pkl")
         if not os.path.exists(path):
             raise FileNotFoundError(f"No dict file: {path}")
         with open(path, "rb") as f:
-            d = pickle.load(f)
+            try:
+                d = pickle.load(f)
+            except (pickle.UnpicklingError, EOFError, AttributeError) as e:
+                raise ValueError(f"Corrupted dict file: {path} ({e})") from e
         b = cls(cache_dir, version)
         b.dict_data = d
         return b

@@ -11,7 +11,7 @@ class BrandModel:
         self.bigram_counts = Counter()
         self.unigram_counts = Counter()
         self.total_bigrams = 0
-        self.smooth = 1
+        self.smoothing = 1
 
     @property
     def _path(self):
@@ -19,6 +19,7 @@ class BrandModel:
 
     def train_from_d2_csv(self, csv_path: str, min_freq: int = 2,
                           min_bigram_count: int = 5, max_lines: int = 0):
+        """Train from org_d2_freqs CSV (columns: d2_text, freq) exported by org_aggregate."""
         t0 = time.time()
         size_mb = os.path.getsize(csv_path) / 1024 / 1024
         print(f"  Training brand model from d2 CSV ({size_mb:.0f}MB,"
@@ -85,14 +86,13 @@ class BrandModel:
         count_pair = self.bigram_counts.get(pair, 0)
         count_ch1 = self.unigram_counts.get(ch1, 0)
         if count_ch1 == 0:
-            return 1.0 / (self.total_bigrams + self.smooth)
-        return (count_pair + self.smooth) / (count_ch1 + self.smooth * len(self.unigram_counts))
+            return 1.0 / (self.total_bigrams + self.smoothing)
+        return (count_pair + self.smoothing) / (count_ch1 + self.smoothing * len(self.unigram_counts))
 
-    def brand_score(self, text: str) -> float:
-        """Higher = more likely to be a Chinese brand name.
-        Uses geometric mean of bigram transition probabilities."""
+    def _avg_log_prob(self, text: str) -> float:
+        """Average log-probability per bigram. Returns None if no valid bigrams."""
         if len(text) < 2:
-            return 0.3
+            return None
         total_log = 0.0
         count = 0
         for i in range(len(text) - 1):
@@ -101,24 +101,22 @@ class BrandModel:
                 total_log += math.log(prob)
                 count += 1
         if count == 0:
-            return 0.01
-        avg_log = total_log / count
+            return None
+        return total_log / count
+
+    def brand_score(self, text: str) -> float:
+        if self.total_bigrams == 0:
+            return 0.5
+        avg_log = self._avg_log_prob(text)
+        if avg_log is None:
+            return 0.3 if len(text) < 2 else 0.01
         return math.exp(avg_log)
 
     def log_brand_score(self, text: str) -> float:
-        """Average log-probability per bigram. Higher (less negative) = more brand-like."""
-        if len(text) < 2:
+        avg_log = self._avg_log_prob(text)
+        if avg_log is None:
             return -10.0
-        total_log = 0.0
-        count = 0
-        for i in range(len(text) - 1):
-            prob = self.bigram_prob(text[i], text[i + 1])
-            if prob > 1e-12:
-                total_log += math.log(prob)
-                count += 1
-        if count == 0:
-            return -10.0
-        return total_log / count
+        return avg_log
 
     def save(self):
         with open(self._path, "wb") as f:
@@ -126,7 +124,7 @@ class BrandModel:
                 "bigram_counts": self.bigram_counts,
                 "unigram_counts": self.unigram_counts,
                 "total_bigrams": self.total_bigrams,
-                "smooth": self.smooth,
+                "smoothing": self.smoothing,
             }, f, pickle.HIGHEST_PROTOCOL)
         print(f"  Saved brand model ({os.path.getsize(self._path)/1024/1024:.0f}MB)")
 
@@ -135,9 +133,12 @@ class BrandModel:
         if not os.path.exists(path):
             return False
         with open(path, "rb") as f:
-            data = pickle.load(f)
+            try:
+                data = pickle.load(f)
+            except (pickle.UnpicklingError, EOFError, AttributeError) as e:
+                raise ValueError(f"Corrupted brand model: {path} ({e})") from e
         self.bigram_counts = data["bigram_counts"]
         self.unigram_counts = data["unigram_counts"]
         self.total_bigrams = data["total_bigrams"]
-        self.smooth = data["smooth"]
+        self.smoothing = data.get("smoothing", data.get("smooth", 1))
         return True

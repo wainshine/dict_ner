@@ -2,7 +2,7 @@
 
 import os, csv, math, pickle
 from typing import Dict, List, Tuple
-from core.types import SegType, AddressSegment, AddressResult
+from core.types import SegType, AddressSegment, AddressResult, LEVEL_ORDER
 from loc.importer import classify_suffix
 
 
@@ -74,7 +74,10 @@ class OrgDPRecognizer:
         d4_freqs = {}
         if os.path.exists(cache_path):
             with open(cache_path, "rb") as f:
-                cached = pickle.load(f)
+                try:
+                    cached = pickle.load(f)
+                except (pickle.UnpicklingError, EOFError, AttributeError) as e:
+                    raise ValueError(f"Corrupted dict file: {cache_path} ({e})") from e
             d1_freqs = cached.get("d1_freqs", {})
             d3_freqs = cached.get("d3_freqs", {})
             d4_freqs = cached.get("d4_freqs", {})
@@ -146,7 +149,7 @@ class OrgDPRecognizer:
             print(f"  {label:12s}: {freq.get(st, 0):>8,}", flush=True)
 
     def _build_bare_name_table(self, data_dir: str) -> dict:
-        """Build {bare_name: SegType} from areas/ so '上海' → CITY, not ROAD."""
+        """Build {bare_name: SegType} from areas/ for province/city/district/town bare names."""
         table = {}
         areas_dir = os.path.join(os.path.dirname(data_dir), "data", "areas")
         if not os.path.isdir(areas_dir):
@@ -157,10 +160,16 @@ class OrgDPRecognizer:
             "壮族自治区": SegType.PROVINCE, "特别行政区": SegType.PROVINCE,
             "省": SegType.PROVINCE, "自治区": SegType.PROVINCE,
             "市": SegType.CITY, "自治州": SegType.CITY, "地区": SegType.CITY, "盟": SegType.CITY,
+            "自治县": SegType.DISTRICT, "自治旗": SegType.DISTRICT,
+            "区": SegType.DISTRICT, "县": SegType.DISTRICT, "旗": SegType.DISTRICT,
+            "办事处": SegType.TOWN, "民族乡": SegType.TOWN, "苏木": SegType.TOWN,
+            "镇": SegType.TOWN, "乡": SegType.TOWN, "街道": SegType.TOWN,
         }
 
         for fname, default_type in [("provinces.csv", SegType.PROVINCE),
-                                     ("cities.csv", SegType.CITY)]:
+                                     ("cities.csv", SegType.CITY),
+                                     ("areas.csv", SegType.DISTRICT),
+                                     ("streets.csv", SegType.TOWN)]:
             path = os.path.join(areas_dir, fname)
             if not os.path.exists(path):
                 continue
@@ -170,11 +179,17 @@ class OrgDPRecognizer:
                         name = row.get("name", "").strip()
                         if not name or len(name) < 3:
                             continue
-                        for sfx, stype in suffix_to_type.items():
+                        for sfx, stype in sorted(suffix_to_type.items(), key=lambda x: -len(x[0])):
                             if name.endswith(sfx) and len(name) > len(sfx):
                                 bare = name[:-len(sfx)]
                                 if len(bare) >= 2:
-                                    table[bare] = stype
+                                    existing = table.get(bare)
+                                    if existing is None:
+                                        table[bare] = stype
+                                    else:
+                                        # keep higher-priority type (lower LEVEL_ORDER value)
+                                        if LEVEL_ORDER.get(stype, 99) < LEVEL_ORDER.get(existing, 99):
+                                            table[bare] = stype
                                 break
             except (FileNotFoundError, UnicodeDecodeError, csv.Error) as e:
                 import warnings
@@ -254,6 +269,8 @@ class OrgDPRecognizer:
 
     # ── Transition costs ──
 
+    # ── Transition cost table: cost=0.0 free, 0.2-0.5 cheap, 1.0-2.0 normal, 5.0 disallowed.
+    # Values determined empirically via eval.py scoring. Lower cost = transition preferred.
     def _build_transition_costs(self):
         self.trans = {}
 
@@ -413,7 +430,8 @@ class OrgDPRecognizer:
             cost, prev, stype, freq, word = dp[pos]
             if pos == prev:
                 break
-            cf = 1.0 / (1.0 + max(cost, 0.01))
+            segment_cost = max(cost - dp[prev][0], 0.01)
+            cf = 1.0 / (1.0 + segment_cost)
             segments.append(AddressSegment(
                 text=word, seg_type=stype, start=prev, end=pos,
                 confidence=cf,
@@ -437,12 +455,7 @@ class OrgDPRecognizer:
             else:
                 merged.append(s)
 
-        # Tag d2 segments as BRAND
-        for s in merged:
-            if s.seg_type == SegType.UNKNOWN:
-                s.seg_type = SegType.BRAND
-
-        # Merge trailing single-char UNKNOWN into predecessor
+        # Merge trailing single-char UNKNOWN into predecessor (before relabel)
         TRAILING_SINGLE = {"店", "厂", "站", "路", "村", "屯", "镇", "乡", "街",
                            "馆", "铺", "坊", "档", "摊", "所", "局", "处", "阁",
                            "苑", "城", "园", "庭", "屋", "舍", "汇", "行", "场"}
@@ -455,5 +468,10 @@ class OrgDPRecognizer:
                     prev.text += last.text
                     prev.end = last.end
                     merged.pop()
+
+        # Tag remaining UNKNOWN segments as BRAND
+        for s in merged:
+            if s.seg_type == SegType.UNKNOWN:
+                s.seg_type = SegType.BRAND
 
         return AddressResult(original=text, segments=merged)

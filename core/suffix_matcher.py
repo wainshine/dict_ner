@@ -27,7 +27,7 @@ def find_suffix_boundaries(text: str,
     if not boundaries:
         return []
 
-    boundaries.sort(key=lambda x: (x[0], -len(x[2])))
+    boundaries.sort(key=lambda x: (x[0], -len(x[2]), x[3].value))
 
     merged = []
     for end, start, sfx, stype in boundaries:

@@ -188,7 +188,7 @@ python3 -m unittest discover -v -s tests/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.2.2 | 2026-07-06 | 架构重构: 修复审计 H1-H4 (工具链去重、后缀合并、POI词典统一、子进程错误处理)。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`。词典升级至 v1.1.2。新增 77 条单元测试 |
+| v1.2.2 | 2026-07-06 | 架构重构: 修复审计 H1-H4 (工具链去重、后缀合并、POI词典统一、子进程错误处理)。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`、`brand_segments_sql.csv`、`loc_corpus.csv`、`poi_deduped.txt`。词典升级至 v1.1.2。新增 77 条单元测试。Bug修复: M17(_cleanup_chars位置), M15(IDF文档), M22(seed warning), M3(d4惩罚注释), M8(argv检查) |
 | v1.2.1 | 2026-07-06 | 审计修复: 22/50 (Critical 2, High 4, Medium 10, Low 6) |
 | v1.1.1 | — | 词典收敛版: 四词典统一 v1.1.1, brand 分离度 4.1, poi d4 覆盖 113% |
 | v1.1.0 | — | 初版收敛词典 |

@@ -1,1 +1,3 @@
-"""dict_ner.brand"""
+from brand.model import BrandModel
+
+__all__ = ["BrandModel"]

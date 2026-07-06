@@ -39,7 +39,8 @@ class TestClassifySuffix(unittest.TestCase):
 
     def test_hospital(self):
         self.assertEqual(classify_suffix("人民医院"), "医院")
-        self.assertEqual(classify_suffix("社区卫生服务站"), "交通")
+        # "服务站" is not in POI_SUFFIX_MAP, single-char "站" no longer matches long strings
+        self.assertEqual(classify_suffix("社区卫生服务站"), "建筑")
 
     def test_school(self):
         self.assertEqual(classify_suffix("北京大学"), "学校")

@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.types import (
     SegType, AddressSegment, AddressResult,
-    LEVEL_ORDER, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_MAP, POI_SUFFIX_MAP,
+    LEVEL_ORDER, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_SET, POI_SUFFIX_MAP,
 )
 
 
@@ -33,8 +33,8 @@ class TestSegType(unittest.TestCase):
         self.assertIn(SegType.ROAD, ADMIN_SUFFIX_MAP)
 
     def test_location_suffix_not_empty(self):
-        self.assertGreater(len(LOCATION_SUFFIX_MAP), 50)
-        self.assertIn("对面", LOCATION_SUFFIX_MAP)
+        self.assertGreater(len(LOCATION_SUFFIX_SET), 50)
+        self.assertIn("对面", LOCATION_SUFFIX_SET)
 
     def test_poi_suffix_loads_from_csv(self):
         self.assertGreater(len(POI_SUFFIX_MAP), 100)

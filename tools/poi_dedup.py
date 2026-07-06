@@ -44,6 +44,13 @@ def main():
     sources = sys.argv[2:] or [os.path.join(DATA_DIR, "兴趣点A（6500w）input.txt"),
                                 os.path.join(DATA_DIR, "兴趣点T（7200w）input.txt")]
 
+    found = [s for s in sources if os.path.exists(s)]
+    if not found:
+        print(f"ERROR: No POI source files found.")
+        for s in sources:
+            print(f"  Missing: {s}")
+        sys.exit(1)
+
     area_set = load_area_set()
     print(f"Loaded {len(area_set):,} area names")
 

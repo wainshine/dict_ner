@@ -24,6 +24,8 @@ def count_lines(path: str) -> int:
 def split_file(source: str, dest_dir: str, num_chunks: int = NUM_CHUNKS,
                source_encoding: str = "utf-8", dest_encoding: str = "utf-8",
                skip_header: bool = False) -> int:
+    if not os.path.exists(source):
+        raise FileNotFoundError(f"Source file not found: {source}")
     total = count_lines(source)
     per = total // num_chunks + 1
     print(f"Split: {total:,} lines -> {num_chunks} chunks x ~{per:,}")

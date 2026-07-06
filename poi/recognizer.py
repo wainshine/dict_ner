@@ -2,6 +2,7 @@
 import os
 import warnings
 from org.recognizer import OrgDPRecognizer
+from core.types import AddressResult
 
 
 class PoiRecognizer:
@@ -18,5 +19,5 @@ class PoiRecognizer:
             poi_seed_path=seed_path if os.path.exists(seed_path) else None,
         )
 
-    def recognize(self, text: str):
+    def recognize(self, text: str) -> AddressResult:
         return self._rec.recognize(text)

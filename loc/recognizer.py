@@ -2,9 +2,10 @@ import math
 from typing import Dict, List, Optional, Tuple
 from core.types import (
     SegType, AddressSegment, AddressResult,
-    LEVEL_ORDER, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_MAP, POI_SUFFIX_MAP,
+    LEVEL_ORDER, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_SET, POI_SUFFIX_MAP,
 )
 from core.suffix_matcher import find_suffix_boundaries
+from loc.importer import classify_suffix
 
 
 STOP_CHARS = set("，。；、！？：,.!?;: \t")
@@ -195,7 +196,7 @@ class AddressRecognizer:
 
     def _find_location_patterns(self, text: str, n: int) -> List[Tuple[int, int, SegType, int]]:
         matches = []
-        for sfx in LOCATION_SUFFIX_MAP:
+        for sfx in LOCATION_SUFFIX_SET:
             pos = text.find(sfx)
             while pos >= 0:
                 end = pos + len(sfx)
@@ -228,9 +229,11 @@ class AddressRecognizer:
         last_boundary = 0
         for end, spos, sfx, stype in merged:
             word = text[last_boundary:end]
-            if len(word) > 1 and len(word) >= len(sfx):
-                if word not in self.all_words:
-                    matches.append((last_boundary, end, stype, 0))
+            stripped = word.lstrip("，。；、！？：,.!?;: \t")
+            if len(stripped) > 1 and len(stripped) >= len(sfx):
+                if stripped not in self.all_words:
+                    match_start = end - len(stripped)
+                    matches.append((match_start, end, stype, 0))
             last_boundary = end
 
         return matches
@@ -298,16 +301,21 @@ class AddressRecognizer:
             if pos == prev:
                 break
             if seg_type != SegType.CHAR:
+                segment_cost = cost - dp[prev][0]
                 segments.append(AddressSegment(
                     text=word,
                     seg_type=seg_type,
                     start=prev,
                     end=pos,
-                    confidence=1.0 / (1.0 + cost),
+                    confidence=1.0 / (1.0 + segment_cost),
                 ))
             else:
+                ch = text[prev:pos]
+                if ch in STOP_CHARS:
+                    pos = prev
+                    continue
                 segments.append(AddressSegment(
-                    text=text[prev:pos],
+                    text=ch,
                     seg_type=SegType.UNKNOWN,
                     start=prev,
                     end=pos,
@@ -387,32 +395,14 @@ class AddressRecognizer:
         for sfx, cat in sorted(POI_SUFFIX_MAP.items(), key=lambda x: -len(x[0])):
             if text.endswith(sfx):
                 return cat
-        from loc.importer import classify_suffix
         return classify_suffix(text)
 
     def _cleanup_chars(self, segments: List[AddressSegment], text: str) -> List[AddressSegment]:
-        result = []
-        for seg in segments:
-            if seg.seg_type == SegType.CHAR:
-                cleaned = seg.text.strip()
-                cleaned = "".join(ch for ch in cleaned if ch not in STOP_CHARS)
-                if not cleaned:
-                    continue
-                seg = AddressSegment(
-                    text=cleaned,
-                    seg_type=SegType.UNKNOWN,
-                    start=seg.start,
-                    end=seg.start + len(cleaned),
-                    confidence=0.2,
-                )
-            result.append(seg)
-
         merged = []
-        for seg in result:
+        for seg in segments:
             if seg.seg_type == SegType.UNKNOWN and merged and merged[-1].seg_type == SegType.UNKNOWN:
                 merged[-1].text += seg.text
                 merged[-1].end = seg.end
             else:
                 merged.append(seg)
-
         return merged

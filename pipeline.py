@@ -42,11 +42,12 @@ class DictNerPipeline:
     def poi(self):
         if self._poi is None:
             from poi.recognizer import PoiRecognizer
-            self._poi = PoiRecognizer(DATA_DIR)
+            self._poi = PoiRecognizer(DATA_DIR, dict_name=f"{self.poi_version}.pkl")
         return self._poi
 
     @property
     def brand(self):
+        """Brand model — loaded but not yet called in recognition pipeline (dormant, awaiting v1.3)."""
         if not hasattr(self, '_brand'):
             from brand.model import BrandModel
             self._brand = BrandModel(DICT_DIR)
