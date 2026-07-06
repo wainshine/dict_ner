@@ -1,0 +1,6 @@
+*.pyc
+/dicts/iter_v1.1.1
+/data
+dicts/suffix_seed.csv
+/output
+.DS_Store
