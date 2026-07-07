@@ -16,7 +16,7 @@ def count_lines(path: str) -> int:
                 for _ in f:
                     n += 1
             return n
-        except (FileNotFoundError, UnicodeDecodeError):
+        except FileNotFoundError:
             continue
     return 0
 
@@ -37,7 +37,7 @@ def split_file(source: str, dest_dir: str, num_chunks: int = NUM_CHUNKS,
         if skip_header:
             next(f)
         for i, line in enumerate(f):
-            chunk_id = min(i // per, num_chunks - 1)
+            chunk_id = i * num_chunks // total
             writers[chunk_id].write(line)
             if (i + 1) % 10000000 == 0:
                 print(f"  {i // 10000:>4}w written", flush=True)

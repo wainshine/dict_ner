@@ -55,9 +55,9 @@ class TestOrgRecognition(unittest.TestCase):
         self.assertIn("CITY", types)
 
     def test_N2_trailing_single_merge(self):
-        """N2: TRAILING_SINGLE merge now works — 'XX咖啡店' absorbs '店' into POI."""
-        segs = self._seg_full("XX咖啡店")
-        self.assertEqual(segs, [("BRAND", "XX"), ("POI", "咖啡店")])
+        """N2: TRAILING_SINGLE merge — 'XX咖啡档' (not in d4 trie) absorbs '档'."""
+        segs = self._seg_full("XX咖啡档")
+        self.assertEqual(segs, [("BRAND", "XX"), ("POI", "咖啡档")])
 
     def test_brand_score_bounds(self):
         score_huawei = self.rec.brand_score("华为")

@@ -1,4 +1,4 @@
-# dict_ner v1.2.2
+# dict_ner v1.2.3
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型。
 
@@ -70,7 +70,7 @@ dict_ner/
 │   ├── org_launch.py / org_chunk_stats.py / org_aggregate.py
 │   ├── poi_launch.py / poi_chunk_stats.py / poi_aggregate.py / poi_dedup.py
 │   ├── pipeline_base.py (共享pipeline函数, org/poi 去重后提取)
-│   ├── org_eval.py / org_sample_jsonl.py / compare_versions.py
+│   ├── org_eval.py / org_sample_jsonl.py
 ├── data/                语料与分片
 │   ├── addr/trade/suffix_segments_sql.csv
 │   ├── suffix_seed.csv (POI后缀种子, 429KB)
@@ -173,7 +173,7 @@ python3 -m unittest discover -v -s tests/
 | `tests/test_types.py` | 12 | P3: 枚举/类型 |
 | `tests/test_config.py` | 6 | P3: 路径常量 |
 | `tests/test_pipeline.py` | 8 | P3: 集成+POI |
-| **总计** | **77** | |
+| **总计** | **90** | |
 
 ## 踩过的坑
 
@@ -188,7 +188,8 @@ python3 -m unittest discover -v -s tests/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.2.2 | 2026-07-06 | 架构重构: 修复审计 H1-H4 (工具链去重、后缀合并、POI词典统一、子进程错误处理)。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`、`brand_segments_sql.csv`、`loc_corpus.csv`、`poi_deduped.txt`。词典升级至 v1.1.2。新增 77 条单元测试。Bug修复: M17(_cleanup_chars位置), M15(IDF文档), M22(seed warning), M3(d4惩罚注释), M8(argv检查) |
+| v1.2.3 | 2026-07-07 | 三代审计 F1-F22 全部修复 (回归修正+盲点+pre-existing)。N11/N16/N7/N14 回归修正。测试 90 条。三个训练管线加源文件 guard |
+| v1.2.2 | 2026-07-06 | 架构重构: H1-H4 + 二代审计 N1-N24 全部修复。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`、`brand_segments_sql.csv`、`loc_corpus.csv`、`poi_deduped.txt`。词典升级至 v1.1.2。测试 77 条 |
 | v1.2.1 | 2026-07-06 | 审计修复: 22/50 (Critical 2, High 4, Medium 10, Low 6) |
 | v1.1.1 | — | 词典收敛版: 四词典统一 v1.1.1, brand 分离度 4.1, poi d4 覆盖 113% |
 | v1.1.0 | — | 初版收敛词典 |

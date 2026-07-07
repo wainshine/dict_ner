@@ -23,7 +23,7 @@ VILLAGE_NORMALIZE = [
 def classify_suffix(sfx: str) -> str:
     for kw, cat in sorted(POI_SUFFIX_MAP.items(), key=lambda x: -len(x[0])):
         if len(kw) == 1:
-            if sfx == kw:
+            if len(sfx) <= 4 and sfx.endswith(kw):
                 return cat
         elif sfx.endswith(kw):
             return cat
@@ -32,12 +32,11 @@ def classify_suffix(sfx: str) -> str:
 
 def normalize_village_name(name: str) -> List[str]:
     results = {name}
-    accumulated = name
     for pattern, replacement in sorted(VILLAGE_NORMALIZE, key=lambda x: -len(x[0])):
-        if pattern in accumulated:
-            accumulated = accumulated.replace(pattern, replacement)
-            if len(accumulated) >= 2:
-                results.add(accumulated)
+        if pattern in name:
+            norm = name.replace(pattern, replacement)
+            if norm != name and len(norm) >= 2:
+                results.add(norm)
     return list(results)
 
 
@@ -138,7 +137,7 @@ def import_loc36kw(data_dir: str) -> Dict[SegType, Counter]:
                         counters[stype][comp] += idf
 
             if raw % 5000000 == 0:
-                print(f"    {raw//10000:>4}w rows, split={split:,}, "
+                logger.info(f"    {raw//10000:>4}w rows, split={split:,}, "
                       f"POI={len(counters[SegType.POI]):,}")
 
     logger.info(f"    {raw:,} rows → {split:,} split ({time.time()-t0:.0f}s)")

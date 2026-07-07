@@ -43,7 +43,7 @@ def is_good_d4_suffix(sfx: str, freq: int, quality: dict) -> bool:
     if sfx in MANUAL_EXCLUDE_D4:
         return False
     q = quality.get(sfx, {})
-    if q.get("loc", 0) > q.get("org", 0):
+    if not q or q.get("loc", 0) > q.get("org", 0):
         return False
     return True
 

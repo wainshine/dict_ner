@@ -8,7 +8,7 @@ from core.suffix_matcher import find_suffix_boundaries
 from loc.importer import classify_suffix
 
 
-STOP_CHARS = set("，。；、！？：,.!?;: \t")
+STOP_CHARS = set("，。；、！？：,.!?;: \t\r\n\u3000\u00a0")
 
 
 class AddressRecognizer:
@@ -136,7 +136,6 @@ class AddressRecognizer:
         segments = self._merge_location(segments)
         segments = self._merge_same_type(segments)
         segments = self._assign_poi_types(segments)
-        segments = self._cleanup_chars(segments, text)
 
         return AddressResult(original=text, segments=segments)
 
@@ -399,16 +398,9 @@ class AddressRecognizer:
 
     def _detect_poi_type(self, text: str) -> Optional[str]:
         for sfx, cat in sorted(POI_SUFFIX_MAP.items(), key=lambda x: -len(x[0])):
-            if text.endswith(sfx):
-                return cat
+            if len(sfx) == 1:
+                if len(text) <= 4 and text.endswith(sfx):
+                    return cat
+            elif text.endswith(sfx):
+                    return cat
         return classify_suffix(text)
-
-    def _cleanup_chars(self, segments: List[AddressSegment], text: str) -> List[AddressSegment]:
-        merged = []
-        for seg in segments:
-            if seg.seg_type == SegType.UNKNOWN and merged and merged[-1].seg_type == SegType.UNKNOWN:
-                merged[-1].text += seg.text
-                merged[-1].end = seg.end
-            else:
-                merged.append(seg)
-        return merged

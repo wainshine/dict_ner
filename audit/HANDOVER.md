@@ -1,4 +1,4 @@
-# HANDOVER.md v1.2.2
+# HANDOVER.md v1.2.3
 
 > 最后更新: 2026-07-06
 > 审计修复: 4 项架构级问题 (H1-H4), 代码净减 248 行
@@ -9,7 +9,7 @@
 从非结构化中文文本识别地名/机构名/POI/品牌名，四个模组共用 Viterbi DP 引擎。
 
 - 总代码量: ~3200 行 Python, 词典 ~38MB, 数据 ~16GB
-- 测试覆盖: **77 条用例**, `python3 -m unittest discover -v -s tests/`
+- 测试覆盖: **90 条用例**, `python3 -m unittest discover -v -s tests/`
 - Python 3.10+, 纯标准库
 
 ## 关键文件
@@ -109,7 +109,7 @@ python tools/poi_aggregate.py
 - 删除 `train_from_d222()` 死方法
 - `loc/builder.py` 改为从 `split/loc/` chunk 直接读取
 - `poi_launch.py` chunk 存在时自动跳过 dedup+split
-- 新增 `tests/` 目录, 77 条用例覆盖 10 个模块
+- 新增 `tests/` 目录, 90 条用例覆盖 13 个模块
 
 三版本对比 (2000 loc + 500 org + 500 poi):
 - v1.1.1→v1.1.2: loc 0/2000, org 0/500, poi 4/500 差异 (0.8%)
@@ -131,6 +131,6 @@ python tools/poi_aggregate.py
 
 ## 当前状态
 
-- 系统版本: **v1.2.2**, 词典: **v1.1.2** (当前) + v1.1.1 (兜底, **不可删**)
-- 测试: **77 用例** 全部通过
+- 系统版本: **v1.2.3**, 词典: **v1.1.2** (当前) + v1.1.1 (兜底, **不可删**)
+- 测试: **90 用例** 全部通过
 - 审计: 4 项架构级问题已修复, 22/50 修复完成

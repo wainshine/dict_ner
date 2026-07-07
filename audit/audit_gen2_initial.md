@@ -1,4 +1,4 @@
-# dict_ner 二代审计报告 v1.1
+# dict_ner 二代审计报告 · 初审
 
 > **审计代次**: 第二代 (独立深度审计,非 v1.0 遗留续审)
 > **审计日期**: 2026-07-06
@@ -96,7 +96,7 @@ v1.0 剩余 15 条风格类问题合并入本报告总清单,经冲突分析:3 �
 - **触发条件**: 任何多段输入。
 - **可观测影响**: `北京市` 单独 conf=0.40;作第 2 段 conf=0.125;作第 3 段 conf=0.13。6 段地址中 confidence 单调递减 0.67→0.50→0.24→0.17→0.09→0.06。后段质量再高也因位置被压。`eval.py` 据此打分会误导。
 
-### N11 · ✅ 已知限制 (chunk替代) | org 重建源文件 `org_corpus.csv` 不存在
+### N11 · ✅ 已修复 (v1.2.2) | org/poi/loc 训练入口均加 guard | org 重建源文件 `org_corpus.csv` 不存在
 - **位置**: `tools/org_launch.py:9`
 - **故障**: `SOURCE = os.path.join(DATA_DIR, "org_corpus.csv")`,该文件不存在。实际只有 `公司名input.txt`(1.2GB,单列名字格式),与 chunk 期望的 6 列 CSV (`dict,poi,idf,tag,ner,moe`) 格式不同。
 - **触发条件**: 删除 `data/split/org/` 后执行 `python tools/org_launch.py all`。
@@ -220,7 +220,7 @@ v1.0 剩余 15 条风格类问题合并入本报告总清单,经冲突分析:3 �
 | # | 来源 | 状态 | 摘要 |
 |---|---|---|---|
 | N10 | 新 | ✅ | confidence 用累计代价 → 改用段级代价 |
-| N11 | 新 | ✅ | org_corpus.csv 不存在 → 文档已标注, chunk 替代可用 |
+| N11 | 新 | ✅ | org_corpus.csv 不存在 → 三个训练管线均加 chunk 缺失 guard |
 | N12 | 新 | ✅ | 误删合法 POI → s≠w 才删 |
 | N13 | 新 | ✅ | split_file 留空 chunk → 源文件前置检查 |
 | N14 | 新 | ✅ | d444 malformed 行绕过 → continue 跳过 |
@@ -251,9 +251,9 @@ v1.0 剩余 15 条风格类问题合并入本报告总清单,经冲突分析:3 �
 | L9 | v1 | ✅ | brand_score/log_brand_score 重复 → 提取 _avg_log_prob |
 | L11 | v1 | ✅ | smooth → smoothing |
 | L12 | v1 | ✅ | __init__.py 无导出 → 已加 __all__ |
-| L15 | v1 | ✅ | `pipeline.py` | brand 属性 → 已加 docstring 标注潜伏状态 |
-| L16 | v1 | ✅ | `poi/recognizer.py` | 缺返回类型 → 加 `-> AddressResult` |
-| L17 | v1 | ✅ | `eval.py` | 评分权重无文档 → 已加注释 |
+| L15 | v1 | ✅ | brand 属性 (`pipeline.py`) → 已加 docstring 标注潜伏状态 |
+| L16 | v1 | ✅ | recognize (`poi/recognizer.py`) 缺返回类型 → 已加 `-> AddressResult` |
+| L17 | v1 | ✅ | eval.py 评分权重无文档 → 已加注释 |
 
 ---
 

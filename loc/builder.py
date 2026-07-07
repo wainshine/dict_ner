@@ -31,6 +31,11 @@ class DictBuilder:
                 counters = pickle.load(f)
             logger.info(f"  Loaded loc3.6kw counters from cache ({time.time()-t0:.1f}s)")
         else:
+            if not chunk_files:
+                raise FileNotFoundError(
+                    f"No chunk files found in {split_dir}. "
+                    f"To restore: copy split/loc/ from backup."
+                )
             counters = self._scan_loc36kw_chunks(chunk_files)
             with open(cache_path, "wb") as f:
                 pickle.dump(counters, f, pickle.HIGHEST_PROTOCOL)
@@ -212,7 +217,8 @@ class DictBuilder:
     # ── IO ──
 
     def save(self):
-        path = os.path.join(self.cache_dir, f"{self.version}.pkl")
+        name = self.version if self.version.startswith("loc_") else f"loc_{self.version}"
+        path = os.path.join(self.cache_dir, f"{name}.pkl")
         with open(path, "wb") as f:
             pickle.dump(dict(self.dict_data), f, pickle.HIGHEST_PROTOCOL)
         logger.info(f"  Saved: {path} ({os.path.getsize(path)/1024/1024:.0f}MB)")

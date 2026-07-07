@@ -38,12 +38,15 @@ class TestConfidence(unittest.TestCase):
         self.assertGreater(conf_2[0], 0.1,
             f"Nanshan confidence too low: {conf_2[0]} (should not be penalized for position)")
 
-    def test_confidence_monotonic_for_quality(self):
-        """Higher-freq words should have higher confidence."""
-        res = self.rec.recognize("北京市朝阳区")
+    def test_long_address_confidence_not_position_penalized(self):
+        """N10: segment confidence should not degrade with position in long addresses."""
+        # 6+ segment address: 省-市-区-镇/路-巷-POI
+        text = "浙江省杭州市西湖区文三路华星时代广场"
+        res = self.rec.recognize(text)
         confs = [(s.text, s.confidence) for s in res.segments]
-        texts = [t for t, _ in confs]
-        self.assertIn("北京市", texts)
+        for text, conf in confs:
+            self.assertGreater(conf, 0.05,
+                f"Segment '{text}' confidence {conf} too low (position penalty suspect)")
 
 
 if __name__ == "__main__":

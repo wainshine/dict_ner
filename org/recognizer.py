@@ -243,7 +243,7 @@ class OrgDPRecognizer:
     def _inject_poi_seed_d4(self, seed_path: str, d4_freqs: dict, trie: dict) -> int:
         """Inject POI suffix seed into d4_freqs to bootstrap DP recognition."""
         injected = 0
-        with open(seed_path, encoding="utf-8") as f:
+        with open(seed_path, encoding="utf-8-sig") as f:
             for row in csv.DictReader(f):
                 sfx = row["sfx"].strip()
                 if not sfx or len(sfx) < 2:
@@ -299,7 +299,7 @@ class OrgDPRecognizer:
             for b in addr_types:
                 self.trans[(a, b)] = 0.0
 
-        # addr → UNKNOWN(d2/d3): 0.5
+        # addr → UNKNOWN(d2/d3): 0.3
         for a in addr_types:
             self.trans[(a, SegType.UNKNOWN)] = 0.3
 
@@ -310,7 +310,7 @@ class OrgDPRecognizer:
         # UNKNOWN → UNKNOWN: 1.5 (品牌+行业, 允许连续但偏贵)
         self.trans[(SegType.UNKNOWN, SegType.UNKNOWN)] = 1.5
 
-        # UNKNOWN(d2)→POI: 0.0
+        # UNKNOWN(d2)→POI: 0.2
         self.trans[(SegType.UNKNOWN, SegType.POI)] = 0.2
         # LOCATION(d3)→POI: 0.0
         self.trans[(SegType.INDUSTRY, SegType.POI)] = 0.0
@@ -468,6 +468,9 @@ class OrgDPRecognizer:
                 if last.text in TRAILING_SINGLE or prev.seg_type == SegType.POI:
                     prev.text += last.text
                     prev.end = last.end
+                    if prev.seg_type != SegType.POI:
+                        prev.seg_type = SegType.POI
+                        prev.poi_type = classify_suffix(prev.text)
                     merged.pop()
 
         # Tag remaining UNKNOWN segments as BRAND

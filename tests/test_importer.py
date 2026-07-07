@@ -39,8 +39,17 @@ class TestClassifySuffix(unittest.TestCase):
 
     def test_hospital(self):
         self.assertEqual(classify_suffix("人民医院"), "医院")
-        # "服务站" is not in POI_SUFFIX_MAP, single-char "站" no longer matches long strings
+        # 7-char word ending with single-char '站': too long for single-char match
         self.assertEqual(classify_suffix("社区卫生服务站"), "建筑")
+
+    def test_single_char_classify(self):
+        """F1: short multi-char words with single-char suffix should match."""
+        self.assertEqual(classify_suffix("啤酒厂"), "工业")
+        self.assertEqual(classify_suffix("便利店"), "商业")
+
+    def test_long_words_block_single_char(self):
+        """N16: words >4 chars should not be classified by single-char suffix alone."""
+        self.assertEqual(classify_suffix("电机制造"), "工业")  # matched by "制造"(2-char)
 
     def test_school(self):
         self.assertEqual(classify_suffix("北京大学"), "学校")

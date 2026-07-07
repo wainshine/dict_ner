@@ -25,8 +25,20 @@ def run_parallel():
 
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "all"
-    if cmd in ("split", "all"):
+    chunks_exist = os.path.exists(os.path.join(SPLIT_DIR, "chunk_00.csv"))
+
+    if cmd in ("split"):
         re_split()
+    if cmd == "all":
+        if chunks_exist:
+            print(f"Split chunks exist at {SPLIT_DIR}, skipping split", flush=True)
+        else:
+            if not os.path.exists(SOURCE):
+                print(f"ERROR: org_corpus.csv not found. Cannot rebuild chunks.")
+                print(f"  Expected: {SOURCE}")
+                print(f"  To restore: copy split/org/ from backup, or obtain original data.")
+                sys.exit(1)
+            re_split()
     if cmd in ("clean", "all"):
         clean_stats(os.path.join(DICT_DIR, f"iter_{VERSION}"), "org_stats_")
     if cmd in ("stats", "all"):

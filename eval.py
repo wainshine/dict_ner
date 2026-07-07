@@ -131,8 +131,8 @@ def _has_internal_structure(text):
     for stype, suffixes in ADMIN_SUFFIX_MAP.items():
         for sfx in suffixes:
             if len(sfx) >= 2 and sfx in text:
-                pos = text.find(sfx)
-                if text.endswith(sfx) and pos == len(text) - len(sfx):
+                last_pos = text.rfind(sfx)
+                if text.endswith(sfx) and last_pos == len(text) - len(sfx):
                     continue
                 indicators.append(sfx)
     for sfx in POI_SUFFIX_MAP:

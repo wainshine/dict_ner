@@ -50,7 +50,7 @@ class DictNerPipeline:
         """Brand model — loaded but not yet called in recognition pipeline (dormant, awaiting v1.3)."""
         if not hasattr(self, '_brand'):
             from brand.model import BrandModel
-            self._brand = BrandModel(DICT_DIR)
+            self._brand = BrandModel(DICT_DIR, version="v1.1.2")
             self._brand.load()
         return self._brand
 
@@ -62,6 +62,7 @@ class DictNerPipeline:
         return False
 
     def recognize(self, text: str):
+        text = text.strip()
         loc_result = self.loc.recognize(text)
         org_result = self.org.recognize(text)
 
