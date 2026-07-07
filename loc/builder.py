@@ -93,11 +93,23 @@ class DictBuilder:
         logger.info(f"    {i:,} rows in {time.time()-t0:.0f}s")
         return counters
 
-    # ── Phase 2: d444 POI suffixes ──
+    # ── Phase 2: d444 POI suffixes (d444 source + loc>org quality filter) ──
 
     def build_from_d444(self, data_dir: str):
+        """Load d444 suffixes, filter by loc>org quality (like org_aggregate.is_good_d4_suffix).
+        Known POI suffixes from seed/category are whitelisted and bypass the filter."""
         path = os.path.join(data_dir, "suffix_segments_sql.csv")
+        # Whitelist: known POI suffixes (seed file + category mapping)
+        seed_path = os.path.join(data_dir, "suffix_seed.csv")
+        whitelist = set(POI_SUFFIX_MAP.keys())
+        if os.path.exists(seed_path):
+            with open(seed_path, encoding="utf-8") as f:
+                for row in csv.DictReader(f):
+                    sfx = row.get("sfx", "").strip()
+                    if sfx and len(sfx) >= 2:
+                        whitelist.add(sfx)
         c = 0
+        skipped = 0
         with open(path, encoding="utf-8-sig") as f:
             for row in csv.DictReader(f):
                 sfx = row["d4"].strip()
@@ -109,11 +121,20 @@ class DictBuilder:
                     tf = 1
                 if tf < 10:
                     continue
+                if sfx not in whitelist:
+                    try:
+                        loc_cnt = int(row.get("loc", 0) or 0)
+                        org_cnt = int(row.get("org", 0) or 0)
+                    except (ValueError, KeyError):
+                        continue
+                    if loc_cnt > org_cnt:
+                        skipped += 1
+                        continue
                 self.dict_data[SegType.POI][sfx] = max(
                     self.dict_data[SegType.POI].get(sfx, 0), tf
                 )
                 c += 1
-        logger.info(f"  POI from d444: {c:,} entries")
+        logger.info(f"  POI from d444: {c:,} entries (skipped {skipped:,} loc-dominated)")
 
     # ── Phase 3: Official 5-level admin areas ──
 

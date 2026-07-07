@@ -2,6 +2,7 @@
 
 import os, csv, time
 import logging
+logger = logging.getLogger(__name__)
 from collections import Counter, defaultdict
 from typing import Dict, List, Tuple
 from core.types import SegType, ADMIN_SUFFIX_MAP, POI_SUFFIX_MAP

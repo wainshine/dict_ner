@@ -44,6 +44,8 @@ class AddressRecognizer:
             self.total_freq[seg_type] = max(1, len(self.dict_data[seg_type]))
 
     def _build_transition_costs(self):
+        # Default: 5.0 disallows. Valid transitions override: 0.0 free, 0.2-0.5 cheap, 1.0-2.0 normal.
+        # Values determined empirically via eval.py scoring on loc_v1.1.2.
         self.transition_cost = {}
         types = list(SegType)
         for i in range(len(types)):
@@ -239,6 +241,10 @@ class AddressRecognizer:
         return matches
 
     def _word_cost(self, seg_type: SegType, freq: int, length: int) -> float:
+        """Word cost = IDF-based rarity + length_penalty + base 1.0 (min floor 0.5).
+        Unknown words (freq=0): flat cost by length. Shorter = more expensive.
+        Known words: IDF = -log((freq+1)/(total+1)). Length penalty: 1-char +1.5, 2-char +0.5,
+        3-8 char neutral, longer words +0.3/char for each char beyond 8."""
         if freq == 0:
             if seg_type == SegType.LOCATION:
                 if length <= 2:

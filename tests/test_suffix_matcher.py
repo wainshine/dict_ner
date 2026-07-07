@@ -46,5 +46,17 @@ class TestFindSuffixBoundaries(unittest.TestCase):
         self.assertIn((6, "区", "DISTRICT"), ends)
 
 
+    def test_N9_deterministic_tie_break(self):
+        """N9: same end + same length should be tie-broken by seg_type."""
+        test_map = {
+            SegType.CITY: {"市"},
+            SegType.PROVINCE: {"省"},
+        }
+        boundaries = find_suffix_boundaries("浙江省杭州市", test_map)
+        ends = [(end, sfx, st.value) for end, start, sfx, st in boundaries]
+        self.assertIn((3, "省", "PROVINCE"), ends)
+        self.assertIn((6, "市", "CITY"), ends)
+
+
 if __name__ == "__main__":
     unittest.main()

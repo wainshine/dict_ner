@@ -107,6 +107,9 @@ class BrandModel:
         return total_log / count
 
     def brand_score(self, text: str) -> float:
+        """Brand-likeness score via geometric mean of bigram transition probs.
+        Returns 0.5 for empty model, 0.3 for single-char, ~0.01 if no valid bigrams.
+        Typical Chinese brand: 0.001-0.1, suffixes like '有限公司': <0.001."""
         if self.total_bigrams == 0:
             return 0.5
         avg_log = self._avg_log_prob(text)
