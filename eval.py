@@ -15,6 +15,7 @@ DICT_DIR = os.path.join(BASE_DIR, "dicts")
 
 SAMPLE_SIZE = 5000
 VERSION = os.environ.get("DICT_VERSION", "loc_v1.1.2")
+random.seed(42)
 
 
 def sample_from_gbk(filepath, n):
@@ -131,8 +132,7 @@ def _has_internal_structure(text):
     for stype, suffixes in ADMIN_SUFFIX_MAP.items():
         for sfx in suffixes:
             if len(sfx) >= 2 and sfx in text:
-                last_pos = text.rfind(sfx)
-                if text.endswith(sfx) and last_pos == len(text) - len(sfx):
+                if text.endswith(sfx) and text.count(sfx) == 1:
                     continue
                 indicators.append(sfx)
     for sfx in POI_SUFFIX_MAP:

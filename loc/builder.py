@@ -149,6 +149,25 @@ class DictBuilder:
         for st, entries in areas.items():
             for w, f in entries.items():
                 self.dict_data[st][w] = max(self.dict_data[st].get(w, 0), f)
+                # Add bare name (e.g. "北京" from "北京市")
+                bare = None
+                bare_type = st
+                # Try CITY-level suffixes first (handles province-level cities like 北京/上海)
+                for sfx in sorted(ADMIN_SUFFIX_MAP.get(SegType.CITY, set()), key=lambda x: -len(x)):
+                    if w.endswith(sfx) and len(w) > len(sfx):
+                        bare = w[:-len(sfx)]
+                        bare_type = SegType.CITY
+                        break
+                # Then try the item's own type suffixes
+                if bare is None and st in (SegType.PROVINCE, SegType.CITY, SegType.DISTRICT):
+                    for sfx in sorted(ADMIN_SUFFIX_MAP.get(st, set()), key=lambda x: -len(x)):
+                        if w.endswith(sfx) and len(w) > len(sfx):
+                            bare = w[:-len(sfx)]
+                            break
+                if bare and len(bare) >= 2:
+                    cur = self.dict_data[bare_type].get(bare, 0)
+                    if cur < f:
+                        self.dict_data[bare_type][bare] = f
         counts = {k.value: len(v) for k, v in areas.items()}
         logger.info(f"  Areas: {counts}")
 

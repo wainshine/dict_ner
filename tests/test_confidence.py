@@ -39,14 +39,15 @@ class TestConfidence(unittest.TestCase):
             f"Nanshan confidence too low: {conf_2[0]} (should not be penalized for position)")
 
     def test_long_address_confidence_not_position_penalized(self):
-        """N10: segment confidence should not degrade with position in long addresses."""
-        # 6+ segment address: 省-市-区-镇/路-巷-POI
-        text = "浙江省杭州市西湖区文三路华星时代广场"
+        """N10: confidence should not degrade with position in long addresses (>6 segments)."""
+        text = "广东省深圳市南山区粤海街道科技园路华星大厦"
         res = self.rec.recognize(text)
         confs = [(s.text, s.confidence) for s in res.segments]
+        # Each segment's confidence should be based on its own cost, not accumulated position
         for text, conf in confs:
             self.assertGreater(conf, 0.05,
-                f"Segment '{text}' confidence {conf} too low (position penalty suspect)")
+                f"Segment '{text}' confidence {conf:.4f} too low (position penalty suspect)")
+        self.assertGreater(len(confs), 3, f"Should produce >3 segments, got {len(confs)}")
 
 
 if __name__ == "__main__":

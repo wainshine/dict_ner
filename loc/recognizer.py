@@ -9,6 +9,7 @@ from loc.importer import classify_suffix
 
 
 STOP_CHARS = set("，。；、！？：,.!?;: \t\r\n\u3000\u00a0")
+_SEPARATOR_CHARS = "，。；、！？：,.!?;: \t\r\n\u3000\u00a0"
 
 
 class AddressRecognizer:
@@ -31,8 +32,15 @@ class AddressRecognizer:
                 for ch in word:
                     node = node.setdefault(ch, {})
                 current = node.get("#", None)
-                if current is None or freq > current[1]:
+                if current is None:
                     node["#"] = (seg_type, freq)
+                else:
+                    # Collision: same word, different type. Higher admin priority wins.
+                    cur_type, cur_freq = current
+                    new_prio = LEVEL_ORDER.get(seg_type, 99)
+                    old_prio = LEVEL_ORDER.get(cur_type, 99)
+                    if new_prio < old_prio or (new_prio == old_prio and freq > cur_freq):
+                        node["#"] = (seg_type, freq)
         self.trie = trie
         self.all_words = all_words
 
@@ -93,9 +101,10 @@ class AddressRecognizer:
             self.transition_cost[(t, t)] = 1.0
 
     def recognize(self, text: str) -> AddressResult:
+        raw_text = text
         text = text.strip()
         if not text:
-            return AddressResult(original=text)
+            return AddressResult(original=raw_text)
 
         matches = self._find_matches(text)
         matches_by_start = {}
@@ -137,7 +146,7 @@ class AddressRecognizer:
         segments = self._merge_same_type(segments)
         segments = self._assign_poi_types(segments)
 
-        return AddressResult(original=text, segments=segments)
+        return AddressResult(original=raw_text, segments=segments)
 
     def _find_matches(self, text: str) -> List[Tuple[int, int, SegType, int]]:
         matches = []
@@ -230,7 +239,7 @@ class AddressRecognizer:
         last_boundary = 0
         for end, spos, sfx, stype in merged:
             word = text[last_boundary:end]
-            stripped = word.lstrip("，。；、！？：,.!?;: \t")
+            stripped = word.lstrip(_SEPARATOR_CHARS)
             if len(stripped) > 1 and len(stripped) >= len(sfx):
                 if stripped not in self.all_words:
                     match_start = end - len(stripped)
@@ -397,9 +406,10 @@ class AddressRecognizer:
         return segments
 
     def _detect_poi_type(self, text: str) -> Optional[str]:
+        from loc.importer import _SAFE_SINGLE_SUFFIXES
         for sfx, cat in sorted(POI_SUFFIX_MAP.items(), key=lambda x: -len(x[0])):
             if len(sfx) == 1:
-                if len(text) <= 4 and text.endswith(sfx):
+                if sfx in _SAFE_SINGLE_SUFFIXES and len(text) <= 3 and text.endswith(sfx):
                     return cat
             elif text.endswith(sfx):
                     return cat

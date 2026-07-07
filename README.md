@@ -163,16 +163,19 @@ python3 -m unittest discover -v -s tests/
 
 | 文件 | 用例 | 类型 |
 |------|:--:|------|
-| `tests/test_suffix_matcher.py` | 6 | P1: 后缀边界合并 |
-| `tests/test_importer.py` | 12 | P1: _split_admin + classify_suffix |
+| `tests/test_suffix_matcher.py` | 7 | P1: 后缀边界合并 |
+| `tests/test_importer.py` | 15 | P1: _split_admin + classify_suffix |
 | `tests/test_loc_builder.py` | 2 | P1: chunk 加载 |
 | `tests/test_pipeline_base.py` | 8 | P1: 共享 pipeline 函数 |
-| `tests/test_loc_recognizer.py` | 9 | P2: 地名识别 (真实词典) |
+| `tests/test_loc_recognizer.py` | 8 | P2: 地名识别 (真实词典) |
 | `tests/test_org_recognizer.py` | 9 | P2: 机构名识别 (真实词典) |
-| `tests/test_brand_model.py` | 7 | P2: 品牌模型 (真实模型) |
-| `tests/test_types.py` | 12 | P3: 枚举/类型 |
+| `tests/test_brand_model.py` | 6 | P2: 品牌模型 (真实模型) |
+| `tests/test_types.py` | 10 | P3: 枚举/类型 |
 | `tests/test_config.py` | 6 | P3: 路径常量 |
 | `tests/test_pipeline.py` | 8 | P3: 集成+POI |
+| `tests/test_confidence.py` | 2 | N10: 段级置信度 |
+| `tests/test_dict_snapshot.py` | 6 | N23: 词典快照 |
+| `tests/test_short_d4_penalty.py` | 3 | N17: 短词d4惩罚 |
 | **总计** | **90** | |
 
 ## 踩过的坑
@@ -188,8 +191,8 @@ python3 -m unittest discover -v -s tests/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.2.3 | 2026-07-07 | 三代审计 F1-F22 全部修复 (回归修正+盲点+pre-existing)。N11/N16/N7/N14 回归修正。测试 90 条。三个训练管线加源文件 guard |
-| v1.2.2 | 2026-07-06 | 架构重构: H1-H4 + 二代审计 N1-N24 全部修复。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`、`brand_segments_sql.csv`、`loc_corpus.csv`、`poi_deduped.txt`。词典升级至 v1.1.2。测试 77 条 |
+| v1.2.3 | 2026-07-07 | 四代审计 F1-F22 全部修复 + Finding 1-19 全部修复。F1/F3/F7 三次迭代回归修正。Trie 碰撞优先级、线程安全、LOC 裸名、gbk fallback、original 字段一致性。测试 90 条 |
+| v1.2.2 | 2026-07-06 | 架构重构: H1-H4 + 二代审计 N1-N24 全部修复。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`。词典升级至 v1.1.2。测试 77 条 |
 | v1.2.1 | 2026-07-06 | 审计修复: 22/50 (Critical 2, High 4, Medium 10, Low 6) |
 | v1.1.1 | — | 词典收敛版: 四词典统一 v1.1.1, brand 分离度 4.1, poi d4 覆盖 113% |
 | v1.1.0 | — | 初版收敛词典 |

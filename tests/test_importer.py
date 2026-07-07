@@ -39,16 +39,21 @@ class TestClassifySuffix(unittest.TestCase):
 
     def test_hospital(self):
         self.assertEqual(classify_suffix("人民医院"), "医院")
-        # 7-char word ending with single-char '站': too long for single-char match
-        self.assertEqual(classify_suffix("社区卫生服务站"), "建筑")
+        self.assertEqual(classify_suffix("社区卫生服务站"), "医院")
 
     def test_single_char_classify(self):
-        """F1: short multi-char words with single-char suffix should match."""
+        """F1: short multi-char words with SAFE single-char suffix should match."""
         self.assertEqual(classify_suffix("啤酒厂"), "工业")
         self.assertEqual(classify_suffix("便利店"), "商业")
 
+    def test_single_char_no_false_positive(self):
+        """F1 negative: ambiguous single-char suffixes should NOT match multi-char inputs."""
+        self.assertNotEqual(classify_suffix("测试会"), "政府")
+        self.assertNotEqual(classify_suffix("工会"), "政府")
+        self.assertEqual(classify_suffix("测试会"), "建筑")
+
     def test_long_words_block_single_char(self):
-        """N16: words >4 chars should not be classified by single-char suffix alone."""
+        """N16: words >3 chars should not be classified by single-char suffix."""
         self.assertEqual(classify_suffix("电机制造"), "工业")  # matched by "制造"(2-char)
 
     def test_school(self):

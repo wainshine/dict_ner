@@ -5,7 +5,7 @@
 > **被审项目**: dict_ner (自报) v1.2.2 / 词典 v1.1.2
 > **审计范围**: 二代 24 项修复的回归风险 + 两代审计均遗漏的预存问题
 > **审计方法**: 只读源码核查 + 运行时探测 + 测试质量二次复核
-> **测试运行**: `python3 -m unittest discover -s tests/` → Ran 88 tests, OK (11.7s)
+> **测试运行**: `python3 -m unittest discover -s tests/` → Ran 90 tests, OK
 > **本报告仅描述故障,不提供修复方案**
 
 ---

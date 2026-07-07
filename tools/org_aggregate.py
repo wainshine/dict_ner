@@ -42,8 +42,10 @@ def is_good_d4_suffix(sfx: str, freq: int, quality: dict) -> bool:
         return False
     if sfx in MANUAL_EXCLUDE_D4:
         return False
-    q = quality.get(sfx, {})
-    if not q or q.get("loc", 0) > q.get("org", 0):
+    q = quality.get(sfx)
+    # Only reject when quality data exists AND shows loc-dominated.
+    # Missing quality entries (new suffixes) pass through.
+    if q is not None and q.get("loc", 0) > q.get("org", 0):
         return False
     return True
 

@@ -20,10 +20,14 @@ VILLAGE_NORMALIZE = [
 ]
 
 
+# Single-char POI suffixes that are reliable classifiers (not ambiguous like 会/委/庭)
+_SAFE_SINGLE_SUFFIXES = {"厂", "店", "站", "园", "局", "院"}
+
+
 def classify_suffix(sfx: str) -> str:
     for kw, cat in sorted(POI_SUFFIX_MAP.items(), key=lambda x: -len(x[0])):
         if len(kw) == 1:
-            if len(sfx) <= 4 and sfx.endswith(kw):
+            if kw in _SAFE_SINGLE_SUFFIXES and len(sfx) <= 3 and sfx.endswith(kw):
                 return cat
         elif sfx.endswith(kw):
             return cat
@@ -34,8 +38,8 @@ def normalize_village_name(name: str) -> List[str]:
     results = {name}
     for pattern, replacement in sorted(VILLAGE_NORMALIZE, key=lambda x: -len(x[0])):
         if pattern in name:
-            norm = name.replace(pattern, replacement)
-            if norm != name and len(norm) >= 2:
+            norm = name.replace(pattern, replacement, 1)
+            if norm != name and len(norm) >= 2 and replacement * 2 not in norm:
                 results.add(norm)
     return list(results)
 

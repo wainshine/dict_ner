@@ -10,13 +10,13 @@ from core.config import NUM_CHUNKS
 
 def count_lines(path: str) -> int:
     n = 0
-    for encoding in ("utf-8", "gbk"):
+    for encoding, use_errors in (("utf-8", "strict"), ("gbk", "replace")):
         try:
-            with open(path, encoding=encoding, errors="replace") as f:
+            with open(path, encoding=encoding, errors=use_errors) as f:
                 for _ in f:
                     n += 1
             return n
-        except FileNotFoundError:
+        except (FileNotFoundError, UnicodeDecodeError):
             continue
     return 0
 

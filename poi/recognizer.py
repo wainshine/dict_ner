@@ -13,7 +13,7 @@ class PoiRecognizer:
         if not os.path.exists(seed_path):
             warnings.warn(f"POI seed file not found (tried data/ + dicts/), POI recognition may be degraded")
         self._rec = OrgDPRecognizer(
-            data_dir, dict_name=dict_name,
+            data_dir, version="v1.1.2", dict_name=dict_name,
             disable_short_d4_penalty=True,
             allow_adjacent_d4=True,
             poi_seed_path=seed_path if os.path.exists(seed_path) else None,

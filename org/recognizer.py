@@ -105,8 +105,15 @@ class OrgDPRecognizer:
             for ch in w:
                 node = node.setdefault(ch, {})
             cur = node.get("#")
-            if cur is None or f > cur[1]:
+            # Type collision: higher admin priority wins (PROVINCE > CITY > DISTRICT > ... > POI)
+            if cur is None:
                 node["#"] = (st, f)
+            else:
+                cur_type, cur_freq = cur
+                new_prio = LEVEL_ORDER.get(st, 99)
+                old_prio = LEVEL_ORDER.get(cur_type, 99)
+                if new_prio < old_prio or (new_prio == old_prio and f > cur_freq):
+                    node["#"] = (st, f)
             freq[st] = freq.get(st, 0) + 1
 
         # d3: pruned industry words (use LOCATION type)
@@ -118,8 +125,14 @@ class OrgDPRecognizer:
             for ch in w:
                 node = node.setdefault(ch, {})
             cur = node.get("#")
-            if cur is None or f > cur[1]:
+            if cur is None:
                 node["#"] = (SegType.INDUSTRY, f)
+            else:
+                cur_type, cur_freq = cur
+                new_prio = LEVEL_ORDER.get(SegType.INDUSTRY, 99)
+                old_prio = LEVEL_ORDER.get(cur_type, 99)
+                if new_prio < old_prio or (new_prio == old_prio and f > cur_freq):
+                    node["#"] = (SegType.INDUSTRY, f)
             d3_count += 1
         freq[SegType.INDUSTRY] = max(1, d3_count)
 
@@ -130,8 +143,14 @@ class OrgDPRecognizer:
             for ch in sfx:
                 node = node.setdefault(ch, {})
             cur = node.get("#")
-            if cur is None or f > cur[1]:
+            if cur is None:
                 node["#"] = (SegType.POI, f)
+            else:
+                cur_type, cur_freq = cur
+                new_prio = LEVEL_ORDER.get(SegType.POI, 99)
+                old_prio = LEVEL_ORDER.get(cur_type, 99)
+                if new_prio < old_prio or (new_prio == old_prio and f > cur_freq):
+                    node["#"] = (SegType.POI, f)
             self._d4_set.add(sfx)
             d4_count += 1
 
@@ -261,8 +280,14 @@ class OrgDPRecognizer:
                 for ch in sfx:
                     node = node.setdefault(ch, {})
                 cur = node.get("#")
-                if cur is None or tf > cur[1]:
+                if cur is None:
                     node["#"] = (SegType.POI, tf)
+                else:
+                    cur_type, cur_freq = cur
+                    new_prio = LEVEL_ORDER.get(SegType.POI, 99)
+                    old_prio = LEVEL_ORDER.get(cur_type, 99)
+                    if new_prio < old_prio or (new_prio == old_prio and tf > cur_freq):
+                        node["#"] = (SegType.POI, tf)
                 self._d4_set.add(sfx)
                 injected += 1
         logger.info(f"  Injected {injected} POI seed d4 entries")
@@ -387,9 +412,10 @@ class OrgDPRecognizer:
     # ── Main ──
 
     def recognize(self, text: str) -> AddressResult:
+        raw_text = text
         text = text.strip()
         if not text:
-            return AddressResult(original=text)
+            return AddressResult(original=raw_text)
 
         matches = self._find_matches(text)
         by_start = {}
@@ -468,9 +494,8 @@ class OrgDPRecognizer:
                 if last.text in TRAILING_SINGLE or prev.seg_type == SegType.POI:
                     prev.text += last.text
                     prev.end = last.end
-                    if prev.seg_type != SegType.POI:
-                        prev.seg_type = SegType.POI
-                        prev.poi_type = classify_suffix(prev.text)
+                    prev.seg_type = SegType.POI
+                    prev.poi_type = classify_suffix(prev.text)
                     merged.pop()
 
         # Tag remaining UNKNOWN segments as BRAND
@@ -478,4 +503,4 @@ class OrgDPRecognizer:
             if s.seg_type == SegType.UNKNOWN:
                 s.seg_type = SegType.BRAND
 
-        return AddressResult(original=text, segments=merged)
+        return AddressResult(original=raw_text, segments=merged)
