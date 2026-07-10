@@ -134,3 +134,4 @@ python tools/poi_aggregate.py
 - 系统版本: **v1.2.3**, 词典: **v1.1.2** (当前) + v1.1.1 (兜底, **不可删**)
 - 测试: **90 用例** 全部通过
 - 审计: 四代全部闭环 (v1.0 50/50 + 二代 N1-N24 全部 + 三代 F1-F22 全部 + 四代 Finding 1-19 全部)
+- v2.0 计划: `pipeline.classify()` 统一分类 (详见 `audit/v2.0_refactor_plan.md`)

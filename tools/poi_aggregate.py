@@ -11,6 +11,19 @@ STATS_DIR = DICT_DIR
 OUT_DIR = os.path.join(STATS_DIR, f"iter_{VERSION}")
 
 THRESHOLDS = {"d1": 5, "d3": 10, "d4": 100}
+POI_SEED_FREQ = 50000
+
+POI_OVERRIDE_SUFFIXES = {
+    "小吃", "快餐", "麻辣烫", "烧烤", "火锅", "私房菜",
+    "商行", "车行", "专卖", "专柜", "批发", "批发部",
+    "手机卖场", "报刊亭", "百货",
+    "造型", "美发", "快递", "发艺", "KTV",
+    "布艺", "窗帘", "童装", "家纺", "灯饰",
+    "生活馆", "体验馆", "蛋糕房", "彩票",
+    "客栈", "总代理", "总经销", "美容院", "发屋", "浴池",
+    "美甲美睫", "批发零售", "儿童乐园", "小屋", "住宿",
+    "经营部",
+}
 
 GENERIC_D1_BLACKLIST = {
     "社区", "街道", "小区", "服务区", "校区", "新区", "开发区",
@@ -39,6 +52,22 @@ def prune(merged: dict, poi_seed: set) -> dict:
     d4 = {w: f for w, f in merged["d4_freqs"].items()
           if f >= THRESHOLDS["d4"] and w in poi_seed}
     return {"d1_freqs": d1, "d3_freqs": d3, "d4_freqs": d4}
+
+
+def merge_poi_overrides(pruned):
+    d4 = dict(pruned["d4_freqs"])
+    injected = 0
+    boosted = 0
+    for sfx in POI_OVERRIDE_SUFFIXES:
+        old_freq = d4.get(sfx, 0)
+        new_freq = max(old_freq, POI_SEED_FREQ)
+        if old_freq == 0:
+            injected += 1
+        elif new_freq > old_freq:
+            boosted += 1
+        d4[sfx] = new_freq
+    pruned["d4_freqs"] = d4
+    return pruned, injected, boosted
 
 
 def print_report(merged: dict, pruned: dict):
@@ -74,6 +103,9 @@ def main():
     stats_files = [os.path.join(STATS_DIR, f"iter_{VERSION}", f"poi_stats_{i:02d}.pkl") for i in range(NUM_CHUNKS)]
     merged = aggregate_stats_files(stats_files)
     pruned = prune(merged, seed)
+    pruned, poi_injected, poi_boosted = merge_poi_overrides(pruned)
+    print(f"POI override seed: +{poi_injected} new, boosted {poi_boosted} existing "
+          f"(total d4: {len(pruned['d4_freqs']):,})", flush=True)
     print_report(merged, pruned)
 
     os.makedirs(OUT_DIR, exist_ok=True)

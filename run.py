@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""dict_ner v1.2.3 — 中文地名/机构名/POI/品牌识别系统 CLI"""
+"""dict_ner v2.0.0 — 中文地名/机构名/POI/品牌识别系统 CLI"""
 import os, sys, json
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-VERSION = "v1.2.3"
+VERSION = "v2.0.0"
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
@@ -31,7 +31,22 @@ def cmd_info():
     print()
     print(f"使用: python run.py recognize \"深圳市南山区华为技术有限公司\"")
     print(f"      python run.py json \"北京市朝阳区星巴克咖啡\"")
+    print(f"      python run.py classify \"广东省卫健委\"")
     print(f"      python run.py info")
+
+
+def cmd_classify(text: str):
+    pipe = DictNerPipeline()
+    r = pipe.classify(text)
+    print(json.dumps(r, ensure_ascii=False, indent=2))
+
+
+def cmd_classify_batch(path: str):
+    pipe = DictNerPipeline()
+    with open(path, encoding="utf-8") as f:
+        texts = [ln.strip() for ln in f if ln.strip()]
+    for r in pipe.classify_batch(texts):
+        print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
 
 
 def main():
@@ -44,6 +59,12 @@ def main():
     elif c == "json":
         text = sys.argv[2] if len(sys.argv) > 2 else input("输入文本: ")
         cmd_json(text)
+    elif c == "classify":
+        if len(sys.argv) > 2 and sys.argv[2] == "--batch":
+            cmd_classify_batch(sys.argv[3])
+        else:
+            text = sys.argv[2] if len(sys.argv) > 2 else input("输入文本: ")
+            cmd_classify(text)
     elif c in ("test", "t"):
         tests = [
             "深圳市南山区华为技术有限公司",

@@ -42,6 +42,19 @@ python run.py info
 pipeline.py  统一总线
 run.py       CLI入口
 ```
+## v2.0 计划
+
+新增 `pipeline.classify(text)` 方法，基于三模组识别结果统一判断输入类别（机构名/POI/地址/未知）。
+实现方案详见 `audit/v2.0_refactor_plan.md`。
+
+| 新增文件 | 修改文件 |
+|------|------|
+| `core/csv_index.py` | `pipeline.py` |
+| `tools/build_eval_set.py` | `run.py` |
+| `tools/eval_classify.py` | `tools/org_aggregate.py` |
+| `tests/test_classify.py` | |
+| `tests/test_csv_index.py` | |
+| `data/gov_suffix_seed.csv` | |
 
 ## 词典 (v1.1.2, 当前版)
 
@@ -176,6 +189,8 @@ python3 -m unittest discover -v -s tests/
 | `tests/test_confidence.py` | 2 | N10: 段级置信度 |
 | `tests/test_dict_snapshot.py` | 6 | N23: 词典快照 |
 | `tests/test_short_d4_penalty.py` | 3 | N17: 短词d4惩罚 |
+| `tests/test_classify.py` | — | v2.0: 分类判断 (待新增) |
+| `tests/test_csv_index.py` | — | v2.0: 亲和度索引 (待新增) |
 | **总计** | **90** | |
 
 ## 踩过的坑
@@ -191,6 +206,7 @@ python3 -m unittest discover -v -s tests/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.0 | 计划中 | `pipeline.classify()` 统一分类: ORG/POI/ADDR/UNKNOWN。csv_index 亲和度评分。gov suffix seed 注入。评测闭环 (eval_set ~15万条 + eval_classify)。详见 `audit/v2.0_refactor_plan.md` |
 | v1.2.3 | 2026-07-07 | 四代审计 F1-F22 全部修复 + Finding 1-19 全部修复。F1/F3/F7 三次迭代回归修正。Trie 碰撞优先级、线程安全、LOC 裸名、gbk fallback、original 字段一致性。测试 90 条 |
 | v1.2.2 | 2026-07-06 | 架构重构: H1-H4 + 二代审计 N1-N24 全部修复。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`。词典升级至 v1.1.2。测试 77 条 |
 | v1.2.1 | 2026-07-06 | 审计修复: 22/50 (Critical 2, High 4, Medium 10, Low 6) |

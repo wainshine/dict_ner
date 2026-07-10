@@ -15,7 +15,44 @@ MANUAL_EXCLUDE_D4 = {
     "汇", "馆", "坊", "斋", "屋", "栈", "舍", "堂",
 }
 
+POI_EXCLUDE_D4 = {
+    "小吃", "快餐", "麻辣烫", "烧烤", "火锅", "私房菜",
+    "商行", "车行", "专卖", "专柜", "批发", "批发部",
+    "手机卖场", "报刊亭", "百货",
+    "造型", "美发", "快递", "发艺", "KTV",
+    "布艺", "窗帘", "童装", "家纺", "灯饰",
+    "生活馆", "体验馆", "蛋糕房", "彩票",
+    "客栈", "总代理", "总经销", "美容院", "发屋", "浴池",
+    "美甲美睫", "批发零售", "儿童乐园", "小屋", "住宿",
+    "经营部",
+}
+
 THRESHOLDS = {"d1": 5, "d3": 3, "d4": 100}
+
+GOV_SEED = os.path.join(DATA_DIR, "gov_suffix_seed.csv")
+GOV_SEED_FREQ = 50000
+
+
+def merge_gov_seed(pruned):
+    if not os.path.exists(GOV_SEED):
+        return pruned, 0, 0
+    d4 = dict(pruned["d4_freqs"])
+    injected = 0
+    boosted = 0
+    with open(GOV_SEED, encoding="utf-8-sig") as f:
+        for row in csv_mod.DictReader(f):
+            sfx = row["suffix"].strip()
+            if not sfx or len(sfx) < 2:
+                continue
+            old_freq = d4.get(sfx, 0)
+            new_freq = max(old_freq, GOV_SEED_FREQ)
+            if old_freq == 0:
+                injected += 1
+            elif new_freq > old_freq:
+                boosted += 1
+            d4[sfx] = new_freq
+    pruned["d4_freqs"] = d4
+    return pruned, injected, boosted
 
 
 def load_d444_quality(data_dir: str) -> dict:
@@ -40,11 +77,9 @@ def load_d444_quality(data_dir: str) -> dict:
 def is_good_d4_suffix(sfx: str, freq: int, quality: dict) -> bool:
     if freq < THRESHOLDS["d4"]:
         return False
-    if sfx in MANUAL_EXCLUDE_D4:
+    if sfx in MANUAL_EXCLUDE_D4 or sfx in POI_EXCLUDE_D4:
         return False
     q = quality.get(sfx)
-    # Only reject when quality data exists AND shows loc-dominated.
-    # Missing quality entries (new suffixes) pass through.
     if q is not None and q.get("loc", 0) > q.get("org", 0):
         return False
     return True
@@ -100,6 +135,9 @@ def main():
     stats_files = [os.path.join(STATS_DIR, f"iter_{VERSION}", f"org_stats_{i:02d}.pkl") for i in range(NUM_CHUNKS)]
     merged = aggregate_stats_files(stats_files)
     pruned = prune(merged, quality)
+    pruned, gov_injected, gov_boosted = merge_gov_seed(pruned)
+    print(f"Gov suffix seed: +{gov_injected} new, boosted {gov_boosted} existing "
+          f"(total d4: {len(pruned['d4_freqs']):,})", flush=True)
     print_report(merged, pruned)
 
     os.makedirs(OUT_DIR, exist_ok=True)
