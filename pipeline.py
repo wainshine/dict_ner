@@ -1,5 +1,7 @@
 """dict_ner 统一识别总线 — 地名/机构名/POI/品牌"""
+import csv
 import os
+import pickle
 import warnings
 import threading
 
@@ -15,33 +17,8 @@ GOV_SUFFIXES = {
     "办公室", "办事处", "管理处", "管理所", "监督所",
     "监察委", "监察委员会", "管委会", "管理委员会",
     "指挥部", "工作站", "政务服务中心", "行政服务中心",
-}
-
-POI_FACILITY_SUFFIXES = {
-    "停车场", "停车库", "公厕", "厕所",
-    "收费站", "加油站", "加气站",
-    "公交站", "地铁站", "客运站", "火车站",
-    "码头", "港口", "渡口",
-}
-
-POI_STORE_SUFFIXES = {
-    "店", "超市", "便利店", "商店", "商场", "市场", "菜场",
-    "餐厅", "饭店", "食堂",
-    "酒店", "宾馆", "旅馆", "招待所",
-    "网吧", "会所", "健身房", "影院", "电影院",
-    "馆", "行", "房", "厅", "部", "庄", "阁", "楼", "城", "吧",
-    "场", "社", "亭", "家", "坊", "斋", "居", "府", "轩",
-}
-
-POI_SUFFIX_OVERRIDES = {
-    "小吃", "快餐", "麻辣烫", "烧烤", "火锅", "私房菜",
-    "商行", "车行", "专卖", "专柜", "批发", "批发部", "经营部",
-    "手机卖场", "报刊亭", "百货",
-    "造型", "汽修", "美发", "快递", "发艺", "KTV",
-    "布艺", "窗帘", "童装", "家纺", "灯饰",
-    "生活馆", "体验馆", "蛋糕房", "彩票",
-    "客栈", "总代理", "总经销", "美容院", "发屋", "浴池",
-    "美甲美睫", "批发零售", "儿童乐园", "小屋", "住宿",
+    "派出所", "村委会", "人民政府", "居委会", "警务室",
+    "工商所", "税务所", "税务局", "联合会", "协会", "党支部",
 }
 
 _ADDR_TYPES = {
@@ -65,10 +42,10 @@ DICT_DIR = os.path.join(BASE_DIR, "dicts")
 
 
 class DictNerPipeline:
-    def __init__(self, loc_dict: str = "loc_v1.2.0",
-                 org_dict: str = "v1.2.0",
-                 poi_dict: str = "poi_v1.2.0",
-                 t_unknown: float = 0.15):
+    def __init__(self, loc_dict: str = "loc_v1.2.1",
+                 org_dict: str = "v1.2.1",
+                 poi_dict: str = "poi_v1.2.1",
+                 t_unknown: float = 0.10):
         self.loc_version = loc_dict
         self.org_version = org_dict
         self.poi_version = poi_dict
@@ -77,6 +54,9 @@ class DictNerPipeline:
         self._poi = None
         self._lock = threading.Lock()
         self.T_UNKNOWN = t_unknown
+        self._d4_map = None
+        self._suffix_table = None
+        self._sql_suffixes = None
 
     @property
     def loc(self):
@@ -114,10 +94,53 @@ class DictNerPipeline:
             with self._lock:
                 if not hasattr(self, '_brand'):
                     from brand.model import BrandModel
-                    self._brand = BrandModel(DICT_DIR, version="v1.2.0")
+                    self._brand = BrandModel(DICT_DIR, version="v1.2.1")
                     if not self._brand.load():
                         warnings.warn("Brand model not loaded, brand_score will return 0.5")
         return self._brand
+
+    @property
+    def d4_map(self):
+        if self._d4_map is None:
+            with self._lock:
+                if self._d4_map is None:
+                    path = os.path.join(DICT_DIR, "d4_category_map.pkl")
+                    if os.path.exists(path):
+                        with open(path, "rb") as f:
+                            self._d4_map = pickle.load(f)
+                    else:
+                        self._d4_map = {}
+        return self._d4_map
+
+    @property
+    def suffix_table(self):
+        if self._suffix_table is None:
+            with self._lock:
+                if self._suffix_table is None:
+                    self._suffix_table = {}
+                    path = os.path.join(DICT_DIR, "suffix_category_gaode.csv")
+                    if os.path.exists(path):
+                        with open(path, encoding="utf-8-sig") as f:
+                            for row in csv.DictReader(f):
+                                sfx = row["suffix"]
+                                cat = row["gaode_category"]
+                                self._suffix_table[sfx] = cat
+        return self._suffix_table
+
+    @property
+    def sql_suffixes(self):
+        if self._sql_suffixes is None:
+            with self._lock:
+                if self._sql_suffixes is None:
+                    self._sql_suffixes = set()
+                    path = os.path.join(DATA_DIR, "suffix_segments_sql.csv")
+                    if os.path.exists(path):
+                        with open(path, encoding="utf-8-sig") as f:
+                            for row in csv.DictReader(f):
+                                sfx = row["d4"].strip()
+                                if sfx and len(sfx) >= 2:
+                                    self._sql_suffixes.add(sfx)
+        return self._sql_suffixes
 
     def _has_company_suffix(self, org_result):
         for s in org_result.segments:
@@ -191,8 +214,10 @@ class DictNerPipeline:
         d4_suffix = org_last.text if (org_last and org_last.seg_type == SegType.POI) else None
         if d4_suffix is None and org_last:
             org_text = org_last.text
-            check_suffixes = POI_FACILITY_SUFFIXES | POI_STORE_SUFFIXES
-            if any(org_text.endswith(s) for s in check_suffixes) or org_text in POI_SUFFIX_OVERRIDES:
+            cat = self._lookup_d4_category(org_text)
+            if cat is not None and cat not in ("AMBIGUOUS", "UNKNOWN"):
+                d4_suffix = org_text
+            elif self._lookup_suffix_category(org_text) is not None:
                 d4_suffix = org_text
         has_gov = False
         if org_last and d4_suffix:
@@ -204,8 +229,10 @@ class DictNerPipeline:
         poi_d4 = poi_last.text if (poi_last and poi_last.seg_type == SegType.POI) else None
         if poi_d4 is None and poi_last:
             poi_text = poi_last.text
-            check_suffixes = POI_FACILITY_SUFFIXES | POI_STORE_SUFFIXES
-            if any(poi_text.endswith(s) for s in check_suffixes) or poi_text in POI_SUFFIX_OVERRIDES:
+            cat = self._lookup_d4_category(poi_text)
+            if cat is not None and cat not in ("AMBIGUOUS", "UNKNOWN"):
+                poi_d4 = poi_text
+            elif self._lookup_suffix_category(poi_text) is not None:
                 poi_d4 = poi_text
 
         n = max(1, len(text))
@@ -259,16 +286,10 @@ class DictNerPipeline:
             poi_score = 0.0
         else:
             loc_r = f["poi_sfx_aff"].loc_ratio if f["poi_sfx_aff"] else 0.2
-            store_match = any(f["poi_d4"].endswith(s) for s in POI_STORE_SUFFIXES)
-            has_facility = any(f["poi_d4"].endswith(s) for s in POI_FACILITY_SUFFIXES)
-            is_override = f["poi_d4"] in POI_SUFFIX_OVERRIDES
             poi_base = loc_r * 0.75
-            if poi_base < 0.15 and not has_facility:
+            if poi_base < 0.15:
                 poi_base = 0.15
-            if is_override:
-                poi_base = max(poi_base, 0.55)
-            poi_score = poi_base + 0.20 * store_match + 0.25 * has_facility
-            poi_score = min(poi_score, 0.90)
+            poi_score = min(poi_base, 0.90)
 
         addr_score = f["geo_cov"] * 0.50
         if f["addr_aff"] and f["addr_aff"].loc_ratio > 0.5:
@@ -279,32 +300,63 @@ class DictNerPipeline:
 
         return {"ORG": org_score, "POI": poi_score, "ADDR": addr_score}
 
+    def _lookup_d4_category(self, d4):
+        entry = self.d4_map.get(d4)
+        if entry:
+            return entry.get("category", "UNKNOWN")
+        return None
+
+    def _lookup_suffix_category(self, d4):
+        if not d4 or not self.suffix_table:
+            return None
+        for end in range(len(d4), 0, -1):
+            for start in range(0, end):
+                w = d4[start:end]
+                if w in self.suffix_table:
+                    return self.suffix_table[w]
+        return None
+
+    def _double_negative(self, d4, idx):
+        if not d4 or len(d4) < 2:
+            return False
+        for slen in range(min(4, len(d4) - 1), 1, -1):
+            sfx_candidate = d4[-slen:]
+            prefix = d4[:-slen]
+            if prefix and d4 not in idx.suffix and prefix not in idx.trade:
+                return True
+        return False
+
     def _decide(self, f, scores):
+        scores = dict(scores)
+        from core.csv_index import CsvIndex
+        idx = CsvIndex.instance()
+
         if (f["has_comp"] or f["has_gov"]) and f["org_has_poi_terminal"]:
             return "ORG", scores["ORG"]
 
         d4 = f.get("d4_suffix")
         if d4:
-            d4_clean = d4.rstrip(")")
-            if d4_clean in POI_SUFFIX_OVERRIDES:
-                if not (f["has_comp"] or f["has_gov"]):
-                    return "POI", max(scores["POI"], 0.70)
+            if d4 not in self.sql_suffixes:
+                return "POI", max(scores["POI"], 0.70)
 
-            if any(d4.endswith(s) for s in POI_FACILITY_SUFFIXES) or any(d4.rstrip(")").endswith(s) for s in POI_FACILITY_SUFFIXES):
+            cat = self._lookup_d4_category(d4)
+            if cat == "POI_FAC":
                 return "POI", max(scores["POI"], 0.75)
-
-            if any(d4.endswith(s) for s in POI_STORE_SUFFIXES) or any(d4_clean.endswith(s) for s in POI_STORE_SUFFIXES):
-                if f["has_geo"]:
+            elif cat == "POI_STORE":
+                if f["has_geo"] or self._double_negative(d4, idx):
                     return "POI", max(scores["POI"], 0.75)
-                from core.csv_index import CsvIndex
-                idx = CsvIndex.instance()
-                match_d4 = d4_clean if d4_clean != d4 else d4
-                store_sfx = max((s for s in POI_STORE_SUFFIXES if match_d4.endswith(s)), key=len)
-                prefix = match_d4[:-len(store_sfx)] if len(match_d4) > len(store_sfx) else ""
-                if prefix and match_d4 not in idx.suffix and prefix not in idx.trade:
-                    return "POI", max(scores["POI"], 0.70)
-                if not (f["has_comp"] or f["has_gov"]):
-                    return "POI", max(scores["POI"], 0.65)
+            elif cat == "ORG":
+                scores["ORG"] = min(max(scores["ORG"], 0.80), 0.98)
+
+            if cat in (None, "AMBIGUOUS", "UNKNOWN"):
+                cat_sfx = self._lookup_suffix_category(d4)
+                if cat_sfx == "POI_FAC":
+                    return "POI", max(scores["POI"], 0.75)
+                elif cat_sfx == "POI_STORE":
+                    if f["has_geo"] or self._double_negative(d4, idx):
+                        return "POI", max(scores["POI"], 0.75)
+                elif cat_sfx == "ORG":
+                    scores["ORG"] = min(max(scores["ORG"], 0.80), 0.98)
 
         best_cat = max(scores, key=scores.get)
         best_val = scores[best_cat]

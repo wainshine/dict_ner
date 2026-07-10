@@ -27,6 +27,9 @@ GAODE_TYPE_MAP = {
     "购物服务": "POI",
     "生活服务": "POI",
     "汽车维修": "POI",
+    "汽车服务": "POI",
+    "汽车销售": "POI",
+    "摩托车服务": "POI",
     "旅游服务": "POI",
     "体育休闲服务": "POI",
     "交通设施服务": "POI",
@@ -180,37 +183,106 @@ def _reservoir_sample(iterator, k):
 
 def sample_gaode():
     files = sorted([f for f in os.listdir(GAODE_DIR) if f.endswith(".csv")])
-    per_file = 1500
-    results = []
 
+    # Pass 1: count type distribution across all files
+    type_counts = {}
+    total_valid = 0
     for fname in files:
         path = os.path.join(GAODE_DIR, fname)
-        size = os.path.getsize(path)
-        if size == 0:
+        if os.path.getsize(path) == 0:
             continue
-        samples = []
         with open(path, encoding="gbk", errors="replace") as f:
             reader = csv.reader(f)
-            next(reader)  # skip header
-            rows = []
+            next(reader)
+            for row in reader:
+                if len(row) < 10:
+                    continue
+                name = (row[6] or "").strip()
+                typ = (row[9] or "").strip()
+                if not name:
+                    continue
+                t1 = typ.split(";")[0] if typ else ""
+                if not t1 or t1 in GAODE_SKIP_TYPES:
+                    continue
+                if GAODE_TYPE_MAP.get(t1) is None:
+                    continue
+                if "自动提款机" in typ or "自助银行" in typ:
+                    continue
+                type_counts[t1] = type_counts.get(t1, 0) + 1
+                total_valid += 1
+
+    target_total = 100000
+    type_targets = {t: max(50, round(target_total * c / total_valid)) for t, c in type_counts.items()}
+    print(f"Gaode pass1: {total_valid:,} valid rows, type targets:")
+
+    # Pass 2: reservoir sample by type
+    samples_by_type = {t: [] for t in type_targets}
+    for fname in files:
+        path = os.path.join(GAODE_DIR, fname)
+        if os.path.getsize(path) == 0:
+            continue
+        with open(path, encoding="gbk", errors="replace") as f:
+            reader = csv.reader(f)
+            next(reader)
             for row in reader:
                 if len(row) < 10:
                     continue
                 text = _safe_text(row[6])
                 if not text:
                     continue
-                type_raw = (row[9] or "").strip()
-                type_1st = type_raw.split(";")[0] if type_raw else ""
-                if not type_1st or type_1st in GAODE_SKIP_TYPES:
+                typ = (row[9] or "").strip()
+                t1 = typ.split(";")[0] if typ else ""
+                if not t1 or t1 in GAODE_SKIP_TYPES:
                     continue
-                label = GAODE_TYPE_MAP.get(type_1st)
+                label = GAODE_TYPE_MAP.get(t1)
                 if label is None:
                     continue
-                samples.append((text, label, "gaode", type_1st))
+                if "自动提款机" in typ or "自助银行" in typ:
+                    continue
+                target = type_targets.get(t1, 0)
+                buf = samples_by_type.get(t1)
+                if buf is None:
+                    continue
+                item = (text, label, "gaode", t1)
+                if len(buf) < target:
+                    buf.append(item)
+                else:
+                    j = random.randint(0, len(buf) - 1)
+                    if j < target:
+                        buf[j] = item
 
-        results.extend(_reservoir_sample(samples, per_file))
+    # Collect natural place names
+    natural = []
+    for fname in files:
+        path = os.path.join(GAODE_DIR, fname)
+        if os.path.getsize(path) == 0:
+            continue
+        with open(path, encoding="gbk", errors="replace") as f:
+            reader = csv.reader(f)
+            next(reader)
+            for row in reader:
+                if len(row) < 10:
+                    continue
+                text = _safe_text(row[6])
+                if not text:
+                    continue
+                typ = (row[9] or "").strip()
+                parts = [p for p in typ.split(";") if p]
+                if len(parts) >= 3 and parts[0] == "地名地址信息" and parts[1] == "自然地名":
+                    natural.append((text, "ADDR", "gaode_natural", parts[2] if len(parts) > 2 else "自然地名"))
+                    if len(natural) >= 30000:
+                        break
+        if len(natural) >= 30000:
+            break
 
-    print(f"Gaode: {len(results):,} samples from {len(files)} files")
+    results = []
+    for t, samples in sorted(samples_by_type.items()):
+        results.extend(samples)
+        actual = len(samples)
+        print(f"  {t:<20s}: target={type_targets.get(t,0):>6,} actual={actual:>6,}")
+
+    results.extend(natural)
+    print(f"Gaode: {len(results):,} samples ({len(natural):,} natural) from {len(files)} files")
     return results
 
 

@@ -119,7 +119,7 @@ def main():
     pipe = DictNerPipeline()
 
     print(f"Evaluating: {args.eval}")
-    print(f"Mode: {'baseline (v1.2.3 temp)' if args.baseline_mode else 'classify (v2.0)'}")
+    print(f"Mode: {'baseline (v1.2.3 temp)' if args.baseline_mode else 'classify (v2.1.0)'}")
 
     t0 = time.time()
     results = evaluate(pipe, args.eval, use_baseline=args.baseline_mode)
@@ -161,7 +161,7 @@ def main():
     if args.out:
         result = {
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "version": "v2.0",
+            "version": "v2.0.0",
             "eval_path": args.eval,
             "mode": "baseline" if args.baseline_mode else "classify",
             "metrics": {k: v for k, v in metrics.items() if k != "confusion_matrix"},
