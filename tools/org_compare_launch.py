@@ -13,7 +13,7 @@ WORKER = os.path.join(BASE, "tools", "org_process_worker.py")
 COMPANY_INPUT = os.path.join(DATA_DIR, "公司名input.txt")
 COMPANY_SPLIT = os.path.join(DATA_DIR, "split", "org_company")
 NUM_CHUNKS = 16
-VERSIONS = ["v1.1.1", "v1.1.2", "v1.1.3"]
+VERSIONS = ["v1.1.1", "v1.1.2", "v1.1.3", "v1.2.0"]
 
 os.makedirs(OUT_DIR, exist_ok=True)
 
@@ -51,6 +51,11 @@ def run_version(version):
     """Run 16 parallel workers for one dict version."""
     out_ver = os.path.join(OUT_DIR, f"org_{version}")
     os.makedirs(out_ver, exist_ok=True)
+
+    first_jsonl = os.path.join(out_ver, "chunk_00.jsonl")
+    if os.path.exists(first_jsonl):
+        print(f"  {version}: already done, skipping", flush=True)
+        return
 
     t0 = time.time()
     procs = []
@@ -100,9 +105,9 @@ def aggregate_stats(version):
 def compare_versions(all_stats):
     """Generate comparison report from per-version stats."""
     report = []
-    report.append("# ORG 全量识别三版本对比报告\n")
+    report.append("# ORG 全量识别四版本对比报告\n")
     report.append(f"> 数据源: 公司名input.txt ({all_stats[0]['total']:,} 条)")
-    report.append(f"> 词典版本: v1.1.1 / v1.1.2 / v1.1.3\n")
+    report.append(f"> 词典版本: v1.1.1 / v1.1.2 / v1.1.3 / v1.2.0\n")
 
     report.append("## 覆盖率\n")
     report.append("| 版本 | 总记录数 | 平均段数 | 段分布 (top 5) |")
@@ -123,13 +128,17 @@ def compare_versions(all_stats):
             rows.append(f"{100*cnt/total:.1f}%")
         report.append(f"| {s['version']} | {' | '.join(rows)} |")
 
-    # Deep comparison: sample from first chunk
-    report.append("\n## 识别差异对比 (chunk_00 全量)\n")
-    diff_01 = diff_12 = diff_all3 = total_checked = 0
-    diff_examples = []
+    report.append("\n## 识别差异对比 (chunk_00 全量, 按段文本边界)\n")
+    total_checked = 0
+    all_diffs = {}
 
-    for ver_pair, ver_a, ver_b in [("v1.1.1 vs v1.1.2", "v1.1.1", "v1.1.2"),
-                                     ("v1.1.2 vs v1.1.3", "v1.1.2", "v1.1.3")]:
+    version_pairs = [
+        ("v1.1.1 vs v1.1.2", "v1.1.1", "v1.1.2"),
+        ("v1.1.2 vs v1.1.3", "v1.1.2", "v1.1.3"),
+        ("v1.1.3 vs v1.2.0", "v1.1.3", "v1.2.0"),
+    ]
+
+    for ver_pair, ver_a, ver_b in version_pairs:
         path_a = os.path.join(OUT_DIR, f"org_{ver_a}", "chunk_00.jsonl")
         path_b = os.path.join(OUT_DIR, f"org_{ver_b}", "chunk_00.jsonl")
         diff_count = 0
@@ -141,9 +150,8 @@ def compare_versions(all_stats):
                 total += 1
                 ra = json.loads(line_a)
                 rb = json.loads(line_b)
-                # Compare segment type sequence
-                seq_a = tuple(s["type"] for s in ra["segments"])
-                seq_b = tuple(s["type"] for s in rb["segments"])
+                seq_a = tuple(s["text"] for s in ra["segments"])
+                seq_b = tuple(s["text"] for s in rb["segments"])
                 if seq_a != seq_b:
                     diff_count += 1
                     if len(examples) < 10:
@@ -152,25 +160,28 @@ def compare_versions(all_stats):
         pct = 100 * diff_count / max(1, total)
         report.append(f"\n### {ver_pair}")
         report.append(f"- 总记录: {total:,}")
-        report.append(f"- 段序列不一致: {diff_count:,} ({pct:.2f}%)")
-        if ver_pair == "v1.1.1 vs v1.1.2":
-            diff_01 = diff_count
-        else:
-            diff_12 = diff_count
+        report.append(f"- 段文本不一致: {diff_count:,} ({pct:.2f}%)")
+
+        all_diffs[ver_pair] = diff_count
         total_checked = total
 
         if examples:
             report.append(f"\n**不一致样例**:\n")
             for text, seq_a, seq_b in examples[:5]:
                 report.append(f"- 「{text}」")
-                report.append(f"  - {ver_a}: {' → '.join(seq_a)}")
-                report.append(f"  - {ver_b}: {' → '.join(seq_b)}")
+                report.append(f"  - {ver_a}: {' '.join(f'[{t}]' for t in seq_a)}")
+                report.append(f"  - {ver_b}: {' '.join(f'[{t}]' for t in seq_b)}")
 
     report.append(f"\n## 汇总\n")
-    report.append(f"| 版本对 | 不一致数 | 占比 |")
-    report.append(f"|------|:---:|:---:|")
-    report.append(f"| v1.1.1→v1.1.2 | {diff_01:,} | {100*diff_01/total_checked:.2f}% |")
-    report.append(f"| v1.1.2→v1.1.3 | {diff_12:,} | {100*diff_12/total_checked:.2f}% |")
+    report.append(f"| 版本对 | 不一致数 | 占比 | 增量 |")
+    report.append(f"|------|:---:|:---:|:---:|")
+    prev = 0
+    for ver_pair, _, _ in version_pairs:
+        cnt = all_diffs.get(ver_pair, 0)
+        pct = 100 * cnt / max(1, total_checked)
+        delta = cnt - prev
+        report.append(f"| {ver_pair} | {cnt:,} | {pct:.2f}% | Δ{delta:+,} |")
+        prev = cnt
 
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     report.append(f"\n> 报告生成: {now}")
