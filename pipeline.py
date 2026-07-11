@@ -43,8 +43,8 @@ DICT_DIR = os.path.join(BASE_DIR, "dicts")
 
 class DictNerPipeline:
     def __init__(self, loc_dict: str = "loc_v1.2.3",
-                 org_dict: str = "v1.2.2",
-                 poi_dict: str = "poi_v1.2.2",
+                 org_dict: str = "v1.2.3",
+                 poi_dict: str = "poi_v1.2.3",
                  t_unknown: float = 0.10):
         self.loc_version = loc_dict
         self.org_version = org_dict
@@ -94,7 +94,7 @@ class DictNerPipeline:
             with self._lock:
                 if not hasattr(self, '_brand'):
                     from brand.model import BrandModel
-                    self._brand = BrandModel(DICT_DIR, version="v1.2.2")
+                    self._brand = BrandModel(DICT_DIR, version="v1.2.3")
                     if not self._brand.load():
                         warnings.warn("Brand model not loaded, brand_score will return 0.5")
         return self._brand
