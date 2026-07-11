@@ -11,10 +11,10 @@ from loc.builder import DictBuilder
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DICT_DIR = os.path.join(BASE, "dicts")
-LOC_VERSION = "v1.2.1"
-ORG_VERSION = "v1.2.1"
-POI_VERSION = "v1.2.1"
-BRAND_VERSION = "v1.2.1"
+LOC_VERSION = "v1.2.3"
+ORG_VERSION = "v1.2.2"
+POI_VERSION = "v1.2.2"
+BRAND_VERSION = "v1.2.2"
 
 
 class TestDictSnapshot(unittest.TestCase):

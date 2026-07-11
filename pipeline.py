@@ -42,9 +42,9 @@ DICT_DIR = os.path.join(BASE_DIR, "dicts")
 
 
 class DictNerPipeline:
-    def __init__(self, loc_dict: str = "loc_v1.2.1",
-                 org_dict: str = "v1.2.1",
-                 poi_dict: str = "poi_v1.2.1",
+    def __init__(self, loc_dict: str = "loc_v1.2.3",
+                 org_dict: str = "v1.2.2",
+                 poi_dict: str = "poi_v1.2.2",
                  t_unknown: float = 0.10):
         self.loc_version = loc_dict
         self.org_version = org_dict
@@ -94,7 +94,7 @@ class DictNerPipeline:
             with self._lock:
                 if not hasattr(self, '_brand'):
                     from brand.model import BrandModel
-                    self._brand = BrandModel(DICT_DIR, version="v1.2.1")
+                    self._brand = BrandModel(DICT_DIR, version="v1.2.2")
                     if not self._brand.load():
                         warnings.warn("Brand model not loaded, brand_score will return 0.5")
         return self._brand
@@ -149,10 +149,67 @@ class DictNerPipeline:
                     return True
         return False
 
+    def _remap_org_segments(self, result):
+        if result and result.segments:
+            for s in result.segments:
+                if s.seg_type == SegType.POI:
+                    s.seg_type = SegType.ORG_SUFFIX
+        return result
+
+    def _merge_over_split(self, segments):
+        from core.csv_index import CsvIndex
+        idx = CsvIndex.instance()
+        addr_types = {SegType.PROVINCE, SegType.CITY, SegType.DISTRICT,
+                      SegType.TOWN, SegType.VILLAGE, SegType.COMMUNITY, SegType.ROAD}
+        no_merge_types = {SegType.ORG_SUFFIX, SegType.POI}
+
+        i = 0
+        while i < len(segments) - 1:
+            s1, s2 = segments[i], segments[i + 1]
+            if s1.seg_type in addr_types or s2.seg_type in addr_types:
+                i += 1
+                continue
+            if s1.seg_type in no_merge_types or s2.seg_type in no_merge_types:
+                i += 1
+                continue
+            merged = s1.text + s2.text
+            if merged in idx.suffix or merged in idx.trade:
+                s1.text = merged
+                s1.seg_type = SegType.INDUSTRY
+                del segments[i + 1]
+                continue
+            i += 1
+        return segments
+
+    def _detect_compound(self, segments):
+        company_suffixes = {"有限公司", "有限责任公司", "股份有限公司"}
+        for i, s in enumerate(segments):
+            if i == len(segments) - 1:
+                continue
+            if s.seg_type == SegType.ORG_SUFFIX and s.text in company_suffixes:
+                return s.end
+        return None
+
+    def _re_split_and_recognize(self, text, split_pos):
+        from core.types import AddressResult
+        part1 = text[:split_pos]
+        part2 = text[split_pos:]
+        res1 = self._remap_org_segments(self.org.recognize(part1))
+        res2 = self._remap_org_segments(self.org.recognize(part2))
+        merged = res1.segments + res2.segments
+        for i, s in enumerate(merged):
+            s.start = 0 if i == 0 else merged[i - 1].end
+            s.end = s.start + len(s.text)
+        return AddressResult(original=text, segments=merged)
+
     def recognize(self, text: str):
         text = text.strip()
         loc_result = self.loc.recognize(text)
-        org_result = self.org.recognize(text)
+        org_result = self._remap_org_segments(self.org.recognize(text))
+        org_result.segments = self._merge_over_split(org_result.segments)
+        split_pos = self._detect_compound(org_result.segments)
+        if split_pos is not None:
+            org_result = self._re_split_and_recognize(text, split_pos)
 
         is_company = self._has_company_suffix(org_result)
         poi_result = None if is_company else self.poi.recognize(text)
@@ -183,7 +240,11 @@ class DictNerPipeline:
             return {"text": "", "category": "UNKNOWN", "confidence": 1.0,
                     "best": None, "all": None}
         loc_res = self.loc.recognize(text)
-        org_res = self.org.recognize(text)
+        org_res = self._remap_org_segments(self.org.recognize(text))
+        org_res.segments = self._merge_over_split(org_res.segments)
+        split_pos = self._detect_compound(org_res.segments)
+        if split_pos is not None:
+            org_res = self._re_split_and_recognize(text, split_pos)
         has_comp = self._has_company_suffix(org_res)
         poi_res = None if has_comp else self.poi.recognize(text)
         feats = self._extract_features(text, loc_res, org_res, poi_res, has_comp)
@@ -211,7 +272,7 @@ class DictNerPipeline:
 
         org_segs = org_res.segments
         org_last = org_segs[-1] if org_segs else None
-        d4_suffix = org_last.text if (org_last and org_last.seg_type == SegType.POI) else None
+        d4_suffix = org_last.text if (org_last and org_last.seg_type == SegType.ORG_SUFFIX) else None
         if d4_suffix is None and org_last:
             org_text = org_last.text
             cat = self._lookup_d4_category(org_text)
@@ -264,7 +325,7 @@ class DictNerPipeline:
             "n": n, "has_comp": has_comp, "has_gov": has_gov,
             "d4_suffix": d4_suffix, "d3_text": d3_text, "d1_prefix": d1_prefix,
             "poi_d4": poi_d4, "has_industry": has_industry, "has_geo": has_geo,
-            "org_has_poi_terminal": org_last is not None and org_last.seg_type == SegType.POI,
+            "org_has_poi_terminal": org_last is not None and org_last.seg_type == SegType.ORG_SUFFIX,
             "poi_has_poi_terminal": poi_last is not None and poi_last.seg_type == SegType.POI,
             "admin_cov": admin_cov, "geo_cov": geo_cov,
             "sfx_aff": sfx_aff, "trd_aff": trd_aff,
@@ -341,22 +402,26 @@ class DictNerPipeline:
 
             cat = self._lookup_d4_category(d4)
             if cat == "POI_FAC":
-                return "POI", max(scores["POI"], 0.75)
+                scores["POI"] = min(scores["POI"] + 0.30, 0.95)
             elif cat == "POI_STORE":
                 if f["has_geo"] or self._double_negative(d4, idx):
-                    return "POI", max(scores["POI"], 0.75)
+                    scores["POI"] = min(scores["POI"] + 0.25, 0.95)
+                else:
+                    scores["POI"] = min(scores["POI"] + 0.15, 0.90)
             elif cat == "ORG":
-                scores["ORG"] = min(max(scores["ORG"], 0.80), 0.98)
+                scores["ORG"] = min(max(scores["ORG"], 0.70), 0.98)
 
             if cat in (None, "AMBIGUOUS", "UNKNOWN"):
                 cat_sfx = self._lookup_suffix_category(d4)
                 if cat_sfx == "POI_FAC":
-                    return "POI", max(scores["POI"], 0.75)
+                    scores["POI"] = min(scores["POI"] + 0.30, 0.95)
                 elif cat_sfx == "POI_STORE":
                     if f["has_geo"] or self._double_negative(d4, idx):
-                        return "POI", max(scores["POI"], 0.75)
+                        scores["POI"] = min(scores["POI"] + 0.20, 0.95)
+                    else:
+                        scores["POI"] = min(scores["POI"] + 0.10, 0.90)
                 elif cat_sfx == "ORG":
-                    scores["ORG"] = min(max(scores["ORG"], 0.80), 0.98)
+                    scores["ORG"] = min(max(scores["ORG"], 0.65), 0.98)
 
         best_cat = max(scores, key=scores.get)
         best_val = scores[best_cat]

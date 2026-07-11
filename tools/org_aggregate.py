@@ -17,20 +17,60 @@ MANUAL_EXCLUDE_D4 = {
 
 POI_EXCLUDE_D4 = {
     "小吃", "快餐", "麻辣烫", "烧烤", "火锅", "私房菜",
-    "商行", "车行", "专卖", "专柜", "批发", "批发部",
     "手机卖场", "报刊亭", "百货",
-    "造型", "美发", "快递", "发艺", "KTV",
+    "造型", "美发", "发艺", "KTV", "发屋", "浴池", "美甲美睫",
+    "蛋糕房", "彩票",
     "布艺", "窗帘", "童装", "家纺", "灯饰",
-    "生活馆", "体验馆", "蛋糕房", "彩票",
-    "客栈", "总代理", "总经销", "美容院", "发屋", "浴池",
-    "美甲美睫", "批发零售", "儿童乐园", "小屋", "住宿",
-    "经营部",
+    "客栈", "生活馆", "体验馆", "儿童乐园", "小屋", "住宿",
 }
 
 THRESHOLDS = {"d1": 5, "d3": 3, "d4": 100}
 
 GOV_SEED = os.path.join(DATA_DIR, "gov_suffix_seed.csv")
 GOV_SEED_FREQ = 50000
+
+SPLIT_SUFFIXES = {"厂", "店", "行", "部", "坊", "室", "所", "站", "场"}
+D3_FREQ_THRESHOLD = 5000
+
+
+def split_polluted_d4(pruned, merged):
+    """Split d4 entries that are actually d3+1char-suffix combinations."""
+    d3 = dict(pruned["d3_freqs"])
+    d4 = dict(pruned["d4_freqs"])
+    merged_d3 = merged.get("d3_freqs", {})
+
+    split_count = 0
+    split_details = []
+
+    for d4_word in list(d4.keys()):
+        if len(d4_word) < 3:
+            continue
+        suffix = d4_word[-1]
+        if suffix not in SPLIT_SUFFIXES:
+            continue
+        prefix = d4_word[:-1]
+        if len(prefix) < 2:
+            continue
+        prefix_freq = merged_d3.get(prefix, 0)
+        if prefix_freq < D3_FREQ_THRESHOLD:
+            continue
+
+        d4_freq = d4.pop(d4_word)
+        if prefix not in d3:
+            d3[prefix] = prefix_freq
+        if suffix not in d4:
+            d4[suffix] = max(d4.get(suffix, 0), d4_freq)
+        split_count += 1
+        split_details.append((d4_word, d4_freq, prefix, prefix_freq, suffix))
+
+    pruned["d3_freqs"] = d3
+    pruned["d4_freqs"] = d4
+
+    print(f"D4 pollution split: {split_count} entries split", flush=True)
+    for d4w, d4f, pfx, pfx_f, sfx in split_details[:10]:
+        print(f"  {d4w} (d4={d4f:,}) → d3({pfx}:{pfx_f:,}) + d4({sfx})", flush=True)
+
+    return pruned, split_count
 
 
 def merge_gov_seed(pruned):
@@ -135,6 +175,7 @@ def main():
     stats_files = [os.path.join(STATS_DIR, f"iter_{VERSION}", f"org_stats_{i:02d}.pkl") for i in range(NUM_CHUNKS)]
     merged = aggregate_stats_files(stats_files)
     pruned = prune(merged, quality)
+    pruned, split_n = split_polluted_d4(pruned, merged)
     pruned, gov_injected, gov_boosted = merge_gov_seed(pruned)
     print(f"Gov suffix seed: +{gov_injected} new, boosted {gov_boosted} existing "
           f"(total d4: {len(pruned['d4_freqs']):,})", flush=True)

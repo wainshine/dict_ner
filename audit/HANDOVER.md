@@ -1,14 +1,14 @@
-# HANDOVER.md v2.1.0
+# HANDOVER.md v2.2.1
 
-> 最后更新: 2026-07-10
-> v2.1.0: 数据驱动 classify, 移除手工后缀列表
-> 详见 `audit/` 目录下 7 份审计/方案报告
+> 最后更新: 2026-07-11
+> v2.2.1: 段类型体系修复 + 复合机构检测 + 过度拆分合并 + VILLAGE 清理
+> 详见 `audit/` 目录下 8 份审计/方案报告
 
 ## 项目概况
 
 从非结构化中文文本识别地名/机构名/POI/品牌名，四个模组共用 Viterbi DP 引擎。
 
-v2.1.0 新增 `pipeline.classify()` 统一分类 (ORG/POI/ADDR/UNKNOWN)，使用数据驱动查表替代手工后缀列表。
+v2.2.1 新增 SegType.ORG_SUFFIX 枚举，ORG 和 POI 段类型输出层分离。pipeline 层新增复合机构检测（非末段"有限公司"→切分重识别）和过度拆分合并（相邻段合并后查 SQL CSV 校验）。LOC 词典 VILLAGE 清理（依据 areas/ 五级行政区划）。
 
 - 总代码量: ~3800 行 Python, 词典 ~45MB, 数据 ~16GB
 - 测试覆盖: **112 条用例**, `python3 -m unittest discover -v -s tests/`
@@ -21,7 +21,7 @@ v2.1.0 新增 `pipeline.classify()` 统一分类 (ORG/POI/ADDR/UNKNOWN)，使用
 ```
 pipeline.py          → DictNerPipeline 统一总线 + classify()
 run.py               → CLI 入口
-core/config.py       → 共享常量 (VERSION=v1.2.1, NUM_CHUNKS, 路径)
+core/config.py       → 共享常量 (VERSION=v1.2.3, NUM_CHUNKS, 路径)
 core/types.py        → SegType 枚举 + ADMIN_SUFFIX_MAP + POI_SUFFIX_MAP
 core/csv_index.py    → 三SQL CSV 亲和度运行时索引
 core/suffix_matcher.py → 后缀边界合并
@@ -65,13 +65,13 @@ scripts/validate_d4_map.py   → d4_category_map vs SQL CSV 一致性校验
 | `data/gov_suffix_seed.csv` | 29条 | 政府后缀种子 (Gaode验证) |
 | `data/gaode_roads.csv` | 7MB | 47万Gaode道路名 (freq≥5, 已拆分复合名) |
 | `data/eval_set.csv` | 7MB | 18万条评测集 (按type比例采样) |
-| `dicts/*v1.2.1.pkl` | 45MB | 当前词典 (4个) |
+| `dicts/*v1.2.3.pkl` | 45MB | 当前词典 (4个) |
 | `dicts/*v1.2.0.pkl` | 45MB | 上一版词典 (4个) |
 | `dicts/*v1.1.2.pkl` | 38MB | 兜底词典 (4个) |
 | `dicts/*v1.1.1.pkl` | 38MB | 兜底词典 (4个, **不可删**) |
 | `dicts/d4_category_map.pkl` | 0.2MB | 9,577条d4 Gaode标注 |
 | `dicts/suffix_category_gaode.csv` | ~40KB | 1,520条高置信后缀 |
-| `dicts/iter_v1.2.1/` | ~1.5GB | ORG/POI 统计中间产物 |
+| `dicts/iter_v1.2.3/` | ~1.5GB | ORG/POI 统计中间产物 |
 
 ## SQL遗存对应表
 
@@ -94,12 +94,12 @@ scripts/validate_d4_map.py   → d4_category_map vs SQL CSV 一致性校验
 
 ### classify 评测 (18万条)
 
-| 指标 | v2.1.0 | baseline v1.2.3 | Delta |
+| 指标 | v2.2.1 | baseline v1.2.3 | Delta |
 |------|:---:|:---:|:---:|
-| macro-F1 | 0.3706 | 0.3513 | +0.0193 |
-| ORG F1 | 0.5455 | 0.3925 | +0.1530 |
-| POI F1 | 0.5232 | 0.6599 | -0.1367 |
-| ADDR F1 | 0.4112 | 0.3529 | +0.0583 |
+| macro-F1 | 0.3702 | 0.3513 | +0.0189 |
+| ORG F1 | 0.5203 | 0.3925 | +0.1278 |
+| POI F1 | 0.5419 | 0.6599 | -0.1180 |
+| ADDR F1 | 0.4163 | 0.3529 | +0.0634 |
 
 ## 从零重建
 
@@ -115,7 +115,7 @@ python scripts/build_gaode_index.py
 ```bash
 python -c "
 from loc.builder import DictBuilder
-b = DictBuilder('dicts', 'loc_v1.2.1')
+b = DictBuilder('dicts', 'loc_v1.2.3')
 b.build_from_loc36kw('data'); b.build_from_areas('data')
 b.build_from_d444('data'); b.cleanup()
 b.build_orientation_dict(); b.build_location_dict(); b.save()
@@ -135,8 +135,8 @@ python tools/org_aggregate.py
 ```bash
 python -c "
 from brand.model import BrandModel
-m = BrandModel('dicts', version='v1.2.1')
-m.train_from_d2_csv('dicts/iter_v1.2.1/org_d2_freqs_v1.2.1.csv', min_freq=3, min_bigram_count=10)
+m = BrandModel('dicts', version='v1.2.3')
+m.train_from_d2_csv('dicts/iter_iter_v1.2.3/org_d2_freqs_v1.2.1.csv', min_freq=3, min_bigram_count=10)
 m.save()
 "
 ```
@@ -178,7 +178,7 @@ python scripts/validate_d4_map.py                                 # SQL CSV校�
 | gov seed | 19条 | 29条 (Gaode验证) |
 | d4不在SQL CSV | 未处理 | 判定为POI |
 | eval_set | 15万 (按文件均分) | 18万 (按type比例+自然地名) |
-| 词典版本 | v1.2.0 | v1.2.1 |
+| 词典版本 | v1.2.2 | v1.2.3 |
 | 测试数 | 108 | 112 |
 
 ## 踩过的坑
@@ -196,7 +196,7 @@ python scripts/validate_d4_map.py                                 # SQL CSV校�
 
 ## 当前状态
 
-- 系统版本: **v2.1.0**, 词典: **v1.2.1** (当前) + v1.2.0 + v1.1.2 + v1.1.1 (兜底, **不可删**)
+- 系统版本: **v2.2.1**, 词典: **v1.2.3** (当前) v1.2.0 v1.2.1 v1.2.2 + v1.1.2 + v1.1.1 (兜底, **不可删**)
 - 测试: **112 用例** 全部通过
 - 评测: 18万条, macro-F1 0.3706 (超基线 +0.0193)
 - 审计: 七代全部闭环 (v1.0 50/50 + 二代 N1-N24 + 三代 F1-F22 + 四代 Finding 1-19 + v2.0.0 + v2.1.0)

@@ -15,6 +15,7 @@ class SegType(str, Enum):
     ROAD = "ROAD"
     POI = "POI"
     POI_SUB = "POI_SUB"
+    ORG_SUFFIX = "ORG_SUFFIX"
     ORIENTATION = "ORIENTATION"
     NUMERIC = "NUMERIC"
     LOCATION = "LOCATION"
@@ -33,6 +34,7 @@ LEVEL_ORDER = {
     SegType.COMMUNITY: 4,
     SegType.ROAD: 5,
     SegType.POI: 6,
+    SegType.ORG_SUFFIX: 6,
     SegType.POI_SUB: 7,
     SegType.ORIENTATION: -1,
     SegType.LOCATION: -1,

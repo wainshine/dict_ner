@@ -10,7 +10,7 @@ OUT_DIR = os.path.join(BASE, "output", "loc_eval")
 WORKER = os.path.join(BASE, "tools", "loc_eval_worker.py")
 SPLIT_DIR = os.path.join(BASE, "data", "split", "loc")
 NUM_CHUNKS = 16
-VERSIONS = ["v1.1.3", "v1.2.1"]
+VERSIONS = ["v1.1.3", "v1.2.1", "v1.2.2", "v1.2.3"]
 
 os.makedirs(OUT_DIR, exist_ok=True)
 
@@ -113,63 +113,85 @@ def compare_versions(all_stats):
 
     report.append("\n## 识别差异对比 (chunk_00 全量, 按段文本边界)\n")
 
-    ver_a, ver_b = all_stats[0]["version"], all_stats[1]["version"]
-    path_a = os.path.join(OUT_DIR, f"loc_{ver_a}", "chunk_00.jsonl")
-    path_b = os.path.join(OUT_DIR, f"loc_{ver_b}", "chunk_00.jsonl")
-    diff_count = 0
-    total = 0
-    examples = []
+    version_pairs = [(all_stats[i]["version"], all_stats[i + 1]["version"]) for i in range(len(all_stats) - 1)]
 
-    with open(path_a, encoding="utf-8") as fa, open(path_b, encoding="utf-8") as fb:
-        for line_a, line_b in zip(fa, fb):
-            total += 1
-            ra = json.loads(line_a)
-            rb = json.loads(line_b)
-            seq_a = tuple(s["text"] for s in ra["segments"])
-            seq_b = tuple(s["text"] for s in rb["segments"])
-            if seq_a != seq_b:
-                diff_count += 1
-                if len(examples) < 10:
-                    examples.append((ra["original"], seq_a, seq_b))
+    for ver_a, ver_b in version_pairs:
+        path_a = os.path.join(OUT_DIR, f"loc_{ver_a}", "chunk_00.jsonl")
+        path_b = os.path.join(OUT_DIR, f"loc_{ver_b}", "chunk_00.jsonl")
+        diff_count = 0
+        total = 0
+        examples = []
 
-    pct = 100 * diff_count / max(1, total)
-    report.append(f"\n### {ver_a} vs {ver_b}")
-    report.append(f"- 总记录: {total:,}")
-    report.append(f"- 段文本不一致: {diff_count:,} ({pct:.2f}%)")
+        with open(path_a, encoding="utf-8") as fa, open(path_b, encoding="utf-8") as fb:
+            for line_a, line_b in zip(fa, fb):
+                total += 1
+                ra = json.loads(line_a)
+                rb = json.loads(line_b)
+                seq_a = tuple(s["text"] for s in ra["segments"])
+                seq_b = tuple(s["text"] for s in rb["segments"])
+                if seq_a != seq_b:
+                    diff_count += 1
+                    if len(examples) < 5:
+                        examples.append((ra["original"], seq_a, seq_b))
 
-    if examples:
-        report.append(f"\n**不一致样例**:\n")
-        for text, seq_a, seq_b in examples[:5]:
-            report.append(f"- 「{text}」")
-            report.append(f"  - {ver_a}: {' '.join(f'[{t}]' for t in seq_a)}")
-            report.append(f"  - {ver_b}: {' '.join(f'[{t}]' for t in seq_b)}")
+        pct = 100 * diff_count / max(1, total)
+        report.append(f"\n### {ver_a} vs {ver_b}")
+        report.append(f"- 总记录: {total:,}")
+        report.append(f"- 段文本不一致: {diff_count:,} ({pct:.2f}%)")
+
+        if examples:
+            report.append(f"\n**不一致样例**:\n")
+            for text, seq_a, seq_b in examples:
+                report.append(f"- 「{text}」")
+                report.append(f"  - {ver_a}: {' '.join(f'[{t}]' for t in seq_a)}")
+                report.append(f"  - {ver_b}: {' '.join(f'[{t}]' for t in seq_b)}")
 
     report.append(f"\n## 汇总\n")
     report.append(f"| 版本对 | 不一致数 | 占比 |")
     report.append(f"|------|:---:|:---:|")
-    report.append(f"| {ver_a}→{ver_b} | {diff_count:,} | {pct:.2f}% |")
+    for ver_a, ver_b in version_pairs:
+        path_a = os.path.join(OUT_DIR, f"loc_{ver_a}", "chunk_00.jsonl")
+        path_b = os.path.join(OUT_DIR, f"loc_{ver_b}", "chunk_00.jsonl")
+        dc = 0
+        with open(path_a, encoding="utf-8") as fa, open(path_b, encoding="utf-8") as fb:
+            for line_a, line_b in zip(fa, fb):
+                ra = json.loads(line_a)
+                rb = json.loads(line_b)
+                if tuple(s["text"] for s in ra["segments"]) != tuple(s["text"] for s in rb["segments"]):
+                    dc += 1
+        total = 0
+        with open(path_a, encoding="utf-8") as f:
+            for _ in f:
+                total += 1
+        report.append(f"| {ver_a}→{ver_b} | {dc:,} | {100*dc/max(1,total):.2f}% |")
 
     report.append(f"\n## 段类型序列分布\n")
 
     for n in range(1, 7):
-        seqs_a = {k: v for k, v in all_stats[0]["seq_dist"].items() if k.count(" → ") + 1 == n}
-        seqs_b = {k: v for k, v in all_stats[1]["seq_dist"].items() if k.count(" → ") + 1 == n}
+        all_versions_seqs = []
+        for s in all_stats:
+            all_versions_seqs.append({k: v for k, v in s["seq_dist"].items() if k.count(" → ") + 1 == n})
 
-        all_keys = [(k, seqs_a.get(k, 0) + seqs_b.get(k, 0)) for k in set(seqs_a) | set(seqs_b)]
-        filtered = [(k, t) for k, t in all_keys if t >= 50]
+        all_keys = set()
+        for seqs in all_versions_seqs:
+            all_keys.update(seqs.keys())
+        key_totals = [(k, sum(seqs.get(k, 0) for seqs in all_versions_seqs)) for k in all_keys]
+        filtered = [(k, t) for k, t in key_totals if t >= 50]
         filtered.sort(key=lambda x: -x[1])
 
         if not filtered:
             continue
 
+        vnames = [s["version"] for s in all_stats]
+        header = "| 序列 | " + " | ".join(vnames) + " |"
+        sep = "|------|" + "|".join(["------:" for _ in vnames]) + "|"
         report.append(f"\n### {n}段序列 (top {min(15, len(filtered))})\n")
-        report.append("| 序列 | v1.1.3 | v1.2.1 | 差异 |")
-        report.append("|------|------:|------:|-----:|")
+        report.append(header)
+        report.append(sep)
 
         for seq, _ in filtered[:15]:
-            a = seqs_a.get(seq, 0)
-            b = seqs_b.get(seq, 0)
-            report.append(f"| {seq} | {a:,} | {b:,} | {b-a:+,} |")
+            vals = [f"{seqs.get(seq, 0):,}" for seqs in all_versions_seqs]
+            report.append(f"| {seq} | " + " | ".join(vals) + " |")
 
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     report.append(f"\n> 报告生成: {now}")

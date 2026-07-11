@@ -52,7 +52,7 @@ class TestClassify(unittest.TestCase):
     def test_all_org_unchanged(self):
         r = self.pipe.classify("华为技术有限公司")
         types = [s["type"] for s in r["all"]["org"]["segments"]]
-        self.assertIn("POI", types)
+        self.assertIn("ORG_SUFFIX", types)
 
     def test_t_unknown_configurable(self):
         pipe = DictNerPipeline(t_unknown=0.99)

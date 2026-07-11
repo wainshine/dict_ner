@@ -1,4 +1,4 @@
-# dict_ner v2.1.0
+# dict_ner v2.2.1
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，支持统一分类 (ORG/POI/ADDR/UNKNOWN)。
 
@@ -64,10 +64,10 @@ run.py       CLI入口
 
 | 词典 | 条目 | 大小 | 说明 |
 |------|------|:--:|------|
-| `dicts/loc_v1.2.1.pkl` | 120万 + 52万道路 | 31MB | 含Gaode道路名注入 |
-| `dicts/org_v1.2.1.pkl` | d1=64K d3=20K d4=9.6K | 1.8MB | 29条gov seed + 28条POI排除 |
-| `dicts/poi_v1.2.1.pkl` | d1=48K d3=4.7K d4=16K | 1.1MB | 41条POI override注入 |
-| `dicts/brand_v1.2.1.pkl` | 90万bigram | 10MB | 基于v1.2.1 org d2 CSV训练 |
+| `dicts/loc_v1.2.3.pkl` | 120万 + 49万道路 | 31MB | 含 Gaode 道路名, VILLAGE 清理 |
+| `dicts/org_v1.2.3.pkl` | d1=64K d3=20K d4=8.3K | 1.8MB | split_polluted_d4 拆分1301条 + gov seed 29条 + POI排除29条 |
+| `dicts/poi_v1.2.3.pkl` | d1=48K d3=4.7K d4=16K | 1.1MB | 41条 POI override 注入 |
+| `dicts/brand_v1.2.3.pkl` | 90万bigram | 10MB | 基于 v1.2.3 org d2 CSV 训练 |
 
 ### 数据驱动表（运行时加载）
 
@@ -128,14 +128,14 @@ dict_ner/
 
 ## 识别质量
 
-### 分类评测 (18万条, v2.1.0 vs baseline)
+### 分类评测 (18万条, v2.2.1 vs baseline)
 
-| 指标 | v2.1.0 | baseline v1.2.3 | Delta |
+| 指标 | v2.2.1 | baseline v1.2.3 | Delta |
 |------|:---:|:---:|:---:|
-| macro-F1 | 0.3706 | 0.3513 | **+0.0193** |
-| ORG F1 | 0.5455 | 0.3925 | **+0.1530** |
-| POI F1 | 0.5232 | 0.6599 | -0.1367 |
-| ADDR F1 | 0.4112 | 0.3529 | +0.0583 |
+| macro-F1 | 0.3702 | 0.3513 | **+0.0189** |
+| ORG F1 | 0.5203 | 0.3925 | **+0.1278** |
+| POI F1 | 0.5419 | 0.6599 | -0.1180 |
+| ADDR F1 | 0.4163 | 0.3529 | +0.0634 |
 
 ### 传统指标
 
@@ -159,7 +159,7 @@ python scripts/build_gaode_index.py
 ```bash
 python -c "
 from loc.builder import DictBuilder
-b = DictBuilder('dicts', 'loc_v1.2.1')
+b = DictBuilder('dicts', 'loc_v1.2.3')
 b.build_from_loc36kw('data'); b.build_from_areas('data')
 b.build_from_d444('data'); b.cleanup()
 b.build_orientation_dict(); b.build_location_dict(); b.save()
@@ -261,8 +261,9 @@ python3 -m unittest discover -v -s tests/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| **v2.1.0** | 2026-07-10 | 数据驱动 classify: d4_category_map (9,577条Gaode标注) + suffix_category_gaode (1,520条高置信后缀)。移除手工后缀列表。SQL CSV 规则 (d4∉SQL→POI)。Gaode道路名合并入LOC词典 (47万条)。gov seed 29条。评测 18万条, macro-F1=0.3706 超基线。词典 v1.2.1。测试 112 条。 |
-| v2.0.0 | 2026-07-10 | `pipeline.classify()` 统一分类: ORG/POI/ADDR/UNKNOWN。csv_index 亲和度评分。gov suffix seed 注入。评测闭环 (~15万条)。手工后缀列表驱动。词典 v1.2.0。测试 108 条。 |
+| **v2.2.1** | 2026-07-11 | 段类型体系修复 (SegType.ORG_SUFFIX)。split_polluted_d4 拆分1301条 d4→d3+d4。POI_EXCLUDE_D4 精简(41→29)。_decide 查表调score。LOC VILLAGE 清理(石家庄/枣庄→CITY)。复合机构检测+重识别。过度拆分合并(SQL CSV校验)。badcase 体系。评测18万条, macro-F1=0.3702。词典 v1.2.3。测试112条。 |
+| **v2.2.0** | 2026-07-11 | 数据驱动 classify: d4_category_map (9,577条Gaode标注) + suffix_category_gaode (1,520条高置信后缀)。移除手工后缀列表。SQL CSV 规则 (d4∉SQL→POI)。Gaode道路名合并入LOC词典 (47万条)。gov seed 29条。 |
+| v2.1.0 | 2026-07-10 | `pipeline.classify()` 统一分类: ORG/POI/ADDR/UNKNOWN。csv_index 亲和度评分。gov suffix seed 注入。评测闭环。手工后缀列表驱动。词典 v1.2.1。测试108条。待修复的问题在 v2.2 解决。 |
 | v1.2.3 | 2026-07-07 | 四代审计 F1-F22 全部修复 + Finding 1-19 全部修复。F1/F3/F7 三次迭代回归修正。Trie 碰撞优先级、线程安全、LOC 裸名、gbk fallback、original 字段一致性。测试 90 条 |
 | v1.2.2 | 2026-07-06 | 架构重构: H1-H4 + 二代审计 N1-N24 全部修复。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`。词典升级至 v1.1.2。测试 77 条 |
 | v1.2.1 | 2026-07-06 | 审计修复: 22/50 (Critical 2, High 4, Medium 10, Low 6) |

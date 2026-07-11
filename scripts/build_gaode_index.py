@@ -34,7 +34,7 @@ ROAD_RE = re.compile(r"([\u4e00-\u9fa5]{2,6}(?:路|街|道|巷|弄|胡同|大街
 
 
 def load_org_d4():
-    path = os.path.join(DICT_DIR, "org_v1.2.1.pkl")
+    path = os.path.join(DICT_DIR, "org_v1.2.2.pkl")
     if not os.path.exists(path):
         path = os.path.join(DICT_DIR, "org_v1.1.2.pkl")
     with open(path, "rb") as f:

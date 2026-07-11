@@ -6,9 +6,9 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORKER = os.path.join(BASE, "tools", "rebuild_stats_worker.py")
 
 dirs = [
-    ("output/org_eval", ["org_v1.1.3", "org_v1.2.0"]),
-    ("output/poi_eval", ["poi_v1.1.3", "poi_v1.2.0"]),
-    ("output/loc_eval", ["loc_v1.1.3", "loc_v1.2.1"]),
+    ("output/org_eval", ["org_v1.1.3", "org_v1.2.0", "org_v1.2.2"]),
+    ("output/poi_eval", ["poi_v1.1.3", "poi_v1.2.0", "poi_v1.2.2"]),
+    ("output/loc_eval", ["loc_v1.1.3", "loc_v1.2.1", "loc_v1.2.2"]),
 ]
 
 for base, versions in dirs:

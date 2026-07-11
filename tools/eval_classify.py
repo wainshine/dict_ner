@@ -119,7 +119,7 @@ def main():
     pipe = DictNerPipeline()
 
     print(f"Evaluating: {args.eval}")
-    print(f"Mode: {'baseline (v1.2.3 temp)' if args.baseline_mode else 'classify (v2.1.0)'}")
+    print(f"Mode: {'baseline (v1.2.3 temp)' if args.baseline_mode else 'classify (v2.2.1.0)'}")
 
     t0 = time.time()
     results = evaluate(pipe, args.eval, use_baseline=args.baseline_mode)
