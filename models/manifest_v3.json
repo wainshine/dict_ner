@@ -1,0 +1,88 @@
+{
+  "tag": "v3.0-pool4",
+  "timestamp": "2026-08-04 00:56:09",
+  "train_path": "output/v3_feat/final_train_feats.csv",
+  "train_md5": "972f06e7f6d7134de707d94e196200ff",
+  "val_path": "output/v3_feat/val_feats.csv",
+  "val_md5": "ffd73c755e946e8889769b508eb51eab",
+  "n_train": 2658404,
+  "n_val": 36162,
+  "n_features": 78,
+  "params": {
+    "max_iter": 500,
+    "learning_rate": 0.08,
+    "max_leaf_nodes": 63,
+    "min_samples_leaf": 40,
+    "l2_regularization": 1.0,
+    "calibration": "isotonic"
+  },
+  "multipliers": {
+    "ORG": 0.85,
+    "POI": 0.85,
+    "ADDR": 0.85,
+    "UNKNOWN": 1.0
+  },
+  "reject_t": 0.0,
+  "val_argmax": {
+    "per_class": {
+      "ORG": {
+        "precision": 0.9062,
+        "recall": 0.8481,
+        "f1": 0.8762,
+        "support": 6763
+      },
+      "POI": {
+        "precision": 0.9195,
+        "recall": 0.9139,
+        "f1": 0.9167,
+        "support": 17385
+      },
+      "ADDR": {
+        "precision": 0.9032,
+        "recall": 0.9443,
+        "f1": 0.9233,
+        "support": 12004
+      },
+      "UNKNOWN": {
+        "precision": 1.0,
+        "recall": 0.3,
+        "f1": 0.4615,
+        "support": 10
+      }
+    },
+    "accuracy": 0.9115,
+    "macro_f1": 0.7944,
+    "total": 36162
+  },
+  "val_tuned": {
+    "per_class": {
+      "ORG": {
+        "precision": 0.9062,
+        "recall": 0.8481,
+        "f1": 0.8762,
+        "support": 6763
+      },
+      "POI": {
+        "precision": 0.9196,
+        "recall": 0.9139,
+        "f1": 0.9167,
+        "support": 17385
+      },
+      "ADDR": {
+        "precision": 0.9032,
+        "recall": 0.9443,
+        "f1": 0.9233,
+        "support": 12004
+      },
+      "UNKNOWN": {
+        "precision": 1.0,
+        "recall": 0.4,
+        "f1": 0.5714,
+        "support": 10
+      }
+    },
+    "accuracy": 0.9115,
+    "macro_f1": 0.8219,
+    "total": 36162
+  }
+}

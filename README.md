@@ -1,42 +1,56 @@
-# dict_ner v2.2.1
+# dict_ner v3.0.0
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，支持统一分类 (ORG/POI/ADDR/UNKNOWN)。
+
+> **v3.0**: 分类层学习化重构 — GBDT 分类器 (300万弱标注+confident learning清洗) 替代手工规则链, 统一 DP 引擎。
+> 旧版 v2.2.1 完整保留为 baseline (`run.py classify` 默认仍为 v2; `run.py v3 classify` 走新模型)。
 
 ## 快速开始
 
 ```bash
 cd /Users/wainshine/newAI/dict_ner
+pip install -r requirements.txt   # v3 需要 sklearn/numpy/pandas (旧模块仍纯stdlib)
 
-# 交互识别
+# v3 分类 (GBDT 模型)
+python run.py v3 classify "深圳市南山区华为技术有限公司"
+python run.py v3 classify --batch file.txt
+
+# v2 旧入口 (规则链, 保留作 baseline)
 python run.py recognize "深圳市南山区华为技术有限公司"
-
-# JSON 输出
-python run.py json "北京市朝阳区星巴克咖啡国贸店"
-
-# 统一分类
 python run.py classify "广东省卫健委"
-python run.py classify --batch file.txt   # 批量分类
-
-# 内置测试集
 python run.py test
-
-# 版本信息
-python run.py info
 ```
 
-输出示例：
+## v3.0 架构
 
 ```
-输入: 北京市朝阳区星巴克咖啡国贸店
-  地名: [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [POI]「星巴克咖啡国贸店」
-  机构: [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [BRAND]「星巴克」 | [INDUSTRY]「咖啡」 | [ORG_SUFFIX]「国贸店」
-  POI:  [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [POI]「星巴克」 | [POI]「咖啡」 | [POI]「国贸店」
-
-python run.py classify "深圳市南山区华为技术有限公司"
-→ ORG  0.98
+v3/
+├── engine/dp.py + configs.py   统一 Viterbi DP 引擎 (LOC/ORG/POI 三套配置,
+│                               与旧识别器 20K 样本零差异, gate.py 门禁)
+├── features.py                 78维特征 (段级/查表/统计/规则信号)
+├── pipeline.py                 V3Pipeline (引擎 + v2 后处理复用)
+├── sample_pool.py              Gaode 2M + Tencent 1M 弱标注采样 (防 val/test 泄漏)
+├── labels.py                   confident learning: 3-fold CV 交叉预测, 高置信矛盾剔除 (5.4%)
+├── train.py                    GBDT + isotonic 校准 + 类别乘数/拒绝阈值标定
+├── infer.py                    V3Classifier (契约兼容 v2)
+├── evaluate.py                 评测 + 错误仪表盘
+└── precompute.py               16进程特征预计算
+models/clf_v3.pkl + manifest_v3.json
 ```
 
-## 四模组架构
+### 评测 (36K test 集, 一次性)
+
+| 指标 | v3.0.0 | v2.2.1 规则链 | Delta |
+|------|:---:|:---:|:---:|
+| macro-F1 | **0.7699** | 0.3702 | **+0.3997** |
+| accuracy | **0.9114** | 0.4463 | +0.4651 |
+| ORG F1 | 0.8756 | 0.5203 | +0.3553 |
+| POI F1 | 0.9154 | 0.5419 | +0.3735 |
+| ADDR F1 | 0.9250 | 0.4163 | +0.5087 |
+
+> val 集 macro-F1 0.8219 (乘数标定后)。UNKNOWN 类 support 极小 (test n=9), F1 波动大。
+
+## v2.2.1 四模组架构 (baseline, 保留)
 
 ```
 输入文本
@@ -303,13 +317,13 @@ python scripts/validate_d4_map.py            # d4_category_map vs suffix_segment
 
 ## 依赖
 
-Python 3.10+, 纯标准库 (无第三方依赖)。
+Python 3.10+。旧模块 (loc/org/poi/brand/pipeline) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas (`pip install -r requirements.txt`)。
 
 ## 测试
 
 ```bash
 cd /Users/wainshine/newAI/dict_ner
-python3 -m unittest discover -v -s tests/
+python3 -m unittest discover -v -s tests/    # 124 条 (112 legacy + 12 v3)
 ```
 
 | 文件 | 用例 | 类型 |
@@ -349,6 +363,7 @@ python3 -m unittest discover -v -s tests/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| **v3.0.0** | 2026-08-04 | 系统性重构: 分类层 GBDT 学习化 (78维特征, 270万弱标注, confident learning 清洗 5.4%)。统一 DP 引擎 (v3/engine, 20K 样本零差异)。eval train/val/test 固定切分。test macro-F1 0.7699 (v2.2.1: 0.3702)。测试 124 条。v2.2.1 冻结为 baseline。 |
 | **v2.2.1** | 2026-07-11 | 段类型体系修复 (SegType.ORG_SUFFIX)。split_polluted_d4 拆分1301条 d4→d3+d4。POI_EXCLUDE_D4 精简(41→29)。_decide 查表调score。LOC VILLAGE 清理(石家庄/枣庄→CITY)。复合机构检测+重识别。过度拆分合并(SQL CSV校验)。badcase 体系。评测18万条, macro-F1=0.3702。词典 v1.2.3。测试112条。 |
 | **v2.2.0** | 2026-07-11 | 数据驱动 classify: d4_category_map (9,577条Gaode标注) + suffix_category_gaode (1,520条高置信后缀)。移除手工后缀列表。SQL CSV 规则 (d4∉SQL→POI)。Gaode道路名合并入LOC词典 (47万条)。gov seed 29条。 |
 | v2.1.0 | 2026-07-10 | `pipeline.classify()` 统一分类: ORG/POI/ADDR/UNKNOWN。csv_index 亲和度评分。gov suffix seed 注入。评测闭环。手工后缀列表驱动。词典 v1.2.1。测试108条。待修复的问题在 v2.2 解决。 |

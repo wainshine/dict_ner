@@ -1,3 +1,42 @@
+# HANDOVER.md v3.0.0
+
+> 最后更新: 2026-08-04
+> v3.0.0: 分类层学习化重构 (GBDT+confident learning) + 统一 DP 引擎, v2.2.1 冻结为 baseline
+> 详见 `audit/v3.0_refactor_plan.md`
+
+## v3.0.0 变更摘要
+
+**诊断**: v2.x 是规则补丁链 (~20 个手调魔法数), score 量纲不一致导致 ADDR→UNKNOWN 误吞 2.6 万条; 评测标签 (Gaode type 机械映射) 有噪但从未用于"学"。
+
+**方案**:
+1. **评测基座**: eval_set 180K → train/val/test 60/20/20 分层固定切分 (种子42, `data/eval_split_*.csv`)
+2. **特征**: `v3/features.py` 78 维 (段级/查表/统计/规则信号), 训练推理同一代码路径
+3. **大语料**: `v3/sample_pool.py` Gaode 2M + Tencent 1M 弱标注采样 (剔除 val/test 文本防泄漏) → 270 万
+4. **标签清洗**: `v3/labels.py` 3-fold CV confident learning, 高置信矛盾剔除 14.6 万 (5.4%), 噪声率报告 `output/v3_noise_report.md`
+5. **训练**: `v3/train.py` HistGradientBoosting (500 iter) + FrozenEstimator isotonic 校准 + val 集类别乘数标定 → `models/clf_v3.pkl` + manifest
+6. **统一 DP 引擎**: `v3/engine/` (dp.py + configs.py), LOC/ORG/POI 三套配置, 与旧识别器 **20K 样本零差异** (`v3/engine/gate.py` 门禁)
+7. **推理**: `v3/infer.py` V3Classifier 契约兼容; `run.py v3 classify` (默认入口仍为 v2)
+
+**指标** (36K test, 一次性):
+
+| 指标 | v3.0.0 | v2.2.1 | Delta |
+|------|:---:|:---:|:---:|
+| macro-F1 | 0.7699 | 0.3702 | +0.3997 |
+| accuracy | 0.9114 | 0.4463 | +0.4651 |
+| ORG F1 | 0.8756 | 0.5203 | +0.3553 |
+| POI F1 | 0.9154 | 0.5419 | +0.3735 |
+| ADDR F1 | 0.9250 | 0.4163 | +0.5087 |
+
+val macro-F1 0.8219。UNKNOWN support 极小 (test n=9), F1 波动大属正常。
+
+**已知边界**: "星巴克咖啡望京店" → ADDR (0.51 vs POI 0.48), "望京" 在评测集中多标 ADDR 所致, 真实边界样本。
+
+**治理**: 分类层改动须 val macro-F1 不降; 段识别改动须过 `v3/engine/gate.py` (diff <0.5%); 模型产物必带 manifest。
+
+---
+
+# 以下为 v2.2.1 存档
+
 # HANDOVER.md v2.2.1
 
 > 最后更新: 2026-07-11

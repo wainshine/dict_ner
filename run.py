@@ -65,6 +65,21 @@ def main():
         else:
             text = sys.argv[2] if len(sys.argv) > 2 else input("输入文本: ")
             cmd_classify(text)
+    elif c == "v3":
+        sub = sys.argv[2] if len(sys.argv) > 2 else "classify"
+        from v3.infer import V3Classifier
+        if sub == "classify":
+            clf = V3Classifier()
+            if len(sys.argv) > 3 and sys.argv[3] == "--batch":
+                with open(sys.argv[4], encoding="utf-8") as f:
+                    texts = [ln.strip() for ln in f if ln.strip()]
+                for r in clf.classify_batch(texts):
+                    print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
+            else:
+                text = sys.argv[3] if len(sys.argv) > 3 else input("输入文本: ")
+                print(json.dumps(clf.classify(text), ensure_ascii=False, indent=2))
+        else:
+            print(f"未知 v3 子命令: {sub} (支持: classify [--batch file])")
     elif c in ("test", "t"):
         tests = [
             "深圳市南山区华为技术有限公司",
