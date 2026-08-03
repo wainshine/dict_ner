@@ -56,10 +56,23 @@ def crossval_proba(X, y, folds, seed=42):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pool", default=os.path.join(FEAT_DIR, "pool_feats.csv"))
-    ap.add_argument("--threshold", type=float, default=0.7)
+    ap.add_argument("--threshold", type=float, default=0.7,
+                    help="统一剔除阈值 (被 --drop-org 等类条件阈值覆盖)")
+    ap.add_argument("--drop-org", type=float, default=None)
+    ap.add_argument("--drop-poi", type=float, default=None)
+    ap.add_argument("--drop-addr", type=float, default=None)
+    ap.add_argument("--flip", type=float, default=None,
+                    help="翻转阈值: 矛盾且置信>=此值时改标为预测类 (优先于剔除)")
     ap.add_argument("--folds", type=int, default=3)
     ap.add_argument("--out", default=os.path.join(FEAT_DIR, "pool_feats_clean.csv"))
+    ap.add_argument("--stats", default=os.path.join(FEAT_DIR, "pool_clean_stats.json"))
+    ap.add_argument("--report", default=os.path.join(BASE, "output", "v3_noise_report.md"))
     args = ap.parse_args()
+
+    drop_t = {L2I["ORG"]: args.drop_org or args.threshold,
+              L2I["POI"]: args.drop_poi or args.threshold,
+              L2I["ADDR"]: args.drop_addr or args.threshold,
+              L2I["UNKNOWN"]: args.threshold}
 
     df, feat_cols, X, y = load_pool(args.pool)
     print(f"pool: {X.shape}", flush=True)
@@ -68,59 +81,71 @@ def main():
     pred = proba.argmax(1)
     conf = proba.max(1)
 
-    contradict = (pred != y) & (conf >= args.threshold)
-    keep = ~contradict
-    print(f"\nthreshold={args.threshold}: drop {contradict.sum():,} "
-          f"({100*contradict.mean():.1f}%), keep {keep.sum():,}", flush=True)
+    flip_mask = np.zeros(len(y), dtype=bool)
+    drop_mask = np.zeros(len(y), dtype=bool)
+    for cls_i, t in drop_t.items():
+        contradict = (pred != y) & (y == cls_i)
+        if args.flip is not None:
+            fm = contradict & (conf >= args.flip)
+            flip_mask |= fm
+            drop_mask |= contradict & (conf >= t) & ~fm
+        else:
+            drop_mask |= contradict & (conf >= t)
 
-    stats = {"threshold": args.threshold, "folds": args.folds,
-             "total": int(len(y)), "dropped": int(contradict.sum()),
+    n_flip, n_drop = int(flip_mask.sum()), int(drop_mask.sum())
+    print(f"\nthresholds={drop_t}, flip={args.flip}: "
+          f"flip {n_flip:,}, drop {n_drop:,} ({100*n_drop/len(y):.1f}%), "
+          f"keep {len(y)-n_drop:,}", flush=True)
+
+    stats = {"threshold": drop_t, "flip": args.flip, "folds": args.folds,
+             "total": int(len(y)), "flipped": n_flip, "dropped": n_drop,
              "by_label": {}, "by_source_type": {}}
     for lb in LABELS:
         i = L2I[lb]
         mask = y == i
+        if mask.sum() == 0:
+            continue
         stats["by_label"][lb] = {
             "total": int(mask.sum()),
-            "dropped": int((contradict & mask).sum()),
-            "drop_rate": round(float((contradict & mask).mean()), 4),
+            "flipped": int((flip_mask & mask).sum()),
+            "dropped": int((drop_mask & mask).sum()),
+            "drop_rate": round(float((drop_mask & mask).mean()), 4),
             "pred_dist_when_dropped": dict(Counter(
-                LABELS[p] for p in pred[contradict & mask])),
+                LABELS[p] for p in pred[drop_mask & mask])),
         }
     for (src, typ), grp in df.groupby(["source", "type_orig"]):
         idx = grp.index.to_numpy()
-        rate = float(contradict[idx].mean())
         if len(idx) >= 100:
             stats["by_source_type"][f"{src}|{typ}"] = {
-                "total": int(len(idx)), "drop_rate": round(rate, 4)}
+                "total": int(len(idx)),
+                "drop_rate": round(float(drop_mask[idx].mean()), 4)}
 
-    df_clean = df.loc[keep].reset_index(drop=True)
+    df.loc[flip_mask, "label"] = [LABELS[p] for p in pred[flip_mask]]
+    df_clean = df.loc[~drop_mask].reset_index(drop=True)
     df_clean.to_csv(args.out, index=False)
     print(f"clean pool: {len(df_clean):,} -> {args.out}", flush=True)
 
-    with open(os.path.join(FEAT_DIR, "pool_clean_stats.json"), "w",
-              encoding="utf-8") as f:
+    with open(args.stats, "w", encoding="utf-8") as f:
         json.dump(stats, f, ensure_ascii=False, indent=2)
 
     lines = ["# v3 标签清洗噪声报告 (confident learning)", "",
-             f"- pool: {len(y):,} | folds: {args.folds} | threshold: {args.threshold}",
-             f"- dropped: {int(contradict.sum()):,} ({100*contradict.mean():.1f}%)",
-             f"- kept: {int(keep.sum()):,}", "",
+             f"- pool: {len(y):,} | folds: {args.folds} | drop: {drop_t} | flip: {args.flip}",
+             f"- flipped: {n_flip:,} | dropped: {n_drop:,} ({100*n_drop/len(y):.1f}%)",
+             f"- kept: {len(y)-n_drop:,}", "",
              "## 各类别剔除率", "",
-             "| 类别 | 总数 | 剔除 | 剔除率 | 被误判为 |",
-             "|------|-----:|-----:|-------:|---------|"]
-    for lb in LABELS:
-        s = stats["by_label"][lb]
-        lines.append(f"| {lb} | {s['total']:,} | {s['dropped']:,} | "
+             "| 类别 | 总数 | 翻转 | 剔除 | 剔除率 | 被误判为 |",
+             "|------|-----:|-----:|-----:|-------:|---------|"]
+    for lb, s in stats["by_label"].items():
+        lines.append(f"| {lb} | {s['total']:,} | {s['flipped']:,} | {s['dropped']:,} | "
                      f"{s['drop_rate']:.1%} | {s['pred_dist_when_dropped']} |")
     lines += ["", "## 映射级噪声率 (source|type, n>=100, 按剔除率降序 top40)", "",
               "| source\\|type | 总数 | 剔除率 |", "|---|-----:|-------:|"]
     st = sorted(stats["by_source_type"].items(), key=lambda kv: -kv[1]["drop_rate"])
     for k, v in st[:40]:
         lines.append(f"| {k} | {v['total']:,} | {v['drop_rate']:.1%} |")
-    report = os.path.join(BASE, "output", "v3_noise_report.md")
-    with open(report, "w", encoding="utf-8") as f:
+    with open(args.report, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
-    print(f"noise report: {report}", flush=True)
+    print(f"noise report: {args.report}", flush=True)
 
 
 if __name__ == "__main__":

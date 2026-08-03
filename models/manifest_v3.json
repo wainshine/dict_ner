@@ -1,11 +1,11 @@
 {
-  "tag": "v3.0-pool4",
-  "timestamp": "2026-08-04 00:56:09",
-  "train_path": "output/v3_feat/final_train_feats.csv",
-  "train_md5": "972f06e7f6d7134de707d94e196200ff",
+  "tag": "v3.1",
+  "timestamp": "2026-08-04 07:38:15",
+  "train_path": "output/v3_feat/final_train2.csv",
+  "train_md5": "620d9c48af2fc11dd5d08f877f2f66b1",
   "val_path": "output/v3_feat/val_feats.csv",
   "val_md5": "ffd73c755e946e8889769b508eb51eab",
-  "n_train": 2658404,
+  "n_train": 2675804,
   "n_val": 36162,
   "n_features": 78,
   "params": {
@@ -17,8 +17,8 @@
     "calibration": "isotonic"
   },
   "multipliers": {
-    "ORG": 0.85,
-    "POI": 0.85,
+    "ORG": 1.0,
+    "POI": 1.0,
     "ADDR": 0.85,
     "UNKNOWN": 1.0
   },
@@ -26,21 +26,21 @@
   "val_argmax": {
     "per_class": {
       "ORG": {
-        "precision": 0.9062,
-        "recall": 0.8481,
-        "f1": 0.8762,
+        "precision": 0.9107,
+        "recall": 0.8322,
+        "f1": 0.8697,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9195,
-        "recall": 0.9139,
-        "f1": 0.9167,
+        "precision": 0.9088,
+        "recall": 0.918,
+        "f1": 0.9134,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9032,
-        "recall": 0.9443,
-        "f1": 0.9233,
+        "precision": 0.9051,
+        "recall": 0.9363,
+        "f1": 0.9204,
         "support": 12004
       },
       "UNKNOWN": {
@@ -50,28 +50,28 @@
         "support": 10
       }
     },
-    "accuracy": 0.9115,
-    "macro_f1": 0.7944,
+    "accuracy": 0.9079,
+    "macro_f1": 0.7913,
     "total": 36162
   },
   "val_tuned": {
     "per_class": {
       "ORG": {
-        "precision": 0.9062,
-        "recall": 0.8481,
-        "f1": 0.8762,
+        "precision": 0.9092,
+        "recall": 0.8334,
+        "f1": 0.8696,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9196,
-        "recall": 0.9139,
-        "f1": 0.9167,
+        "precision": 0.9062,
+        "recall": 0.9209,
+        "f1": 0.9135,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9032,
-        "recall": 0.9443,
-        "f1": 0.9233,
+        "precision": 0.9097,
+        "recall": 0.9314,
+        "f1": 0.9204,
         "support": 12004
       },
       "UNKNOWN": {
@@ -81,8 +81,8 @@
         "support": 10
       }
     },
-    "accuracy": 0.9115,
-    "macro_f1": 0.8219,
+    "accuracy": 0.9079,
+    "macro_f1": 0.8187,
     "total": 36162
   }
 }
