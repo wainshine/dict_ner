@@ -56,9 +56,10 @@ def main():
         sys.exit(1)
     inp, out_pkl = sys.argv[1], sys.argv[2]
 
+    version = os.environ.get("STATS_VERSION", "v1.3.0")
     from v3.engine.configs import build_poi_engine
-    rec = build_poi_engine("poi_v1.3.0.pkl")
-    with open(os.path.join(BASE_DIR, "dicts", "poi_v1.3.0.pkl"), "rb") as f:
+    rec = build_poi_engine(f"poi_{version}.pkl")
+    with open(os.path.join(BASE_DIR, "dicts", f"poi_{version}.pkl"), "rb") as f:
         d3_set = set(pickle.load(f)["d3_freqs"])
 
     d1_freqs, d2_freqs, d3_freqs, d4_freqs = Counter(), Counter(), Counter(), Counter()

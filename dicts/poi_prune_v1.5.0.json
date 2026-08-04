@@ -1,0 +1,506 @@
+[
+ {
+  "word": "康店",
+  "action": "move",
+  "freq": 2265,
+  "start": 16,
+  "end": 202,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "阳村",
+  "action": "move",
+  "freq": 6331,
+  "start": 22,
+  "end": 519,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "曲村",
+  "action": "move",
+  "freq": 1630,
+  "start": 13,
+  "end": 189,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "公桥",
+  "action": "move",
+  "freq": 1526,
+  "start": 16,
+  "end": 117,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "利店",
+  "action": "move",
+  "freq": 1965,
+  "start": 6,
+  "end": 23530,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "瓦厂",
+  "action": "move",
+  "freq": 4825,
+  "start": 73,
+  "end": 1604,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "粥店",
+  "action": "move",
+  "freq": 4527,
+  "start": 21,
+  "end": 329,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "原村",
+  "action": "move",
+  "freq": 1282,
+  "start": 9,
+  "end": 151,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "石店",
+  "action": "move",
+  "freq": 1581,
+  "start": 21,
+  "end": 140,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "家地",
+  "action": "move",
+  "freq": 1030,
+  "start": 3,
+  "end": 159,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "和村",
+  "action": "move",
+  "freq": 4028,
+  "start": 33,
+  "end": 227,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "木村",
+  "action": "move",
+  "freq": 4101,
+  "start": 45,
+  "end": 457,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "柏村",
+  "action": "move",
+  "freq": 1443,
+  "start": 15,
+  "end": 100,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "河店",
+  "action": "move",
+  "freq": 4182,
+  "start": 13,
+  "end": 251,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "泉沟",
+  "action": "move",
+  "freq": 1484,
+  "start": 22,
+  "end": 166,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "和店",
+  "action": "move",
+  "freq": 2168,
+  "start": 9,
+  "end": 119,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "顶山",
+  "action": "move",
+  "freq": 4019,
+  "start": 46,
+  "end": 297,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "松村",
+  "action": "move",
+  "freq": 2042,
+  "start": 9,
+  "end": 118,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "明村",
+  "action": "move",
+  "freq": 3683,
+  "start": 20,
+  "end": 194,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "公山",
+  "action": "move",
+  "freq": 2815,
+  "start": 28,
+  "end": 201,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "兰村",
+  "action": "move",
+  "freq": 2600,
+  "start": 24,
+  "end": 212,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "塘沟",
+  "action": "move",
+  "freq": 1210,
+  "start": 17,
+  "end": 124,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "吉村",
+  "action": "move",
+  "freq": 2045,
+  "start": 18,
+  "end": 234,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "茶店",
+  "action": "move",
+  "freq": 5527,
+  "start": 149,
+  "end": 1288,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "巴村",
+  "action": "move",
+  "freq": 1492,
+  "start": 11,
+  "end": 221,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "岩寺",
+  "action": "move",
+  "freq": 1038,
+  "start": 18,
+  "end": 131,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "行村",
+  "action": "move",
+  "freq": 2034,
+  "start": 18,
+  "end": 150,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "旺村",
+  "action": "move",
+  "freq": 2996,
+  "start": 30,
+  "end": 280,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "海楼",
+  "action": "move",
+  "freq": 1088,
+  "start": 22,
+  "end": 141,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "岭沟",
+  "action": "move",
+  "freq": 1645,
+  "start": 7,
+  "end": 265,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "丰店",
+  "action": "move",
+  "freq": 2602,
+  "start": 6,
+  "end": 143,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "乐城",
+  "action": "move",
+  "freq": 2647,
+  "start": 130,
+  "end": 984,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "兴村",
+  "action": "move",
+  "freq": 6876,
+  "start": 20,
+  "end": 362,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "固村",
+  "action": "move",
+  "freq": 2210,
+  "start": 27,
+  "end": 337,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "户村",
+  "action": "move",
+  "freq": 2061,
+  "start": 12,
+  "end": 331,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "纸厂",
+  "action": "move",
+  "freq": 5421,
+  "start": 85,
+  "end": 721,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "道桥",
+  "action": "move",
+  "freq": 1600,
+  "start": 25,
+  "end": 232,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "中店",
+  "action": "move",
+  "freq": 2797,
+  "start": 14,
+  "end": 133,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "山店",
+  "action": "move",
+  "freq": 9707,
+  "start": 10,
+  "end": 556,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "光村",
+  "action": "move",
+  "freq": 5406,
+  "start": 14,
+  "end": 245,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "义路",
+  "action": "move",
+  "freq": 1078,
+  "start": 8,
+  "end": 105,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "草沟",
+  "action": "move",
+  "freq": 2243,
+  "start": 30,
+  "end": 206,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "龙店",
+  "action": "move",
+  "freq": 2425,
+  "start": 10,
+  "end": 152,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "仁村",
+  "action": "move",
+  "freq": 1826,
+  "start": 14,
+  "end": 187,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "堤村",
+  "action": "move",
+  "freq": 2280,
+  "start": 5,
+  "end": 270,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "宫村",
+  "action": "move",
+  "freq": 1670,
+  "start": 17,
+  "end": 161,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "湾桥",
+  "action": "move",
+  "freq": 1522,
+  "start": 12,
+  "end": 307,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "阳店",
+  "action": "move",
+  "freq": 7389,
+  "start": 12,
+  "end": 435,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "川店",
+  "action": "move",
+  "freq": 2075,
+  "start": 11,
+  "end": 142,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "利村",
+  "action": "move",
+  "freq": 2176,
+  "start": 13,
+  "end": 175,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "流村",
+  "action": "move",
+  "freq": 1672,
+  "start": 15,
+  "end": 142,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "平店",
+  "action": "move",
+  "freq": 2938,
+  "start": 8,
+  "end": 178,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "水湾",
+  "action": "move",
+  "freq": 4718,
+  "start": 75,
+  "end": 461,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "王庙",
+  "action": "move",
+  "freq": 3283,
+  "start": 33,
+  "end": 357,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "华店",
+  "action": "move",
+  "freq": 3614,
+  "start": 20,
+  "end": 198,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "华村",
+  "action": "move",
+  "freq": 4324,
+  "start": 30,
+  "end": 250,
+  "in_d4": false,
+  "sql_dominant": false
+ }
+]

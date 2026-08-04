@@ -1,11 +1,11 @@
 {
-  "tag": "v3.8-v1.4.3",
-  "timestamp": "2026-08-04 22:47:25",
+  "tag": "v3.9-v1.5.0",
+  "timestamp": "2026-08-05 01:04:04",
   "train_path": "output/v3_feat/final_train3.csv",
-  "train_md5": "3ae59c9cab13e1f3eb708e7ace5a17af",
+  "train_md5": "22c16af238ab5261a6faad43c0dfd149",
   "val_path": "output/v3_feat/val_feats.csv",
-  "val_md5": "dd29d5a45e544b3f2502d41f40e2af50",
-  "n_train": 2687277,
+  "val_md5": "b58496419239fd73763631fc0314185c",
+  "n_train": 2686496,
   "n_val": 38512,
   "n_features": 78,
   "params": {
@@ -17,72 +17,72 @@
     "calibration": "isotonic"
   },
   "multipliers": {
-    "ORG": 0.7,
+    "ORG": 1.0,
     "POI": 0.85,
-    "ADDR": 0.7,
-    "UNKNOWN": 3.0
+    "ADDR": 1.0,
+    "UNKNOWN": 1.2
   },
   "reject_t": 0.0,
   "val_argmax": {
     "per_class": {
       "ORG": {
-        "precision": 0.8965,
-        "recall": 0.8424,
-        "f1": 0.8686,
+        "precision": 0.8989,
+        "recall": 0.8384,
+        "f1": 0.8676,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9027,
-        "recall": 0.9121,
-        "f1": 0.9074,
+        "precision": 0.8994,
+        "recall": 0.9133,
+        "f1": 0.9063,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9018,
-        "recall": 0.9406,
-        "f1": 0.9208,
+        "precision": 0.9012,
+        "recall": 0.9393,
+        "f1": 0.9198,
         "support": 12004
       },
       "UNKNOWN": {
-        "precision": 0.9855,
-        "recall": 0.8644,
-        "f1": 0.921,
+        "precision": 0.9887,
+        "recall": 0.8542,
+        "f1": 0.9166,
         "support": 2360
       }
     },
-    "accuracy": 0.9058,
-    "macro_f1": 0.9044,
+    "accuracy": 0.9046,
+    "macro_f1": 0.9026,
     "total": 38512
   },
   "val_tuned": {
     "per_class": {
       "ORG": {
-        "precision": 0.9027,
-        "recall": 0.8378,
-        "f1": 0.869,
+        "precision": 0.8922,
+        "recall": 0.8458,
+        "f1": 0.8684,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9004,
-        "recall": 0.9176,
-        "f1": 0.9089,
+        "precision": 0.9051,
+        "recall": 0.9084,
+        "f1": 0.9068,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9072,
-        "recall": 0.9344,
-        "f1": 0.9206,
+        "precision": 0.8991,
+        "recall": 0.941,
+        "f1": 0.9196,
         "support": 12004
       },
       "UNKNOWN": {
-        "precision": 0.9703,
-        "recall": 0.8856,
-        "f1": 0.926,
+        "precision": 0.9856,
+        "recall": 0.8729,
+        "f1": 0.9258,
         "support": 2360
       }
     },
-    "accuracy": 0.9069,
-    "macro_f1": 0.9061,
+    "accuracy": 0.9054,
+    "macro_f1": 0.9052,
     "total": 38512
   }
 }

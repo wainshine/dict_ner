@@ -34,8 +34,13 @@ def load_villages():
 
 
 def main():
-    src = os.path.join(DICT_DIR, "org_v1.4.1.pkl")
-    dst = os.path.join(DICT_DIR, "org_v1.4.2.pkl")
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--src-v", default="v1.4.1")
+    ap.add_argument("--dst-v", default="v1.4.2")
+    v = ap.parse_args()
+    src = os.path.join(DICT_DIR, f"org_{v.src_v}.pkl")
+    dst = os.path.join(DICT_DIR, f"org_{v.dst_v}.pkl")
     with open(src, "rb") as f:
         dd = pickle.load(f)
     d1 = dict(dd["d1_freqs"])
@@ -65,7 +70,7 @@ def main():
     print(f"d1: {len(dd['d1_freqs']):,} → {len(d1):,}  d3: {len(dd['d3_freqs']):,} → {len(d3):,}")
 
     for key, fname in (("d1_freqs", "d1"), ("d3_freqs", "d3"), ("d4_freqs", "d4")):
-        path = os.path.join(EXPORT_DIR, f"org_{fname}_v1.4.2.csv")
+        path = os.path.join(EXPORT_DIR, f"org_{fname}_export.csv")
         with open(path, "w", encoding="utf-8", newline="") as f:
             w = csv.writer(f)
             w.writerow(["word", "freq"])

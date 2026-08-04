@@ -94,7 +94,7 @@ def f3_digit_clean(d4):
 def export_csv(name, dicts_map):
     os.makedirs(EXPORT_DIR, exist_ok=True)
     for key, fname in (("d1_freqs", "d1"), ("d3_freqs", "d3"), ("d4_freqs", "d4")):
-        path = os.path.join(EXPORT_DIR, f"{name}_{fname}_v1.4.1.csv")
+        path = os.path.join(EXPORT_DIR, f"{name}_{fname}_export.csv")
         with open(path, "w", encoding="utf-8", newline="") as f:
             w = csv.writer(f)
             w.writerow(["word", "freq"])
@@ -104,9 +104,14 @@ def export_csv(name, dicts_map):
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--src-v", default="v1.4.0")
+    ap.add_argument("--dst-v", default="v1.4.1")
+    v = ap.parse_args()
     for sysname in ("org", "poi"):
-        src = os.path.join(DICT_DIR, f"{sysname}_v1.4.0.pkl")
-        dst = os.path.join(DICT_DIR, f"{sysname}_v1.4.1.pkl")
+        src = os.path.join(DICT_DIR, f"{sysname}_{v.src_v}.pkl")
+        dst = os.path.join(DICT_DIR, f"{sysname}_{v.dst_v}.pkl")
         with open(src, "rb") as f:
             dd = pickle.load(f)
         d4 = dict(dd["d4_freqs"])

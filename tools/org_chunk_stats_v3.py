@@ -40,9 +40,10 @@ def main():
         sys.exit(1)
     inp, out_pkl = sys.argv[1], sys.argv[2]
 
+    version = os.environ.get("STATS_VERSION", "v1.3.0")
     from v3.engine.configs import build_org_engine
-    rec = build_org_engine("v1.3.0")
-    with open(os.path.join(BASE_DIR, "dicts", "org_v1.3.0.pkl"), "rb") as f:
+    rec = build_org_engine(version)
+    with open(os.path.join(BASE_DIR, "dicts", f"org_{version}.pkl"), "rb") as f:
         d3_set = set(pickle.load(f)["d3_freqs"])
 
     total = 0

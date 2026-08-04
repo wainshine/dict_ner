@@ -296,6 +296,28 @@ class DPEngine:
                 return cat
         return classify_suffix(text)
 
+    def _post_adjudicate_town(self, segments):
+        admin_sfx = ("镇", "乡", "街道", "办事处", "苏木", "民族乡")
+        merge_hint = ("镇", "乡", "村", "嘎查")
+        gov_hint = ("人民政府", "委员会", "村委会", "居委会", "办事处")
+        for i, s in enumerate(segments):
+            if s.seg_type != SegType.TOWN:
+                continue
+            if s.text.endswith(admin_sfx):
+                continue
+            if i == 0:
+                continue
+            nxt = segments[i + 1] if i + 1 < len(segments) else None
+            if (nxt is not None and nxt.seg_type in (SegType.BRAND, SegType.UNKNOWN)
+                    and nxt.text in merge_hint):
+                continue
+            rest = segments[i + 1:]
+            if any(g in "".join(l.text for l in rest) for g in gov_hint):
+                continue
+            if any(l.seg_type in (SegType.INDUSTRY, SegType.POI) for l in rest):
+                s.seg_type = SegType.BRAND
+        return segments
+
     def _post_merge_unknown(self, segments):
         merged = []
         for s in segments:
