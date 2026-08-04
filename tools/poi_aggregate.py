@@ -4,7 +4,8 @@ import os, sys, pickle, csv as csv_mod
 from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.config import BASE_DIR, DICT_DIR, DATA_DIR, VERSION, NUM_CHUNKS
+from core.config import BASE_DIR, DICT_DIR, DATA_DIR, VERSION as _VERSION, NUM_CHUNKS
+VERSION = os.environ.get("DICT_VERSION", _VERSION)
 from tools.pipeline_base import aggregate_stats_files, export_d2_csv
 
 STATS_DIR = DICT_DIR

@@ -74,12 +74,14 @@ def suffix_hits(rtrie, text):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--chunks", type=int, default=4)
+    ap.add_argument("--dict", default="poi_v1.2.3.pkl")
+    ap.add_argument("--out", default=None)
     ap.add_argument("--min-freq", type=int, default=1000)
     ap.add_argument("--end-rate", type=float, default=0.85)
     ap.add_argument("--min-end", type=int, default=100)
     args = ap.parse_args()
 
-    with open(os.path.join(DICT_DIR, "poi_v1.2.3.pkl"), "rb") as f:
+    with open(os.path.join(DICT_DIR, args.dict), "rb") as f:
         poi = pickle.load(f)
     d1 = poi["d1_freqs"]
     d4 = poi["d4_freqs"]
@@ -130,7 +132,7 @@ def main():
                             "start": s, "end": e,
                             "in_d4": w in d4, "sql_dominant": w in sql_dom})
 
-    out = os.path.join(DICT_DIR, "poi_prune_v1.3.0.json")
+    out = args.out or os.path.join(DICT_DIR, "poi_prune_v1.3.0.json")
     with open(out, "w", encoding="utf-8") as f:
         json.dump(actions, f, ensure_ascii=False, indent=1)
     print(f"\nactions: move={len(actions)} -> {out}")

@@ -73,7 +73,19 @@ class DictBuilder:
         i = 0
         for fp in files:
             with open(fp, encoding="utf-8") as f:
-                next(f)  # skip header
+                first = next(f, "")
+                if not first.startswith("dict"):
+                    parts = first.strip().rsplit(",", 1)
+                    if len(parts) == 2:
+                        text, idf_s = parts[0].strip(), parts[1].strip()
+                        if text and len(text) >= 2:
+                            try:
+                                idf = max(1, int(float(idf_s)))
+                            except ValueError:
+                                idf = 1
+                            for comp, st in _split_admin(text):
+                                counters[st][comp] += idf
+                            i += 1
                 for line in f:
                     parts = line.strip().rsplit(",", 1)
                     if len(parts) != 2:

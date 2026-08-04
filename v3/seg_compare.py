@@ -19,17 +19,19 @@ NUM_CHUNKS = 16
 
 
 def run(system):
+    mode = sys.argv[3] if len(sys.argv) > 3 else "legacy_vs_v130"
     os.makedirs(OUT_DIR, exist_ok=True)
     worker = os.path.join(BASE, "v3", "seg_compare_worker.py")
+    suffix = "_v140" if mode == "v130_vs_v140" else ""
     procs = []
     for i in range(NUM_CHUNKS):
         chunk = os.path.join(DATA, "split", system, f"chunk_{i:02d}.csv")
         if not os.path.exists(chunk):
             continue
-        out = os.path.join(OUT_DIR, f"{system}_{i:02d}.json")
-        log = os.path.join(OUT_DIR, f"{system}_{i:02d}.log")
+        out = os.path.join(OUT_DIR, f"{system}{suffix}_{i:02d}.json")
+        log = os.path.join(OUT_DIR, f"{system}{suffix}_{i:02d}.log")
         with open(log, "w") as lf:
-            p = subprocess.Popen([sys.executable, worker, system, chunk, out],
+            p = subprocess.Popen([sys.executable, worker, system, chunk, out, mode],
                                  stdout=lf, stderr=subprocess.STDOUT)
         procs.append((i, p))
     print(f"[{system}] launched {len(procs)} workers")
@@ -41,7 +43,8 @@ def run(system):
 def report():
     lines = ["# v1.2.3 → v1.3.0 全量段对比报告", ""]
     for system in ("org", "poi", "loc"):
-        files = sorted(glob.glob(os.path.join(OUT_DIR, f"{system}_*.json")))
+        pat = sys.argv[2] if len(sys.argv) > 2 else "{system}_*.json"
+        files = sorted(glob.glob(os.path.join(OUT_DIR, pat.format(system=system))))
         if not files:
             continue
         total = diff = 0

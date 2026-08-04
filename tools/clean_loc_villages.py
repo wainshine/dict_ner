@@ -29,7 +29,7 @@ def main():
             if len(name) >= 2:
                 all_villages.add(name)
 
-    src = os.path.join(DICT_DIR, "loc_v1.2.2.pkl")
+    src = os.path.join(DICT_DIR, "loc_v1.4.0_unbaked.pkl")
     with open(src, "rb") as f:
         data = pickle.load(f)
 
@@ -55,7 +55,7 @@ def main():
     data[SegType.VILLAGE] = village_dict
     data[SegType.CITY] = city_dict
 
-    dst = os.path.join(DICT_DIR, "loc_v1.2.3.pkl")
+    dst = os.path.join(DICT_DIR, "loc_v1.4.0_unbaked.pkl")
     with open(dst, "wb") as f:
         pickle.dump(data, f)
 

@@ -86,32 +86,32 @@ LOC_EXTRA_TRANSITIONS = {
 }
 
 
-def _load_loc_prune():
+def _load_loc_prune(prune_path=None):
     import json
-    path = os.path.join(DICT_DIR, "loc_prune_v1.3.0.json")
+    path = prune_path or os.path.join(DICT_DIR, "loc_prune_v1.3.0.json")
     if not os.path.exists(path):
         return set()
     with open(path, encoding="utf-8") as f:
         return {(p["word"], p["type"]) for p in json.load(f)}
 
 
-def _load_poi_prune():
+def _load_poi_prune(prune_path=None):
     import json
-    path = os.path.join(DICT_DIR, "poi_prune_v1.3.0.json")
+    path = prune_path or os.path.join(DICT_DIR, "poi_prune_v1.3.0.json")
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as f:
         return {p["word"]: p["freq"] for p in json.load(f)}
 
 
-def _load_loc_dict_data(dict_name="loc_v1.2.3", baked=False):
+def _load_loc_dict_data(dict_name="loc_v1.2.3", baked=False, prune_path=None):
     import pickle
     path = os.path.join(DICT_DIR, f"{dict_name}.pkl")
     with open(path, "rb") as f:
         dict_data = {k: dict(v) for k, v in pickle.load(f).items()}
     if baked:
         return dict_data
-    prune = _load_loc_prune()
+    prune = _load_loc_prune(prune_path)
     for st, word_freqs in dict_data.items():
         for word in list(word_freqs):
             if (word, st.value) in prune:
@@ -132,7 +132,7 @@ def _load_loc_dict_data(dict_name="loc_v1.2.3", baked=False):
 
 def build_loc_engine(dict_name="loc_v1.3.0", baked=None):
     if baked is None:
-        baked = "v1.3.0" in dict_name
+        baked = _is_baked(dict_name)
     dict_data = _load_loc_dict_data(dict_name, baked=baked)
     entries = []
     for seg_type, word_freqs in dict_data.items():
@@ -309,7 +309,7 @@ def _load_sql_suffix_set():
 
 
 def _load_org_dicts(dict_name, version, apply_poi_prune=False, baked=False,
-                    poi_seed_path=None):
+                    poi_seed_path=None, prune_path=None):
     import pickle
     if dict_name:
         cache_path = os.path.join(DICT_DIR, dict_name)
@@ -332,7 +332,7 @@ def _load_org_dicts(dict_name, version, apply_poi_prune=False, baked=False,
 
     if not baked:
         if apply_poi_prune:
-            for w, fr in _load_poi_prune().items():
+            for w, fr in _load_poi_prune(prune_path).items():
                 if w in d1_freqs:
                     d1_freqs.pop(w)
                     d4_freqs[w] = max(d4_freqs.get(w, 0), fr)
@@ -386,9 +386,16 @@ def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
     ))
 
 
+def _is_baked(name):
+    for prefix in ("v1.3", "v1.4", "v1.5", "v1.6", "v1.7", "v1.8", "v1.9", "v2."):
+        if prefix in name:
+            return True
+    return False
+
+
 def build_org_engine(version="v1.3.0", baked=None):
     if baked is None:
-        baked = version >= "v1.3.0"
+        baked = _is_baked(version)
     return _build_org_like_engine(
         dict_name=None, version=version,
         disable_short_d4_penalty=False, allow_adjacent_d4=False,
@@ -397,7 +404,7 @@ def build_org_engine(version="v1.3.0", baked=None):
 
 def build_poi_engine(dict_name="poi_v1.3.0.pkl", baked=None):
     if baked is None:
-        baked = "v1.3.0" in dict_name
+        baked = _is_baked(dict_name)
     seed_path = os.path.join(DATA_DIR, "suffix_seed.csv")
     return _build_org_like_engine(
         dict_name=dict_name, version="v1.1.2",

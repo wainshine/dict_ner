@@ -1,3 +1,41 @@
+# HANDOVER.md v3.6.0
+
+> 最后更新: 2026-08-04
+> v3.6.0: v1.4.0 词频全量重统 (stats bootstrap 换 v3 引擎)
+
+## v3.6.0 变更摘要
+
+**核心**: 词频真更新。原 stats 管道硬编码 `OrgDPRecognizer(v1.1.1)` 做切分统计, 词频停留在 v1.1.1 语义。本轮用 v3 引擎 v1.3.0 重切统计源, 完成自举迭代第一轮。
+
+**P1 stats** (`tools/org_chunk_stats_v3.py`/`poi_chunk_stats_v3.py`, 16进程):
+- org 1.65亿 (12min) / poi 4000万 (4min) → `dicts/iter_v1.4.0/`
+
+**P2 aggregate** (DICT_VERSION 环境变量支持):
+- org_v1.4.0: d1=60,612 d3=20,121 d4=8,888 (烘焙含 bare互斥)
+- poi_v1.4.0: d1=49,360 d3=4,727 d4=23,524
+- poi_prune 重推导: 仅 8 词 (v1.3.0 的 203 词已在 v1.4.0 stats 中自洽, 闭环验证)
+
+**P3 loc**: builder 全流程 (修 chunk 跳表头 bug) + Gaode 道路 freq≥10 (对齐 47万 传承, 101万 CSV 是 v2.2.x 重生成) + VILLAGE 清理 + prune 重推导 (36词) + NUMERIC/POI_SUB 注入。ROAD 42.4万。
+
+**P4 brand_v1.4.0**: 新 d2 统计重训 (9.5MB)。
+
+**P5 回归**:
+- seg_compare v1.3.0→v1.4.0 全量: org 4.45% / poi 4.49% / **loc 0.98%** (LOC 收敛)
+- badcase 修复 (10万样本): ORG 6.2% / POI 2.0% / LOC 0.8%
+- seg_quality 不降: org addr 验证 89.2%→90.1%
+- **test macro-F1 0.9061** (val 0.9064, UNKNOWN 0.9289, ORG 0.8662/POI 0.9077/ADDR 0.9215)
+
+**关键认知**:
+- v1.4.0 后词频与切分语义自洽 (poi_prune 从 203→8 即是证明), 下一轮自举 (v1.5.0) 边际收益将快速递减
+- aggregate 支持 `DICT_VERSION=v1.x.y` 环境变量指定版本
+- 烘焙开关 `_is_baked()`: v1.3+ 词典加载不打补丁
+
+**测试**: 124 条全绿。
+
+---
+
+# 以下为 v3.5.0 存档
+
 # HANDOVER.md v3.5.0
 
 > 最后更新: 2026-08-04
@@ -36,6 +74,26 @@
 > macro-F1 大涨主因 UNKNOWN 从噪声类变成可学习类; 三类业务指标持续提升但增幅温和。评测口径变化已记录, 跨版本对比时注意 UNKNOWN support 差异。
 
 **测试**: 124 条全绿。
+
+## v1.3.0 系统评估 (E1+E2, 2026-08-04)
+
+**E1 重切**: `v3/eval_cut.py` 用 v3 引擎 (baked v1.3.0) 重切三体系全量 → `output/*_eval/*_v1.3.0/` (schema 与 legacy eval 同构; legacy eval_launch 不能用于 baked 词典——legacy bare 注入规则不同会双重注入)。
+
+**E2 结论** (`output/v1.3.0_eval_report.md`):
+- badcase 修复率 (10万样本/体系): POI **18.2%** / ORG 5.5% / LOC 0.9% (+19% CHANGED_LOW 为 NUMERIC/POI_SUB 新序列长尾, 语义审查为改善)
+- seq_dist: POI 低频序列种类 -28,362 (-14.5%), ORG -5,130
+- 无回归项; ORG 裸名歧义与 LOC addr 覆盖假象为已知遗留
+
+**数据血缘备忘**:
+- `split/org` 1.65亿 (org_corpus.csv 历史产物, 源文件不在仓库)
+- `split/poi` 4000万 (兴趣点A/T input.txt → poi_dedup.py)
+- `split/loc` 3635万 (loc_corpus.csv 已删, 直接读 chunk)
+- `split/org_company` 5200万纯公司名 (公司名input.txt GBK, **仅作评测集, 未并入 org stats**, 用户决策)
+- 兴趣点A/T、地名A/T 与 Gaode/Tencent 同源
+
+**磁盘治理**: output/*_eval 只保留 stats + chunk_00.jsonl (评估完成后 JSONL 按 15/16 清理, 140GB→9GB)。
+
+**待办 (下一轮)**: v1.4.0 词频全量重统 (org/poi launch stats + aggregate + loc builder + brand 重训), 见 README v3.5.0 后续。
 
 ---
 

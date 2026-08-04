@@ -39,10 +39,24 @@ def build_new(system):
     return build_loc_engine("loc_v1.3.0")
 
 
+def build_v140(system):
+    from v3.engine.configs import build_org_engine, build_poi_engine, build_loc_engine
+    if system == "org":
+        return build_org_engine("v1.4.0")
+    if system == "poi":
+        return build_poi_engine("poi_v1.4.0.pkl")
+    return build_loc_engine("loc_v1.4.0")
+
+
 def main():
     system, chunk_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
-    old = build_old(system)
-    new = build_new(system)
+    mode = sys.argv[4] if len(sys.argv) > 4 else "legacy_vs_v130"
+    if mode == "v130_vs_v140":
+        old = build_new(system)
+        new = build_v140(system)
+    else:
+        old = build_old(system)
+        new = build_new(system)
 
     total = 0
     diff = 0

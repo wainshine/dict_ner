@@ -1,11 +1,11 @@
 {
-  "tag": "v3.5",
-  "timestamp": "2026-08-04 13:50:46",
+  "tag": "v3.6-v1.4.0",
+  "timestamp": "2026-08-04 17:37:17",
   "train_path": "output/v3_feat/final_train3.csv",
-  "train_md5": "1988b64c056644f19a6bd1bf520de32f",
+  "train_md5": "6b1a77f2b261a36b91430337466d520e",
   "val_path": "output/v3_feat/val_feats.csv",
-  "val_md5": "77e3a8bf781d632ee487afb67fffecdf",
-  "n_train": 2685293,
+  "val_md5": "efc80b5c43a79c749e87322e4da4ae40",
+  "n_train": 2685150,
   "n_val": 38512,
   "n_features": 78,
   "params": {
@@ -17,72 +17,72 @@
     "calibration": "isotonic"
   },
   "multipliers": {
-    "ORG": 0.25,
-    "POI": 0.25,
-    "ADDR": 0.25,
-    "UNKNOWN": 8.0
+    "ORG": 0.7,
+    "POI": 0.85,
+    "ADDR": 0.85,
+    "UNKNOWN": 2.0
   },
   "reject_t": 0.0,
   "val_argmax": {
     "per_class": {
       "ORG": {
-        "precision": 0.9008,
-        "recall": 0.8338,
-        "f1": 0.866,
+        "precision": 0.8996,
+        "recall": 0.8387,
+        "f1": 0.8681,
         "support": 6763
       },
       "POI": {
-        "precision": 0.8606,
-        "recall": 0.9207,
-        "f1": 0.8896,
+        "precision": 0.9009,
+        "recall": 0.9138,
+        "f1": 0.9073,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.898,
-        "recall": 0.9371,
-        "f1": 0.9171,
+        "precision": 0.902,
+        "recall": 0.9411,
+        "f1": 0.9212,
         "support": 12004
       },
       "UNKNOWN": {
-        "precision": 0.9991,
-        "recall": 0.4763,
-        "f1": 0.6451,
+        "precision": 0.9868,
+        "recall": 0.8564,
+        "f1": 0.917,
         "support": 2360
       }
     },
-    "accuracy": 0.8833,
-    "macro_f1": 0.8295,
+    "accuracy": 0.9056,
+    "macro_f1": 0.9034,
     "total": 38512
   },
   "val_tuned": {
     "per_class": {
       "ORG": {
-        "precision": 0.9066,
-        "recall": 0.8338,
-        "f1": 0.8687,
+        "precision": 0.9091,
+        "recall": 0.8314,
+        "f1": 0.8686,
         "support": 6763
       },
       "POI": {
-        "precision": 0.8941,
-        "recall": 0.9186,
-        "f1": 0.9062,
+        "precision": 0.9017,
+        "recall": 0.9158,
+        "f1": 0.9087,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9058,
-        "recall": 0.9368,
-        "f1": 0.921,
+        "precision": 0.9011,
+        "recall": 0.9402,
+        "f1": 0.9203,
         "support": 12004
       },
       "UNKNOWN": {
-        "precision": 0.9767,
-        "recall": 0.8347,
-        "f1": 0.9002,
+        "precision": 0.9744,
+        "recall": 0.8856,
+        "f1": 0.9279,
         "support": 2360
       }
     },
-    "accuracy": 0.9042,
-    "macro_f1": 0.899,
+    "accuracy": 0.9068,
+    "macro_f1": 0.9064,
     "total": 38512
   }
 }

@@ -32,8 +32,8 @@ def _split_adjacent_roads(road_dict):
 
 
 def main():
-    src = os.path.join(DICT_DIR, "loc_v1.2.1.pkl")
-    dst = os.path.join(DICT_DIR, "loc_v1.2.2.pkl")
+    src = os.path.join(DICT_DIR, "loc_v1.4.0_base.pkl")
+    dst = os.path.join(DICT_DIR, "loc_v1.4.0_unbaked.pkl")
 
     with open(src, "rb") as f:
         data = pickle.load(f)
@@ -53,10 +53,16 @@ def main():
             road = row["road_name"].strip()
             if not road or len(road) < 2:
                 continue
+            try:
+                freq = int(row.get("freq", 3))
+            except ValueError:
+                freq = 3
+            if freq < 10:
+                continue
             if road in road_dict or road in all_words:
                 skipped += 1
                 continue
-            road_dict[road] = max(50, int(row.get("freq", 3)))
+            road_dict[road] = max(50, freq)
             added += 1
 
     data[SegType.ROAD] = road_dict

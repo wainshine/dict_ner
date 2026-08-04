@@ -1,0 +1,74 @@
+[
+ {
+  "word": "山新村",
+  "action": "move",
+  "freq": 9420,
+  "start": 8,
+  "end": 228,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "北大街",
+  "action": "move",
+  "freq": 15056,
+  "start": 0,
+  "end": 254,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "城南路",
+  "action": "move",
+  "freq": 3603,
+  "start": 0,
+  "end": 109,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "西大街",
+  "action": "move",
+  "freq": 13334,
+  "start": 0,
+  "end": 179,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "东大街",
+  "action": "move",
+  "freq": 14242,
+  "start": 0,
+  "end": 193,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "东新村",
+  "action": "move",
+  "freq": 5025,
+  "start": 0,
+  "end": 119,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "湖东路",
+  "action": "move",
+  "freq": 2984,
+  "start": 0,
+  "end": 104,
+  "in_d4": false,
+  "sql_dominant": false
+ },
+ {
+  "word": "山风景名胜区",
+  "action": "move",
+  "freq": 3282,
+  "start": 2,
+  "end": 115,
+  "in_d4": false,
+  "sql_dominant": false
+ }
+]

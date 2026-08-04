@@ -1,0 +1,218 @@
+[
+ {
+  "word": "超市",
+  "type": "CITY",
+  "admin_freq": 2866,
+  "poi_freq": 6881946
+ },
+ {
+  "word": "生鲜超市",
+  "type": "CITY",
+  "admin_freq": 197,
+  "poi_freq": 195152
+ },
+ {
+  "word": "综合门市",
+  "type": "CITY",
+  "admin_freq": 136,
+  "poi_freq": 40041
+ },
+ {
+  "word": "生活超市",
+  "type": "CITY",
+  "admin_freq": 83,
+  "poi_freq": 382366
+ },
+ {
+  "word": "便民超市",
+  "type": "CITY",
+  "admin_freq": 79,
+  "poi_freq": 146059
+ },
+ {
+  "word": "建材超市",
+  "type": "CITY",
+  "admin_freq": 66,
+  "poi_freq": 19114
+ },
+ {
+  "word": "农资超市",
+  "type": "CITY",
+  "admin_freq": 53,
+  "poi_freq": 33342
+ },
+ {
+  "word": "大超市",
+  "type": "CITY",
+  "admin_freq": 50,
+  "poi_freq": 6161
+ },
+ {
+  "word": "平价超市",
+  "type": "CITY",
+  "admin_freq": 48,
+  "poi_freq": 256032
+ },
+ {
+  "word": "汽车超市",
+  "type": "CITY",
+  "admin_freq": 39,
+  "poi_freq": 10209
+ },
+ {
+  "word": "百货门市",
+  "type": "CITY",
+  "admin_freq": 37,
+  "poi_freq": 52852
+ },
+ {
+  "word": "粮油门市",
+  "type": "CITY",
+  "admin_freq": 30,
+  "poi_freq": 15254
+ },
+ {
+  "word": "百货超市",
+  "type": "CITY",
+  "admin_freq": 28,
+  "poi_freq": 352637
+ },
+ {
+  "word": "水产门市",
+  "type": "CITY",
+  "admin_freq": 25,
+  "poi_freq": 4656
+ },
+ {
+  "word": "综合超市",
+  "type": "CITY",
+  "admin_freq": 23,
+  "poi_freq": 137966
+ },
+ {
+  "word": "五金门市",
+  "type": "CITY",
+  "admin_freq": 21,
+  "poi_freq": 19202
+ },
+ {
+  "word": "食品门市",
+  "type": "CITY",
+  "admin_freq": 13,
+  "poi_freq": 9664
+ },
+ {
+  "word": "农资门市",
+  "type": "CITY",
+  "admin_freq": 10,
+  "poi_freq": 27037
+ },
+ {
+  "word": "蔬菜门市",
+  "type": "CITY",
+  "admin_freq": 9,
+  "poi_freq": 9506
+ },
+ {
+  "word": "日杂门市",
+  "type": "CITY",
+  "admin_freq": 9,
+  "poi_freq": 17379
+ },
+ {
+  "word": "购物超市",
+  "type": "CITY",
+  "admin_freq": 8,
+  "poi_freq": 42440
+ },
+ {
+  "word": "饲料门市",
+  "type": "CITY",
+  "admin_freq": 7,
+  "poi_freq": 7039
+ },
+ {
+  "word": "建材门市",
+  "type": "CITY",
+  "admin_freq": 7,
+  "poi_freq": 32367
+ },
+ {
+  "word": "小超市",
+  "type": "CITY",
+  "admin_freq": 6,
+  "poi_freq": 42697
+ },
+ {
+  "word": "蔬果超市",
+  "type": "CITY",
+  "admin_freq": 6,
+  "poi_freq": 18312
+ },
+ {
+  "word": "园二区",
+  "type": "DISTRICT",
+  "admin_freq": 98,
+  "poi_freq": 10073
+ },
+ {
+  "word": "自然保护区",
+  "type": "DISTRICT",
+  "admin_freq": 80,
+  "poi_freq": 8885
+ },
+ {
+  "word": "风景名胜区",
+  "type": "DISTRICT",
+  "admin_freq": 55,
+  "poi_freq": 6187
+ },
+ {
+  "word": "新校区",
+  "type": "DISTRICT",
+  "admin_freq": 34,
+  "poi_freq": 6311
+ },
+ {
+  "word": "西校区",
+  "type": "DISTRICT",
+  "admin_freq": 32,
+  "poi_freq": 3319
+ },
+ {
+  "word": "保护区",
+  "type": "DISTRICT",
+  "admin_freq": 23,
+  "poi_freq": 3282
+ },
+ {
+  "word": "艺术区",
+  "type": "DISTRICT",
+  "admin_freq": 13,
+  "poi_freq": 1887
+ },
+ {
+  "word": "旅游风景区",
+  "type": "DISTRICT",
+  "admin_freq": 9,
+  "poi_freq": 3399
+ },
+ {
+  "word": "休息区",
+  "type": "DISTRICT",
+  "admin_freq": 8,
+  "poi_freq": 18046
+ },
+ {
+  "word": "洗车区",
+  "type": "DISTRICT",
+  "admin_freq": 7,
+  "poi_freq": 849
+ },
+ {
+  "word": "风景旅游区",
+  "type": "DISTRICT",
+  "admin_freq": 7,
+  "poi_freq": 1247
+ }
+]
