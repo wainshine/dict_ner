@@ -1,3 +1,42 @@
+# HANDOVER.md v3.2.0
+
+> 最后更新: 2026-08-04
+> v3.2.0: LOC 体系 R1 — NUMERIC/POI_SUB 从零建模
+> 详见 audit/v4.0_d0_findings.md
+
+## v3.2.0 变更摘要 (LOC R1)
+
+**病灶**: LOC 词典 `NUMERIC`/`POI_SUB` 两类**完全为空** (转移表里有规则但词典无词条)。后果: "人民路88号"→3个UNKNOWN单字, "瓦房村3组"→VILLAGE+3个UNKNOWN, 楼层/门牌/村组全部落入 UNKNOWN (unknown_char_rate 4.0%, 占 LOC 残差的~80%)。
+
+**修复** (`v3/engine/configs.py`, 加载层注入, 不改 pkl):
+- NUMERIC: 0-9 + 全角数字 (freq=5000), 链式 (NUMERIC,NUMERIC)=1.0 原有
+- POI_SUB: 号/层/楼/栋/幢/单元/室/组/队/排/间 + 一层~十层/一楼~十楼/负一层/负一楼 (24词, freq=80)
+- 转移表增量 (9条, `LOC_EXTRA_TRANSITIONS`): NUMERIC→POI_SUB 0.2, VILLAGE/COMMUNITY→NUMERIC 0.5, POI→NUMERIC 0.5 等
+- dp.py `merge_same_type` 增加 NUMERIC 合并 ("88"合成一段)
+
+**效果**:
+- "人民路88号"→ROAD+NUMERIC+POI_SUB, "瓦房村3组"→VILLAGE+NUMERIC+POI_SUB, "前海西街12号楼"→ROAD+NUMERIC+POI_SUB(号楼合并)
+- LOC diff 7.1% (3000样本), 逐类审查**均为改善**
+- unknown_char_rate 4.02%→3.42%
+- low_freq_seq 12.3%→14.7% 为**指标假象** (新正确序列初始稀有, 非回归)
+- test macro-F1 0.7913→**0.8009**, val clean accuracy 0.9903
+
+**段健康度基线汇总** (20万样本/体系, `v3/seg_quality.py`):
+
+| 体系 | 末段后缀率 | 后缀验证 | 行业验证 | 地址验证 | unknown率 |
+|------|:---:|:---:|:---:|:---:|:---:|
+| ORG (R1后) | 97.65% | 97.87% | 99.28% | 89.15% | — |
+| POI | 64.74% | 97.64% | 100% | 57.3%* | — |
+| LOC (R1后) | — | — | — | 88.49% | 3.42% |
+
+> *POI 地址验证率低主要是 addr_csv 对 POI 语料小镇覆盖不足 (覆盖假象), 非切分错误。
+
+**测试**: 124 条全绿。
+
+---
+
+# 以下为 v3.1.0 存档
+
 # HANDOVER.md v3.1.0
 
 > 最后更新: 2026-08-04

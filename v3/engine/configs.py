@@ -62,6 +62,30 @@ def _loc_trans_table():
     return table
 
 
+LOC_POI_SUB_INJECT = {
+    "号", "层", "楼", "栋", "幢", "单元", "室", "组", "队", "排", "间",
+    "一层", "二层", "三层", "四层", "五层", "六层", "七层", "八层", "九层", "十层",
+    "一楼", "二楼", "三楼", "四楼", "五楼", "六楼", "七楼", "八楼", "九楼", "十楼",
+    "负一层", "负一楼",
+}
+
+LOC_NUMERIC_INJECT = set("0123456789０１２３４５６７８９")
+
+LOC_EXTRA_TRANSITIONS = {
+    (SegType.NUMERIC, SegType.POI_SUB): 0.2,
+    (SegType.VILLAGE, SegType.NUMERIC): 0.5,
+    (SegType.COMMUNITY, SegType.NUMERIC): 0.5,
+    (SegType.TOWN, SegType.NUMERIC): 1.0,
+    (SegType.POI, SegType.NUMERIC): 0.5,
+    (SegType.NUMERIC, SegType.LOCATION): 0.3,
+    (SegType.POI_SUB, SegType.NUMERIC): 0.5,
+    (SegType.POI_SUB, SegType.POI_SUB): 1.0,
+    (SegType.POI_SUB, SegType.POI): 1.0,
+    (SegType.POI_SUB, SegType.LOCATION): 0.3,
+    (SegType.POI_SUB, SegType.ORIENTATION): 0.3,
+}
+
+
 def build_loc_engine(dict_name="loc_v1.2.3"):
     import pickle
     path = os.path.join(DICT_DIR, f"{dict_name}.pkl")
@@ -71,10 +95,20 @@ def build_loc_engine(dict_name="loc_v1.2.3"):
     for seg_type, word_freqs in dict_data.items():
         for word, freq in word_freqs.items():
             entries.append((word, seg_type, freq))
+    existing = {w for w, _, _ in entries}
+    for w in LOC_POI_SUB_INJECT:
+        if w not in existing:
+            entries.append((w, SegType.POI_SUB, 80))
+    for w in LOC_NUMERIC_INJECT:
+        if w not in existing:
+            entries.append((w, SegType.NUMERIC, 5000))
+    trans = _loc_trans_table()
+    for k, v in LOC_EXTRA_TRANSITIONS.items():
+        trans.setdefault(k, v)
     return DPEngine(EngineConfig(
         name="loc",
         entries=entries,
-        trans_table=_loc_trans_table(),
+        trans_table=trans,
         start_costs={
             SegType.PROVINCE: 0.0, SegType.CITY: 1.0, SegType.DISTRICT: 2.0,
             SegType.TOWN: 2.0, SegType.VILLAGE: 3.0, SegType.COMMUNITY: 3.0,

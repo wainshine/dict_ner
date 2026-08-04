@@ -371,7 +371,7 @@ class DPEngine:
         for seg in segments:
             if result and seg.seg_type == result[-1].seg_type:
                 if seg.seg_type in (SegType.POI, SegType.POI_SUB, SegType.LOCATION,
-                                    SegType.CHAR, SegType.UNKNOWN):
+                                    SegType.CHAR, SegType.UNKNOWN, SegType.NUMERIC):
                     result[-1].text += seg.text
                     result[-1].end = seg.end
                     continue

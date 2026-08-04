@@ -1,11 +1,11 @@
 {
-  "tag": "v3.1-r1",
-  "timestamp": "2026-08-04 08:26:25",
+  "tag": "v3.2",
+  "timestamp": "2026-08-04 09:26:06",
   "train_path": "output/v3_feat/final_train2.csv",
-  "train_md5": "abcf7c9b58e60b64f7038f8ec6634e86",
+  "train_md5": "c012a3265e9c481f26e6db857f2e4460",
   "val_path": "output/v3_feat/val_feats.csv",
-  "val_md5": "ef288145a0b01668b297227241676fec",
-  "n_train": 2675274,
+  "val_md5": "5c78ed09f3a377652fe6d694c81db195",
+  "n_train": 2677073,
   "n_val": 36162,
   "n_features": 78,
   "params": {
@@ -17,72 +17,72 @@
     "calibration": "isotonic"
   },
   "multipliers": {
-    "ORG": 1.5,
-    "POI": 1.5,
-    "ADDR": 1.2,
+    "ORG": 1.2,
+    "POI": 1.0,
+    "ADDR": 1.0,
     "UNKNOWN": 1.0
   },
   "reject_t": 0.0,
   "val_argmax": {
     "per_class": {
       "ORG": {
-        "precision": 0.9103,
-        "recall": 0.8323,
-        "f1": 0.8695,
+        "precision": 0.9074,
+        "recall": 0.8305,
+        "f1": 0.8673,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9094,
-        "recall": 0.9184,
-        "f1": 0.9139,
+        "precision": 0.911,
+        "recall": 0.9175,
+        "f1": 0.9142,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9057,
-        "recall": 0.9369,
-        "f1": 0.921,
+        "precision": 0.9055,
+        "recall": 0.9399,
+        "f1": 0.9224,
         "support": 12004
       },
       "UNKNOWN": {
-        "precision": 0.75,
-        "recall": 0.3,
-        "f1": 0.4286,
+        "precision": 1.0,
+        "recall": 0.4,
+        "f1": 0.5714,
         "support": 10
       }
     },
-    "accuracy": 0.9083,
-    "macro_f1": 0.7833,
+    "accuracy": 0.9085,
+    "macro_f1": 0.8188,
     "total": 36162
   },
   "val_tuned": {
     "per_class": {
       "ORG": {
-        "precision": 0.907,
-        "recall": 0.8351,
-        "f1": 0.8696,
+        "precision": 0.8999,
+        "recall": 0.8385,
+        "f1": 0.8681,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9058,
-        "recall": 0.9221,
-        "f1": 0.9138,
+        "precision": 0.9127,
+        "recall": 0.9156,
+        "f1": 0.9141,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9125,
-        "recall": 0.9299,
-        "f1": 0.9211,
+        "precision": 0.9073,
+        "recall": 0.9385,
+        "f1": 0.9226,
         "support": 12004
       },
       "UNKNOWN": {
         "precision": 1.0,
-        "recall": 0.3,
-        "f1": 0.4615,
+        "recall": 0.4,
+        "f1": 0.5714,
         "support": 10
       }
     },
-    "accuracy": 0.9082,
-    "macro_f1": 0.7915,
+    "accuracy": 0.9086,
+    "macro_f1": 0.8191,
     "total": 36162
   }
 }

@@ -46,11 +46,13 @@ def load_sql_sets():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=200000)
-    ap.add_argument("--chunk", default=os.path.join(DATA, "split", "org", "chunk_00.csv"))
-    ap.add_argument("--engine", default="org", choices=["org", "poi"])
+    ap.add_argument("--chunk", default=None)
+    ap.add_argument("--engine", default="org", choices=["org", "poi", "loc"])
     ap.add_argument("--v3", action="store_true", help="使用 v3 统一引擎 (含R1修复)")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
+    if args.chunk is None:
+        args.chunk = os.path.join(DATA, "split", args.engine, "chunk_00.csv")
 
     if args.v3:
         from v3.pipeline import V3Pipeline
@@ -62,12 +64,21 @@ def main():
     print(f"SQL sets: suffix={len(sql_suffixes):,} trade={len(trade):,} addr={len(addr):,}")
 
     names = []
-    with open(args.chunk, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            names.append(row["dict"])
-            if len(names) >= args.n:
-                break
+    if args.engine == "poi":
+        with open(args.chunk, encoding="utf-8") as f:
+            for line in f:
+                parts = line.rstrip("\n").split("\t")
+                if parts and parts[0].strip():
+                    names.append(parts[0].strip())
+                if len(names) >= args.n:
+                    break
+    else:
+        with open(args.chunk, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                names.append(row["dict"])
+                if len(names) >= args.n:
+                    break
     print(f"sample: {len(names):,} names from {os.path.basename(args.chunk)}")
 
     n_done = 0
@@ -82,10 +93,18 @@ def main():
     seq_counter = Counter()
     results = []
 
+    geo_cov_total = 0.0
+    unk_chars = 0
+    total_chars = 0
     for name in names:
-        res = pipe._remap_org_segments(pipe.org.recognize(name))
-        res.segments = pipe._merge_over_split(res.segments)
-        segs = res.segments
+        if args.engine == "loc":
+            segs = pipe.loc.recognize(name).segments
+        elif args.engine == "poi":
+            segs = pipe.poi.recognize(name).segments
+        else:
+            res = pipe._remap_org_segments(pipe.org.recognize(name))
+            res.segments = pipe._merge_over_split(res.segments)
+            segs = res.segments
         if not segs:
             continue
         n_done += 1
@@ -94,14 +113,22 @@ def main():
         seq_counter[seq] += 1
         results.append((name, segs))
 
-        last = segs[-1]
-        if last.seg_type == SegType.ORG_SUFFIX:
-            last_present += 1
-            if last.text in sql_suffixes:
-                last_in_sql += 1
-            hits = sum(1 for sfx in sql_suffixes if sfx != last.text and sfx in last.text)
-            if hits >= 1 and last.text not in sql_suffixes:
-                overmerge_suspect += 1
+        if args.engine == "loc":
+            total_chars += len(name)
+            geo_cov_total += sum(
+                len(s.text) for s in segs if s.seg_type in ADDR_SEG_TYPES
+                or s.seg_type in (SegType.LOCATION, SegType.ORIENTATION)) / max(1, len(name))
+            unk_chars += sum(len(s.text) for s in segs if s.seg_type == SegType.UNKNOWN)
+        else:
+            last = segs[-1]
+            tail_type = SegType.ORG_SUFFIX if args.engine == "org" else SegType.POI
+            if last.seg_type == tail_type:
+                last_present += 1
+                if last.text in sql_suffixes:
+                    last_in_sql += 1
+                hits = sum(1 for sfx in sql_suffixes if sfx != last.text and sfx in last.text)
+                if hits >= 1 and last.text not in sql_suffixes:
+                    overmerge_suspect += 1
 
         for s in segs:
             if s.seg_type == SegType.INDUSTRY:
@@ -116,15 +143,18 @@ def main():
     low_seq = sum(1 for _, segs in results
                   if seq_counter["→".join(s.seg_type.value for s in segs)] < 10)
 
+    tail_label = "last_seg_org_suffix_rate" if args.engine == "org" else "last_seg_poi_rate"
     metrics = {
-        "chunk": args.chunk, "n": n_done,
+        "chunk": args.chunk, "engine": args.engine, "n": n_done,
         "avg_segments": round(seg_total / max(1, n_done), 3),
-        "last_seg_org_suffix_rate": round(last_present / max(1, n_done), 4),
+        tail_label: round(last_present / max(1, n_done), 4),
         "suffix_verified_rate": round(last_in_sql / max(1, last_present), 4),
         "industry_verified_rate": round(ind_in_trade / max(1, ind_total), 4),
         "addr_verified_rate": round(addr_in_sql / max(1, addr_total), 4),
         "overmerge_suspect_rate": round(overmerge_suspect / max(1, n_done), 4),
         "low_freq_seq_rate": round(low_seq / max(1, n_done), 4),
+        "geo_cov_avg": round(geo_cov_total / max(1, n_done), 4) if args.engine == "loc" else None,
+        "unknown_char_rate": round(unk_chars / max(1, total_chars), 4) if args.engine == "loc" else None,
         "counts": {
             "last_present": last_present, "last_in_sql": last_in_sql,
             "ind_total": ind_total, "ind_in_trade": ind_in_trade,
