@@ -21,7 +21,7 @@ class TestConfig(unittest.TestCase):
         self.assertTrue(os.path.isdir(config.DICT_DIR))
 
     def test_version(self):
-        self.assertEqual(config.VERSION, "v1.2.3")
+        self.assertEqual(config.VERSION, "v1.4.3")
 
     def test_num_chunks(self):
         self.assertEqual(config.NUM_CHUNKS, 16)

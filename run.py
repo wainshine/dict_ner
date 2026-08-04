@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""dict_ner v3.7.1 — 中文地名/机构名/POI/品牌识别系统 CLI (默认 v3 模型)"""
+"""dict_ner v3.8.0 — 中文地名/机构名/POI/品牌识别系统 CLI (默认 v3 模型)"""
 import os, sys, json
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-VERSION = "v3.7.1"
+VERSION = "v3.8.0"
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 

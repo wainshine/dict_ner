@@ -29,10 +29,10 @@ class _OrgAdapter:
 
 
 class V3Pipeline:
-    def __init__(self, loc_dict="loc_v1.4.0", org_version="v1.4.2",
-                 poi_dict="poi_v1.4.1.pkl"):
+    def __init__(self, loc_dict="loc_v1.4.3", org_version="v1.4.3",
+                 poi_dict="poi_v1.4.3.pkl"):
         from brand.model import BrandModel
-        brand = BrandModel(DICT_DIR, version="v1.4.0")
+        brand = BrandModel(DICT_DIR, version="v1.4.3")
         brand.load()
         self._loc_engine = build_loc_engine(loc_dict)
         self._poi_engine = build_poi_engine(poi_dict)

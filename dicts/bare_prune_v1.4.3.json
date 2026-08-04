@@ -1,0 +1,656 @@
+[
+ {
+  "word": "中心",
+  "start": 10,
+  "end": 538238,
+  "type": "TOWN"
+ },
+ {
+  "word": "商店",
+  "start": 3,
+  "end": 408775,
+  "type": "TOWN"
+ },
+ {
+  "word": "农场",
+  "start": 7,
+  "end": 160929,
+  "type": "TOWN"
+ },
+ {
+  "word": "利店",
+  "start": 0,
+  "end": 131396,
+  "type": "TOWN"
+ },
+ {
+  "word": "酒店",
+  "start": 0,
+  "end": 63114,
+  "type": "TOWN"
+ },
+ {
+  "word": "金店",
+  "start": 1,
+  "end": 56043,
+  "type": "TOWN"
+ },
+ {
+  "word": "茶店",
+  "start": 12,
+  "end": 48292,
+  "type": "TOWN"
+ },
+ {
+  "word": "猪场",
+  "start": 2,
+  "end": 12613,
+  "type": "TOWN"
+ },
+ {
+  "word": "鲜店",
+  "start": 0,
+  "end": 10521,
+  "type": "TOWN"
+ },
+ {
+  "word": "皮店",
+  "start": 2,
+  "end": 10442,
+  "type": "TOWN"
+ },
+ {
+  "word": "金厂",
+  "start": 0,
+  "end": 8985,
+  "type": "TOWN"
+ },
+ {
+  "word": "油坊",
+  "start": 2,
+  "end": 8125,
+  "type": "TOWN"
+ },
+ {
+  "word": "烟店",
+  "start": 0,
+  "end": 7053,
+  "type": "TOWN"
+ },
+ {
+  "word": "鸡场",
+  "start": 1,
+  "end": 6182,
+  "type": "TOWN"
+ },
+ {
+  "word": "苗圃",
+  "start": 0,
+  "end": 5927,
+  "type": "TOWN"
+ },
+ {
+  "word": "乐园",
+  "start": 6,
+  "end": 5194,
+  "type": "TOWN"
+ },
+ {
+  "word": "山庄",
+  "start": 1,
+  "end": 4863,
+  "type": "TOWN"
+ },
+ {
+  "word": "小店",
+  "start": 3,
+  "end": 4687,
+  "type": "DISTRICT"
+ },
+ {
+  "word": "广场",
+  "start": 3,
+  "end": 4498,
+  "type": "TOWN"
+ },
+ {
+  "word": "木场",
+  "start": 1,
+  "end": 4481,
+  "type": "TOWN"
+ },
+ {
+  "word": "粥店",
+  "start": 0,
+  "end": 3421,
+  "type": "TOWN"
+ },
+ {
+  "word": "砖店",
+  "start": 0,
+  "end": 3036,
+  "type": "TOWN"
+ },
+ {
+  "word": "牛场",
+  "start": 0,
+  "end": 2981,
+  "type": "TOWN"
+ },
+ {
+  "word": "茶坊",
+  "start": 4,
+  "end": 2717,
+  "type": "TOWN"
+ },
+ {
+  "word": "石场",
+  "start": 1,
+  "end": 2673,
+  "type": "TOWN"
+ },
+ {
+  "word": "果园",
+  "start": 2,
+  "end": 2600,
+  "type": "TOWN"
+ },
+ {
+  "word": "市场",
+  "start": 6,
+  "end": 2534,
+  "type": "TOWN"
+ },
+ {
+  "word": "火烧店",
+  "start": 0,
+  "end": 2443,
+  "type": "TOWN"
+ },
+ {
+  "word": "三店",
+  "start": 1,
+  "end": 1917,
+  "type": "TOWN"
+ },
+ {
+  "word": "王店",
+  "start": 1,
+  "end": 1734,
+  "type": "TOWN"
+ },
+ {
+  "word": "草店",
+  "start": 0,
+  "end": 1643,
+  "type": "TOWN"
+ },
+ {
+  "word": "纸店",
+  "start": 0,
+  "end": 1550,
+  "type": "TOWN"
+ },
+ {
+  "word": "电城",
+  "start": 0,
+  "end": 1495,
+  "type": "TOWN"
+ },
+ {
+  "word": "板店",
+  "start": 0,
+  "end": 1495,
+  "type": "TOWN"
+ },
+ {
+  "word": "沙龙",
+  "start": 2,
+  "end": 1460,
+  "type": "TOWN"
+ },
+ {
+  "word": "石店",
+  "start": 0,
+  "end": 1459,
+  "type": "TOWN"
+ },
+ {
+  "word": "大全",
+  "start": 1,
+  "end": 1439,
+  "type": "TOWN"
+ },
+ {
+  "word": "乐城",
+  "start": 2,
+  "end": 1418,
+  "type": "TOWN"
+ },
+ {
+  "word": "卫店",
+  "start": 0,
+  "end": 1363,
+  "type": "TOWN"
+ },
+ {
+  "word": "瓦厂",
+  "start": 2,
+  "end": 1160,
+  "type": "TOWN"
+ },
+ {
+  "word": "煤矿",
+  "start": 2,
+  "end": 1153,
+  "type": "TOWN"
+ },
+ {
+  "word": "小铺",
+  "start": 1,
+  "end": 1104,
+  "type": "TOWN"
+ },
+ {
+  "word": "庄园",
+  "start": 5,
+  "end": 1055,
+  "type": "TOWN"
+ },
+ {
+  "word": "山店",
+  "start": 0,
+  "end": 1029,
+  "type": "TOWN"
+ },
+ {
+  "word": "羊场",
+  "start": 4,
+  "end": 1013,
+  "type": "TOWN"
+ },
+ {
+  "word": "龙店",
+  "start": 0,
+  "end": 995,
+  "type": "TOWN"
+ },
+ {
+  "word": "中心店",
+  "start": 0,
+  "end": 956,
+  "type": "TOWN"
+ },
+ {
+  "word": "茶园",
+  "start": 1,
+  "end": 946,
+  "type": "TOWN"
+ },
+ {
+  "word": "木门店",
+  "start": 0,
+  "end": 909,
+  "type": "TOWN"
+ },
+ {
+  "word": "发城",
+  "start": 0,
+  "end": 750,
+  "type": "TOWN"
+ },
+ {
+  "word": "学院",
+  "start": 0,
+  "end": 719,
+  "type": "TOWN"
+ },
+ {
+  "word": "康店",
+  "start": 0,
+  "end": 625,
+  "type": "TOWN"
+ },
+ {
+  "word": "府店",
+  "start": 0,
+  "end": 609,
+  "type": "TOWN"
+ },
+ {
+  "word": "中店",
+  "start": 0,
+  "end": 581,
+  "type": "TOWN"
+ },
+ {
+  "word": "河店",
+  "start": 0,
+  "end": 533,
+  "type": "TOWN"
+ },
+ {
+  "word": "华店",
+  "start": 0,
+  "end": 530,
+  "type": "TOWN"
+ },
+ {
+  "word": "小院",
+  "start": 1,
+  "end": 529,
+  "type": "TOWN"
+ },
+ {
+  "word": "纸厂",
+  "start": 0,
+  "end": 513,
+  "type": "TOWN"
+ },
+ {
+  "word": "保店",
+  "start": 0,
+  "end": 495,
+  "type": "TOWN"
+ },
+ {
+  "word": "电厂",
+  "start": 0,
+  "end": 448,
+  "type": "TOWN"
+ },
+ {
+  "word": "阳店",
+  "start": 0,
+  "end": 431,
+  "type": "TOWN"
+ },
+ {
+  "word": "北店",
+  "start": 0,
+  "end": 427,
+  "type": "TOWN"
+ },
+ {
+  "word": "池店",
+  "start": 0,
+  "end": 388,
+  "type": "TOWN"
+ },
+ {
+  "word": "西店",
+  "start": 0,
+  "end": 385,
+  "type": "TOWN"
+ },
+ {
+  "word": "新店",
+  "start": 43,
+  "end": 372,
+  "type": "TOWN"
+ },
+ {
+  "word": "大店",
+  "start": 0,
+  "end": 370,
+  "type": "TOWN"
+ },
+ {
+  "word": "木厂",
+  "start": 0,
+  "end": 369,
+  "type": "TOWN"
+ },
+ {
+  "word": "老店",
+  "start": 2,
+  "end": 364,
+  "type": "TOWN"
+ },
+ {
+  "word": "车城",
+  "start": 1,
+  "end": 349,
+  "type": "TOWN"
+ },
+ {
+  "word": "和店",
+  "start": 0,
+  "end": 336,
+  "type": "TOWN"
+ },
+ {
+  "word": "车站",
+  "start": 4,
+  "end": 330,
+  "type": "TOWN"
+ },
+ {
+  "word": "鱼塘",
+  "start": 0,
+  "end": 321,
+  "type": "TOWN"
+ },
+ {
+  "word": "关店",
+  "start": 0,
+  "end": 301,
+  "type": "TOWN"
+ },
+ {
+  "word": "园艺",
+  "start": 0,
+  "end": 291,
+  "type": "TOWN"
+ },
+ {
+  "word": "管店",
+  "start": 0,
+  "end": 282,
+  "type": "TOWN"
+ },
+ {
+  "word": "菜园",
+  "start": 0,
+  "end": 281,
+  "type": "TOWN"
+ },
+ {
+  "word": "蛇场",
+  "start": 0,
+  "end": 279,
+  "type": "TOWN"
+ },
+ {
+  "word": "书院",
+  "start": 0,
+  "end": 274,
+  "type": "TOWN"
+ },
+ {
+  "word": "平店",
+  "start": 0,
+  "end": 254,
+  "type": "TOWN"
+ },
+ {
+  "word": "火店",
+  "start": 0,
+  "end": 244,
+  "type": "TOWN"
+ },
+ {
+  "word": "丰店",
+  "start": 0,
+  "end": 243,
+  "type": "TOWN"
+ },
+ {
+  "word": "尚店",
+  "start": 2,
+  "end": 242,
+  "type": "TOWN"
+ },
+ {
+  "word": "瓦店",
+  "start": 2,
+  "end": 236,
+  "type": "TOWN"
+ },
+ {
+  "word": "大院",
+  "start": 2,
+  "end": 216,
+  "type": "TOWN"
+ },
+ {
+  "word": "头铺",
+  "start": 0,
+  "end": 209,
+  "type": "TOWN"
+ },
+ {
+  "word": "集店",
+  "start": 0,
+  "end": 209,
+  "type": "TOWN"
+ },
+ {
+  "word": "岗店",
+  "start": 0,
+  "end": 194,
+  "type": "TOWN"
+ },
+ {
+  "word": "铁矿",
+  "start": 0,
+  "end": 191,
+  "type": "TOWN"
+ },
+ {
+  "word": "桃园",
+  "start": 6,
+  "end": 187,
+  "type": "TOWN"
+ },
+ {
+  "word": "公馆",
+  "start": 0,
+  "end": 177,
+  "type": "TOWN"
+ },
+ {
+  "word": "牛店",
+  "start": 0,
+  "end": 175,
+  "type": "TOWN"
+ },
+ {
+  "word": "中心站",
+  "start": 0,
+  "end": 174,
+  "type": "TOWN"
+ },
+ {
+  "word": "园林",
+  "start": 0,
+  "end": 170,
+  "type": "TOWN"
+ },
+ {
+  "word": "木门",
+  "start": 0,
+  "end": 168,
+  "type": "TOWN"
+ },
+ {
+  "word": "田店",
+  "start": 2,
+  "end": 164,
+  "type": "TOWN"
+ },
+ {
+  "word": "羊庄",
+  "start": 0,
+  "end": 161,
+  "type": "TOWN"
+ },
+ {
+  "word": "鱼池",
+  "start": 2,
+  "end": 153,
+  "type": "TOWN"
+ },
+ {
+  "word": "小站",
+  "start": 0,
+  "end": 153,
+  "type": "TOWN"
+ },
+ {
+  "word": "金铺",
+  "start": 2,
+  "end": 139,
+  "type": "TOWN"
+ },
+ {
+  "word": "井店",
+  "start": 5,
+  "end": 138,
+  "type": "TOWN"
+ },
+ {
+  "word": "联盟",
+  "start": 16,
+  "end": 136,
+  "type": "TOWN"
+ },
+ {
+  "word": "花园",
+  "start": 12,
+  "end": 133,
+  "type": "TOWN"
+ },
+ {
+  "word": "文部",
+  "start": 1,
+  "end": 132,
+  "type": "TOWN"
+ },
+ {
+  "word": "铁厂",
+  "start": 1,
+  "end": 131,
+  "type": "TOWN"
+ },
+ {
+  "word": "客店",
+  "start": 0,
+  "end": 127,
+  "type": "TOWN"
+ },
+ {
+  "word": "宝城",
+  "start": 24,
+  "end": 117,
+  "type": "TOWN"
+ },
+ {
+  "word": "马店",
+  "start": 2,
+  "end": 116,
+  "type": "TOWN"
+ },
+ {
+  "word": "佛寺",
+  "start": 0,
+  "end": 110,
+  "type": "TOWN"
+ },
+ {
+  "word": "酒房",
+  "start": 0,
+  "end": 103,
+  "type": "TOWN"
+ }
+]

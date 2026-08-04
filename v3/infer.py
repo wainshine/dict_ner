@@ -28,14 +28,24 @@ class V3Classifier:
         self.labels = bundle["labels"]
         self.feature_names = bundle["feature_names"]
         self.classes_ = [int(c) for c in self.clf.classes_]
+        try:
+            from v3.fast_predict import FastCalibrated
+            self._fast = FastCalibrated(self.clf)
+        except Exception:
+            self._fast = None
         self.extractor = FeatureExtractor()
         self.pipe = self.extractor.pipe
+
+    def _proba(self, X):
+        if self._fast is not None:
+            return self._fast.predict_proba(X)
+        return self.clf.predict_proba(X)
 
     def _predict(self, text):
         f = self.extractor.extract(text)
         vec = np.array([[f.get(name, np.nan) for name in self.feature_names]],
                        dtype=np.float64)
-        raw = self.clf.predict_proba(vec)[0]
+        raw = self._proba(vec)[0]
         proba = np.zeros(len(LABELS))
         for col, cls in enumerate(self.classes_):
             proba[cls] = raw[col]
@@ -95,7 +105,7 @@ class V3Classifier:
         probas = np.zeros((len(idx_valid), len(LABELS)))
         if idx_valid:
             X = np.array([vecs[i] for i in idx_valid], dtype=np.float64)
-            raw = self.clf.predict_proba(X)
+            raw = self._proba(X)
             for col, cls in enumerate(self.classes_):
                 probas[:, cls] = raw[:, col]
         out = []
