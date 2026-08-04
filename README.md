@@ -363,6 +363,7 @@ python3 -m unittest discover -v -s tests/    # 124 条 (112 legacy + 12 v3)
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| **v3.4.0** | 2026-08-04 | POI 体系 R1: 位置证据剪枝 (`v3/poi_prune.py` → `poi_prune_v1.3.0.json`)。原理: poi 名称中 d1 词应在开头(地址前缀), 千万语料统计开头/结尾位置, 结尾≥85%且≥100次的 TOWN 族词 203 个从 d1 移入 d4 (酒店47.9万/商店29.4万/市场/公园/新村/南区…, SQL 在 poi 语料把后缀错标为 d1)。配套修复: bare-name 注入跳过 d4 词 (治 Trie 碰撞 TOWN 压 POI)。POI 末段后缀率 64.7%→68.3%。test macro-F1 **0.8016**, ORG/POI/ADDR F1 0.8702/0.9141/0.9224。 |
 | **v3.3.0** | 2026-08-04 | LOC R1 第二轮: 伪行政词剪枝 (`v3/loc_prune.py` → `dicts/loc_prune_v1.3.0.json`, 36词: 超市/生鲜超市/综合门市等假CITY, 规则=未被areas证实+admin freq<1万+POI freq≥100×) + "与X路"拆分钩子 (工业路与解放路→ROAD+与+ROAD)。LOC addr验证率 88.5%→88.9%。test ORG/POI/ADDR F1 0.8684/0.9134/0.9247 (与v3.2持平), macro-F1 0.7838 (UNKNOWN n=9 噪声, 以三类F1为准)。 |
 | **v3.2.0** | 2026-08-04 | LOC 体系 R1: 补 NUMERIC/POI_SUB 建模 (词典此两类为空)。注入数字 0-9 (NUMERIC) + 号/层/楼/栋/单元/室/组等 24 词 (POI_SUB) + 9 条转移规则。"人民路88号"→ROAD+NUMERIC+POI_SUB, "瓦房村3组"→VILLAGE+NUMERIC+POI_SUB。LOC diff 7.1% 审查为改善, unknown_char_rate 4.0%→3.4%。test macro-F1 **0.8009**, val clean 子集 accuracy 0.9903。 |
 | **v3.1.0** | 2026-08-04 | 分类器优化 + R1 词典修复: 标签清洗第二轮 (类条件阈值+3.5万条翻转+17.9万剔除), UNKNOWN 合成增广5万条, clean评测子集 (clean_eval.py, 模型无关查表确认)。R1: bare-name 注入跳过 SQL 主导商业后缀 (org≥10000 且 org≥10×loc, 38词, 修"商店/酒店→TOWN"), 段健康度: 末段 ORG_SUFFIX 率 96.84%→97.65%, 地址验证率 88.5%→89.2%。test macro-F1 0.7913 (原始标签) / **0.8941 (clean子集)**, accuracy 0.9084 / clean 0.9919。R2 (转移代价学习) 因无全文本金标准按预案回退, 见 audit/v4.0_d0_findings.md。 |

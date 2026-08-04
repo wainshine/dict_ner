@@ -95,6 +95,15 @@ def _load_loc_prune():
         return {(p["word"], p["type"]) for p in json.load(f)}
 
 
+def _load_poi_prune():
+    import json
+    path = os.path.join(DICT_DIR, "poi_prune_v1.3.0.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return {p["word"]: p["freq"] for p in json.load(f)}
+
+
 def build_loc_engine(dict_name="loc_v1.2.3"):
     import pickle
     path = os.path.join(DICT_DIR, f"{dict_name}.pkl")
@@ -285,7 +294,8 @@ def _load_sql_suffix_set():
 
 
 def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
-                           allow_adjacent_d4, poi_seed_path, name):
+                           allow_adjacent_d4, poi_seed_path, name,
+                           apply_poi_prune=False):
     import pickle
     if dict_name:
         cache_path = os.path.join(DICT_DIR, dict_name)
@@ -306,10 +316,17 @@ def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
         d3_freqs = dict(cached.get("d3_freqs", {}))
         d4_freqs = dict(cached.get("d4_freqs", {}))
 
+    if apply_poi_prune:
+        for w, fr in _load_poi_prune().items():
+            if w in d1_freqs:
+                d1_freqs.pop(w)
+                d4_freqs[w] = max(d4_freqs.get(w, 0), fr)
+
     bare_name_type = _build_bare_name_table()
     sql_sfx = _load_sql_suffix_set()
     for bare_name in bare_name_type:
-        if bare_name not in d1_freqs and bare_name not in sql_sfx:
+        if bare_name not in d1_freqs and bare_name not in sql_sfx \
+                and bare_name not in d4_freqs:
             d1_freqs[bare_name] = 5000
     if not dict_name and version not in cache_path:
         _inject_d111_missing(d1_freqs)
@@ -356,4 +373,4 @@ def build_poi_engine(dict_name="poi_v1.2.3.pkl"):
         dict_name=dict_name, version="v1.1.2",
         disable_short_d4_penalty=True, allow_adjacent_d4=True,
         poi_seed_path=seed_path if os.path.exists(seed_path) else None,
-        name="poi")
+        name="poi", apply_poi_prune=True)

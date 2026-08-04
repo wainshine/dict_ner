@@ -1,11 +1,11 @@
 {
-  "tag": "v3.3",
-  "timestamp": "2026-08-04 10:11:53",
+  "tag": "v3.4",
+  "timestamp": "2026-08-04 11:05:31",
   "train_path": "output/v3_feat/final_train2.csv",
-  "train_md5": "17b8f34723713260ada2077ef512b685",
+  "train_md5": "305579bef92276be8dca7c52816290e6",
   "val_path": "output/v3_feat/val_feats.csv",
-  "val_md5": "71e729db55d2038c40a01625eb1b5d3b",
-  "n_train": 2676550,
+  "val_md5": "2aaefb47dc70dc21a65ff64b7244a4a6",
+  "n_train": 2678241,
   "n_val": 36162,
   "n_features": 78,
   "params": {
@@ -17,61 +17,61 @@
     "calibration": "isotonic"
   },
   "multipliers": {
-    "ORG": 1.2,
-    "POI": 1.2,
-    "ADDR": 1.0,
+    "ORG": 0.85,
+    "POI": 0.7,
+    "ADDR": 0.7,
     "UNKNOWN": 1.0
   },
   "reject_t": 0.0,
   "val_argmax": {
     "per_class": {
       "ORG": {
-        "precision": 0.909,
-        "recall": 0.8326,
-        "f1": 0.8691,
+        "precision": 0.9083,
+        "recall": 0.8347,
+        "f1": 0.8699,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9093,
-        "recall": 0.9191,
-        "f1": 0.9142,
+        "precision": 0.91,
+        "recall": 0.919,
+        "f1": 0.9144,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9071,
-        "recall": 0.9364,
-        "f1": 0.9215,
+        "precision": 0.9079,
+        "recall": 0.9369,
+        "f1": 0.9221,
         "support": 12004
       },
       "UNKNOWN": {
-        "precision": 0.8,
-        "recall": 0.4,
-        "f1": 0.5333,
+        "precision": 1.0,
+        "recall": 0.3,
+        "f1": 0.4615,
         "support": 10
       }
     },
-    "accuracy": 0.9085,
-    "macro_f1": 0.8095,
+    "accuracy": 0.909,
+    "macro_f1": 0.792,
     "total": 36162
   },
   "val_tuned": {
     "per_class": {
       "ORG": {
-        "precision": 0.9074,
-        "recall": 0.835,
-        "f1": 0.8697,
+        "precision": 0.899,
+        "recall": 0.8433,
+        "f1": 0.8702,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9064,
-        "recall": 0.9215,
-        "f1": 0.9139,
+        "precision": 0.9121,
+        "recall": 0.9162,
+        "f1": 0.9141,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9116,
-        "recall": 0.931,
-        "f1": 0.9212,
+        "precision": 0.9094,
+        "recall": 0.9357,
+        "f1": 0.9224,
         "support": 12004
       },
       "UNKNOWN": {
@@ -81,8 +81,8 @@
         "support": 10
       }
     },
-    "accuracy": 0.9084,
-    "macro_f1": 0.8191,
+    "accuracy": 0.9089,
+    "macro_f1": 0.8195,
     "total": 36162
   }
 }
