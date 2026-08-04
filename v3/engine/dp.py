@@ -364,6 +364,23 @@ class DPEngine:
                 result.append(seg)
         return result
 
+    def _post_strip_road_conjunction(self, segments):
+        result = []
+        for i, seg in enumerate(segments):
+            if (seg.seg_type == SegType.ROAD and len(seg.text) > 2
+                    and seg.text[0] in "与和"):
+                result.append(AddressSegment(
+                    text=seg.text[0], seg_type=SegType.UNKNOWN,
+                    start=seg.start, end=seg.start + 1,
+                    confidence=seg.confidence))
+                result.append(AddressSegment(
+                    text=seg.text[1:], seg_type=SegType.ROAD,
+                    start=seg.start + 1, end=seg.end,
+                    confidence=seg.confidence))
+            else:
+                result.append(seg)
+        return result
+
     def _post_merge_same_type(self, segments):
         if not segments:
             return segments

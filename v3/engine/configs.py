@@ -86,14 +86,26 @@ LOC_EXTRA_TRANSITIONS = {
 }
 
 
+def _load_loc_prune():
+    import json
+    path = os.path.join(DICT_DIR, "loc_prune_v1.3.0.json")
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as f:
+        return {(p["word"], p["type"]) for p in json.load(f)}
+
+
 def build_loc_engine(dict_name="loc_v1.2.3"):
     import pickle
     path = os.path.join(DICT_DIR, f"{dict_name}.pkl")
     with open(path, "rb") as f:
         dict_data = pickle.load(f)
+    prune = _load_loc_prune()
     entries = []
     for seg_type, word_freqs in dict_data.items():
         for word, freq in word_freqs.items():
+            if (word, seg_type.value) in prune:
+                continue
             entries.append((word, seg_type, freq))
     existing = {w for w, _, _ in entries}
     for w in LOC_POI_SUB_INJECT:
@@ -119,7 +131,8 @@ def build_loc_engine(dict_name="loc_v1.2.3"):
         single_char_type=SegType.CHAR,
         use_admin_patterns=True,
         use_location_patterns=True,
-        post_hooks=("merge_orientation", "merge_location", "merge_same_type",
+        post_hooks=("merge_orientation", "strip_road_conjunction",
+                    "merge_location", "merge_same_type",
                     "assign_poi_types_loc"),
     ))
 
