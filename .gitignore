@@ -7,3 +7,4 @@ data/suffix_seed.csv
 dicts/poi_suffix_category.csv
 dicts/loc36kw_counters_*.pkl
 dicts/suffix_category_gaode.csv
+/dicts/export

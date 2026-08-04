@@ -307,6 +307,20 @@ class DPEngine:
                 merged.append(s)
         return merged
 
+    def _post_leading_bracket(self, segments):
+        i = 0
+        while i < len(segments) - 1:
+            cur, nxt = segments[i], segments[i + 1]
+            if (cur.seg_type in (SegType.UNKNOWN, SegType.BRAND)
+                    and len(cur.text) == 1 and cur.text in "（("
+                    and nxt.seg_type == SegType.POI):
+                nxt.text = cur.text + nxt.text
+                nxt.start = cur.start
+                segments.pop(i)
+                continue
+            i += 1
+        return segments
+
     def _post_trailing_single(self, segments):
         if len(segments) >= 2:
             last = segments[-1]

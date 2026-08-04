@@ -1,11 +1,11 @@
 {
-  "tag": "v3.6-v1.4.0",
-  "timestamp": "2026-08-04 17:37:17",
+  "tag": "v3.7-v1.4.1",
+  "timestamp": "2026-08-04 19:13:33",
   "train_path": "output/v3_feat/final_train3.csv",
-  "train_md5": "6b1a77f2b261a36b91430337466d520e",
+  "train_md5": "4e7cff944c6eabf59e0855f24519d4ed",
   "val_path": "output/v3_feat/val_feats.csv",
-  "val_md5": "efc80b5c43a79c749e87322e4da4ae40",
-  "n_train": 2685150,
+  "val_md5": "83e958411250f2a393d17925b2962780",
+  "n_train": 2687136,
   "n_val": 38512,
   "n_features": 78,
   "params": {
@@ -17,72 +17,72 @@
     "calibration": "isotonic"
   },
   "multipliers": {
-    "ORG": 0.7,
-    "POI": 0.85,
-    "ADDR": 0.85,
-    "UNKNOWN": 2.0
+    "ORG": 1.0,
+    "POI": 1.0,
+    "ADDR": 1.0,
+    "UNKNOWN": 3.0
   },
   "reject_t": 0.0,
   "val_argmax": {
     "per_class": {
       "ORG": {
-        "precision": 0.8996,
-        "recall": 0.8387,
-        "f1": 0.8681,
+        "precision": 0.898,
+        "recall": 0.8396,
+        "f1": 0.8678,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9009,
-        "recall": 0.9138,
-        "f1": 0.9073,
+        "precision": 0.9029,
+        "recall": 0.9135,
+        "f1": 0.9082,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.902,
-        "recall": 0.9411,
-        "f1": 0.9212,
+        "precision": 0.9018,
+        "recall": 0.9419,
+        "f1": 0.9214,
         "support": 12004
       },
       "UNKNOWN": {
-        "precision": 0.9868,
-        "recall": 0.8564,
-        "f1": 0.917,
+        "precision": 0.9874,
+        "recall": 0.8631,
+        "f1": 0.9211,
         "support": 2360
       }
     },
-    "accuracy": 0.9056,
-    "macro_f1": 0.9034,
+    "accuracy": 0.9063,
+    "macro_f1": 0.9046,
     "total": 38512
   },
   "val_tuned": {
     "per_class": {
       "ORG": {
-        "precision": 0.9091,
-        "recall": 0.8314,
-        "f1": 0.8686,
+        "precision": 0.8986,
+        "recall": 0.8396,
+        "f1": 0.8681,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9017,
-        "recall": 0.9158,
-        "f1": 0.9087,
+        "precision": 0.9054,
+        "recall": 0.913,
+        "f1": 0.9092,
         "support": 17385
       },
       "ADDR": {
-        "precision": 0.9011,
-        "recall": 0.9402,
-        "f1": 0.9203,
+        "precision": 0.9026,
+        "recall": 0.94,
+        "f1": 0.9209,
         "support": 12004
       },
       "UNKNOWN": {
-        "precision": 0.9744,
-        "recall": 0.8856,
-        "f1": 0.9279,
+        "precision": 0.9717,
+        "recall": 0.889,
+        "f1": 0.9285,
         "support": 2360
       }
     },
-    "accuracy": 0.9068,
-    "macro_f1": 0.9064,
+    "accuracy": 0.9071,
+    "macro_f1": 0.9067,
     "total": 38512
   }
 }

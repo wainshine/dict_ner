@@ -382,7 +382,7 @@ def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
         single_char_type=SegType.UNKNOWN,
         short_d4_penalty=not disable_short_d4_penalty,
         post_hooks=("assign_poi_types", "merge_unknown", "trailing_single",
-                    "relabel_brand"),
+                    "leading_bracket", "relabel_brand"),
     ))
 
 
