@@ -104,6 +104,8 @@ def main():
     ap.add_argument("--model", default=os.path.join(MODEL_DIR, "clf_v3.pkl"))
     ap.add_argument("--manifest", default=os.path.join(MODEL_DIR, "manifest_v3.json"))
     ap.add_argument("--no-calib", action="store_true")
+    ap.add_argument("--max-iter", type=int, default=500)
+    ap.add_argument("--max-leaf-nodes", type=int, default=63)
     ap.add_argument("--tag", default="v3.0")
     args = ap.parse_args()
 
@@ -115,8 +117,9 @@ def main():
     X_va, y_va, df_va, _ = load_feats(args.val)
     print(f"train {X_tr.shape}, val {X_va.shape}, features {len(feat_cols)}")
 
+    max_iter = args.max_iter
     clf = HistGradientBoostingClassifier(
-        max_iter=500, learning_rate=0.08, max_leaf_nodes=63,
+        max_iter=max_iter, learning_rate=0.08, max_leaf_nodes=args.max_leaf_nodes,
         min_samples_leaf=40, l2_regularization=1.0,
         early_stopping=True, validation_fraction=0.1, random_state=42)
     clf.fit(X_tr, y_tr)
@@ -188,7 +191,7 @@ def main():
         "n_train": int(len(y_tr)), "n_val": int(len(y_va)),
         "n_features": len(feat_cols),
         "params": {
-            "max_iter": 500, "learning_rate": 0.08, "max_leaf_nodes": 63,
+            "max_iter": args.max_iter, "learning_rate": 0.08, "max_leaf_nodes": args.max_leaf_nodes,
             "min_samples_leaf": 40, "l2_regularization": 1.0,
             "calibration": "isotonic" if not args.no_calib else "none",
         },

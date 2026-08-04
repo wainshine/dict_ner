@@ -363,6 +363,7 @@ python3 -m unittest discover -v -s tests/    # 124 条 (112 legacy + 12 v3)
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| **v3.5.0** | 2026-08-04 | UNKNOWN 真实样本扩充: 高德"室内设施"(会议室/桌号/摊位, 非独立实体=UNKNOWN) 23K→去重 11,754 条, 60/20/20 追加进 eval splits。test macro-F1 **0.9000** (UNKNOWN F1 0.9064, support 2,361 替代噪声的 9 条)。工程: 词典实体化 v1.3.0 (补丁烘焙, 零差异门禁), 亿级全量回归 (org 2.67%/poi 7.21%/loc 10.24%), run.py 默认切 v3 (v2 用 `run.py v2`), classify_batch 向量化 58× (1.5s→26ms/条), compact 模型留档 (0.45s/条)。 |
 | **v3.4.0** | 2026-08-04 | POI 体系 R1: 位置证据剪枝 (`v3/poi_prune.py` → `poi_prune_v1.3.0.json`)。原理: poi 名称中 d1 词应在开头(地址前缀), 千万语料统计开头/结尾位置, 结尾≥85%且≥100次的 TOWN 族词 203 个从 d1 移入 d4 (酒店47.9万/商店29.4万/市场/公园/新村/南区…, SQL 在 poi 语料把后缀错标为 d1)。配套修复: bare-name 注入跳过 d4 词 (治 Trie 碰撞 TOWN 压 POI)。POI 末段后缀率 64.7%→68.3%。test macro-F1 **0.8016**, ORG/POI/ADDR F1 0.8702/0.9141/0.9224。 |
 | **v3.3.0** | 2026-08-04 | LOC R1 第二轮: 伪行政词剪枝 (`v3/loc_prune.py` → `dicts/loc_prune_v1.3.0.json`, 36词: 超市/生鲜超市/综合门市等假CITY, 规则=未被areas证实+admin freq<1万+POI freq≥100×) + "与X路"拆分钩子 (工业路与解放路→ROAD+与+ROAD)。LOC addr验证率 88.5%→88.9%。test ORG/POI/ADDR F1 0.8684/0.9134/0.9247 (与v3.2持平), macro-F1 0.7838 (UNKNOWN n=9 噪声, 以三类F1为准)。 |
 | **v3.2.0** | 2026-08-04 | LOC 体系 R1: 补 NUMERIC/POI_SUB 建模 (词典此两类为空)。注入数字 0-9 (NUMERIC) + 号/层/楼/栋/单元/室/组等 24 词 (POI_SUB) + 9 条转移规则。"人民路88号"→ROAD+NUMERIC+POI_SUB, "瓦房村3组"→VILLAGE+NUMERIC+POI_SUB。LOC diff 7.1% 审查为改善, unknown_char_rate 4.0%→3.4%。test macro-F1 **0.8009**, val clean 子集 accuracy 0.9903。 |

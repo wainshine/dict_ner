@@ -104,25 +104,40 @@ def _load_poi_prune():
         return {p["word"]: p["freq"] for p in json.load(f)}
 
 
-def build_loc_engine(dict_name="loc_v1.2.3"):
+def _load_loc_dict_data(dict_name="loc_v1.2.3", baked=False):
     import pickle
     path = os.path.join(DICT_DIR, f"{dict_name}.pkl")
     with open(path, "rb") as f:
-        dict_data = pickle.load(f)
+        dict_data = {k: dict(v) for k, v in pickle.load(f).items()}
+    if baked:
+        return dict_data
     prune = _load_loc_prune()
+    for st, word_freqs in dict_data.items():
+        for word in list(word_freqs):
+            if (word, st.value) in prune:
+                del word_freqs[word]
+    poi_sub = dict_data.setdefault(SegType.POI_SUB, {})
+    numeric = dict_data.setdefault(SegType.NUMERIC, {})
+    existing = set()
+    for word_freqs in dict_data.values():
+        existing.update(word_freqs)
+    for w in LOC_POI_SUB_INJECT:
+        if w not in existing:
+            poi_sub[w] = 80
+    for w in LOC_NUMERIC_INJECT:
+        if w not in existing:
+            numeric[w] = 5000
+    return dict_data
+
+
+def build_loc_engine(dict_name="loc_v1.3.0", baked=None):
+    if baked is None:
+        baked = "v1.3.0" in dict_name
+    dict_data = _load_loc_dict_data(dict_name, baked=baked)
     entries = []
     for seg_type, word_freqs in dict_data.items():
         for word, freq in word_freqs.items():
-            if (word, seg_type.value) in prune:
-                continue
             entries.append((word, seg_type, freq))
-    existing = {w for w, _, _ in entries}
-    for w in LOC_POI_SUB_INJECT:
-        if w not in existing:
-            entries.append((w, SegType.POI_SUB, 80))
-    for w in LOC_NUMERIC_INJECT:
-        if w not in existing:
-            entries.append((w, SegType.NUMERIC, 5000))
     trans = _loc_trans_table()
     for k, v in LOC_EXTRA_TRANSITIONS.items():
         trans.setdefault(k, v)
@@ -293,9 +308,8 @@ def _load_sql_suffix_set():
     return result
 
 
-def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
-                           allow_adjacent_d4, poi_seed_path, name,
-                           apply_poi_prune=False):
+def _load_org_dicts(dict_name, version, apply_poi_prune=False, baked=False,
+                    poi_seed_path=None):
     import pickle
     if dict_name:
         cache_path = os.path.join(DICT_DIR, dict_name)
@@ -316,23 +330,35 @@ def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
         d3_freqs = dict(cached.get("d3_freqs", {}))
         d4_freqs = dict(cached.get("d4_freqs", {}))
 
-    if apply_poi_prune:
-        for w, fr in _load_poi_prune().items():
-            if w in d1_freqs:
-                d1_freqs.pop(w)
-                d4_freqs[w] = max(d4_freqs.get(w, 0), fr)
+    if not baked:
+        if apply_poi_prune:
+            for w, fr in _load_poi_prune().items():
+                if w in d1_freqs:
+                    d1_freqs.pop(w)
+                    d4_freqs[w] = max(d4_freqs.get(w, 0), fr)
+
+        sql_sfx = _load_sql_suffix_set()
+        bare_name_type = _build_bare_name_table()
+        for bare_name in bare_name_type:
+            if bare_name not in d1_freqs and bare_name not in sql_sfx \
+                    and bare_name not in d4_freqs:
+                d1_freqs[bare_name] = 5000
+        if not dict_name and version not in cache_path:
+            _inject_d111_missing(d1_freqs)
+        if poi_seed_path and os.path.exists(poi_seed_path):
+            _inject_poi_seed(d4_freqs, poi_seed_path)
+
+    return d1_freqs, d3_freqs, d4_freqs
+
+
+def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
+                           allow_adjacent_d4, poi_seed_path, name,
+                           apply_poi_prune=False, baked=False):
+    d1_freqs, d3_freqs, d4_freqs = _load_org_dicts(
+        dict_name, version, apply_poi_prune=apply_poi_prune,
+        baked=baked, poi_seed_path=poi_seed_path)
 
     bare_name_type = _build_bare_name_table()
-    sql_sfx = _load_sql_suffix_set()
-    for bare_name in bare_name_type:
-        if bare_name not in d1_freqs and bare_name not in sql_sfx \
-                and bare_name not in d4_freqs:
-            d1_freqs[bare_name] = 5000
-    if not dict_name and version not in cache_path:
-        _inject_d111_missing(d1_freqs)
-    if poi_seed_path and os.path.exists(poi_seed_path):
-        _inject_poi_seed(d4_freqs, poi_seed_path)
-
     entries = []
     for w, fr in d1_freqs.items():
         entries.append((w, _d1_type_infer(w, bare_name_type), fr))
@@ -360,17 +386,21 @@ def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
     ))
 
 
-def build_org_engine(version="v1.2.3"):
+def build_org_engine(version="v1.3.0", baked=None):
+    if baked is None:
+        baked = version >= "v1.3.0"
     return _build_org_like_engine(
         dict_name=None, version=version,
         disable_short_d4_penalty=False, allow_adjacent_d4=False,
-        poi_seed_path=None, name="org")
+        poi_seed_path=None, name="org", baked=baked)
 
 
-def build_poi_engine(dict_name="poi_v1.2.3.pkl"):
+def build_poi_engine(dict_name="poi_v1.3.0.pkl", baked=None):
+    if baked is None:
+        baked = "v1.3.0" in dict_name
     seed_path = os.path.join(DATA_DIR, "suffix_seed.csv")
     return _build_org_like_engine(
         dict_name=dict_name, version="v1.1.2",
         disable_short_d4_penalty=True, allow_adjacent_d4=True,
         poi_seed_path=seed_path if os.path.exists(seed_path) else None,
-        name="poi", apply_poi_prune=True)
+        name="poi", apply_poi_prune=True, baked=baked)

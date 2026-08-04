@@ -1,3 +1,46 @@
+# HANDOVER.md v3.5.0
+
+> 最后更新: 2026-08-04
+> v3.5.0: UNKNOWN 真实样本扩充 + 词典实体化 v1.3.0 + 亿级回归 + 工程化
+
+## v3.5.0 变更摘要
+
+**A. 词典实体化 v1.3.0** (`tools/bake_v130_dicts.py`)
+- 加载层补丁全部烘焙进 pkl: org_v1.3.0 (d1=85,771) / poi_v1.3.0 (d1=50,374, d4=23,590) / loc_v1.3.0 (POI_SUB=30, NUMERIC=20)
+- configs.py `baked` 开关: v1.3.0 加载不再打运行时补丁
+- 零差异门禁: 补丁引擎 vs 实体化引擎 5K 样本三体系完全一致
+- **亿级全量回归** (`v3/seg_compare.py`, output/v3_seg_compare_report.md):
+  - ORG 1.65亿: diff 2.67%, TOWN -271万 → POI +255万 (商店/酒店归位)
+  - POI 4000万: diff 7.21%, TOWN -194万 → POI +274万
+  - LOC 3635万: diff 10.24%, NUMERIC/POI_SUB 从零 → 272万段, UNKNOWN +3.6% (与拆分/数字分段的预期代价)
+
+**B. 工程化**
+- `run.py classify` 默认 v3 模型; `run.py v2 classify` 走旧规则链
+- 延迟: 单条 classify 1.5s (GBDT 逐树开销) → `classify_batch` 向量化后 **26ms/条 (58×)**
+- compact 模型 (150树/31叶) 留档 `models/clf_v3_compact.pkl`: 0.45s/条, 三类 F1 低 ~0.01, 仅供延迟敏感场景
+
+**D. UNKNOWN 真实样本**
+- 来源: 高德"室内设施" (会议室/桌号/摊位, 定义=非独立实体→UNKNOWN); 腾讯无"公交线编号"类别 (实为名称污染, 正则提取噪声大已放弃)
+- 23K→去重 11,754 条, 60/20/20 追加进 eval splits (val/test UNKNOWN support 10/9 → 2,360/2,361)
+- **test macro-F1 0.8016 → 0.9000**: UNKNOWN F1 0.9064 (P 0.97 / R 0.85), ORG 0.8658 / POI 0.9044 / ADDR 0.9235
+
+**指标汇总** (test):
+
+| 版本 | macro-F1 | accuracy | 说明 |
+|------|:---:|:---:|------|
+| v2.2.1 | 0.3702 | 0.4463 | 规则链 |
+| v3.0.0 | 0.7699 | 0.9114 | GBDT 首版 |
+| v3.4.0 | 0.8016 | 0.9088 | 三体系 R1 全落地 |
+| v3.5.0 | **0.9000** | 0.9041 | UNKNOWN 真实样本 (support 9→2361) |
+
+> macro-F1 大涨主因 UNKNOWN 从噪声类变成可学习类; 三类业务指标持续提升但增幅温和。评测口径变化已记录, 跨版本对比时注意 UNKNOWN support 差异。
+
+**测试**: 124 条全绿。
+
+---
+
+# 以下为 v3.4.0 存档
+
 # HANDOVER.md v3.4.0
 
 > 最后更新: 2026-08-04

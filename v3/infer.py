@@ -80,4 +80,50 @@ class V3Classifier:
         }
 
     def classify_batch(self, texts) -> list:
-        return [self.classify(t) for t in texts]
+        texts = [t.strip() for t in texts]
+        vecs = []
+        seg_results = []
+        for t in texts:
+            if not t:
+                vecs.append(None)
+                seg_results.append(None)
+                continue
+            f = self.extractor.extract(t)
+            vecs.append([f.get(name, np.nan) for name in self.feature_names])
+            seg_results.append(self.extractor.last_results)
+        idx_valid = [i for i, v in enumerate(vecs) if v is not None]
+        probas = np.zeros((len(idx_valid), len(LABELS)))
+        if idx_valid:
+            X = np.array([vecs[i] for i in idx_valid], dtype=np.float64)
+            raw = self.clf.predict_proba(X)
+            for col, cls in enumerate(self.classes_):
+                probas[:, cls] = raw[:, col]
+        out = []
+        res_i = 0
+        for i, t in enumerate(texts):
+            if vecs[i] is None:
+                out.append({"text": "", "category": "UNKNOWN", "confidence": 1.0,
+                            "best": None, "all": None})
+                continue
+            proba = probas[res_i]
+            res_i += 1
+            tuned = proba * self.mult
+            cat_i = int(np.argmax(tuned))
+            if proba.max() < self.reject_t:
+                cat_i = L2I["UNKNOWN"]
+            category = self.labels[cat_i]
+            confidence = float(tuned[cat_i] / tuned.sum())
+            loc_res, org_res, poi_res = seg_results[i]
+            out.append({
+                "text": t,
+                "category": category,
+                "confidence": round(confidence, 4),
+                "proba": {lb: round(float(proba[L2I[lb]]), 4) for lb in LABELS},
+                "best": self._select_best(category, loc_res, org_res, poi_res),
+                "all": {
+                    "loc": loc_res.to_dict(),
+                    "org": org_res.to_dict(),
+                    "poi": poi_res.to_dict() if poi_res else None,
+                },
+            })
+        return out

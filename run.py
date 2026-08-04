@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""dict_ner v2.2.1 — 中文地名/机构名/POI/品牌识别系统 CLI"""
+"""dict_ner v3.5.0 — 中文地名/机构名/POI/品牌识别系统 CLI (默认 v3 模型)"""
 import os, sys, json
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-VERSION = "v2.2.1"
+VERSION = "v3.5.0"
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
@@ -59,27 +59,29 @@ def main():
     elif c == "json":
         text = sys.argv[2] if len(sys.argv) > 2 else input("输入文本: ")
         cmd_json(text)
-    elif c == "classify":
-        if len(sys.argv) > 2 and sys.argv[2] == "--batch":
-            cmd_classify_batch(sys.argv[3])
-        else:
-            text = sys.argv[2] if len(sys.argv) > 2 else input("输入文本: ")
-            cmd_classify(text)
-    elif c == "v3":
-        sub = sys.argv[2] if len(sys.argv) > 2 else "classify"
-        from v3.infer import V3Classifier
-        if sub == "classify":
-            clf = V3Classifier()
+    elif c == "v2":
+        if len(sys.argv) > 2 and sys.argv[2] == "classify":
             if len(sys.argv) > 3 and sys.argv[3] == "--batch":
-                with open(sys.argv[4], encoding="utf-8") as f:
-                    texts = [ln.strip() for ln in f if ln.strip()]
-                for r in clf.classify_batch(texts):
-                    print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
+                cmd_classify_batch(sys.argv[4])
             else:
                 text = sys.argv[3] if len(sys.argv) > 3 else input("输入文本: ")
-                print(json.dumps(clf.classify(text), ensure_ascii=False, indent=2))
+                cmd_classify(text)
         else:
-            print(f"未知 v3 子命令: {sub} (支持: classify [--batch file])")
+            print("v2 子命令: classify [--batch file]")
+    elif c in ("classify", "v3"):
+        from v3.infer import V3Classifier
+        clf = V3Classifier()
+        if len(sys.argv) > 2 and sys.argv[2] == "--batch":
+            with open(sys.argv[3], encoding="utf-8") as f:
+                texts = [ln.strip() for ln in f if ln.strip()]
+            for r in clf.classify_batch(texts):
+                print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
+        elif c == "v3" and len(sys.argv) > 2 and sys.argv[2] != "classify":
+            print(f"未知 v3 子命令: {sys.argv[2]} (支持: classify [--batch file])")
+        else:
+            idx = 3 if (c == "v3" and len(sys.argv) > 3) else 2
+            text = sys.argv[idx] if len(sys.argv) > idx else input("输入文本: ")
+            print(json.dumps(clf.classify(text), ensure_ascii=False, indent=2))
     elif c in ("test", "t"):
         tests = [
             "深圳市南山区华为技术有限公司",
