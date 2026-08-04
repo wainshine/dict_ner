@@ -363,7 +363,7 @@ python3 -m unittest discover -v -s tests/    # 124 条 (112 legacy + 12 v3)
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| **v3.1.0** | 2026-08-04 | 分类器优化: 标签清洗第二轮 (类条件阈值+3.5万条翻转+17.9万剔除), UNKNOWN 合成增广5万条, clean评测子集 (clean_eval.py, 模型无关查表确认)。val macro-F1 0.8187 (原始标签) / **0.9662 (clean子集, 近真实上限)**。 |
+| **v3.1.0** | 2026-08-04 | 分类器优化 + R1 词典修复: 标签清洗第二轮 (类条件阈值+3.5万条翻转+17.9万剔除), UNKNOWN 合成增广5万条, clean评测子集 (clean_eval.py, 模型无关查表确认)。R1: bare-name 注入跳过 SQL 主导商业后缀 (org≥10000 且 org≥10×loc, 38词, 修"商店/酒店→TOWN"), 段健康度: 末段 ORG_SUFFIX 率 96.84%→97.65%, 地址验证率 88.5%→89.2%。test macro-F1 0.7913 (原始标签) / **0.8941 (clean子集)**, accuracy 0.9084 / clean 0.9919。R2 (转移代价学习) 因无全文本金标准按预案回退, 见 audit/v4.0_d0_findings.md。 |
 | **v3.0.0** | 2026-08-04 | 系统性重构: 分类层 GBDT 学习化 (78维特征, 270万弱标注, confident learning 清洗 5.4%)。统一 DP 引擎 (v3/engine, 20K 样本零差异)。eval train/val/test 固定切分。test macro-F1 0.7699 (v2.2.1: 0.3702)。测试 124 条。v2.2.1 冻结为 baseline。 |
 | **v2.2.1** | 2026-07-11 | 段类型体系修复 (SegType.ORG_SUFFIX)。split_polluted_d4 拆分1301条 d4→d3+d4。POI_EXCLUDE_D4 精简(41→29)。_decide 查表调score。LOC VILLAGE 清理(石家庄/枣庄→CITY)。复合机构检测+重识别。过度拆分合并(SQL CSV校验)。badcase 体系。评测18万条, macro-F1=0.3702。词典 v1.2.3。测试112条。 |
 | **v2.2.0** | 2026-07-11 | 数据驱动 classify: d4_category_map (9,577条Gaode标注) + suffix_category_gaode (1,520条高置信后缀)。移除手工后缀列表。SQL CSV 规则 (d4∉SQL→POI)。Gaode道路名合并入LOC词典 (47万条)。gov seed 29条。 |

@@ -217,6 +217,26 @@ def _inject_poi_seed(d4_freqs, seed_path):
     return injected
 
 
+def _load_sql_suffix_set():
+    path = os.path.join(DATA_DIR, "suffix_segments_sql.csv")
+    result = set()
+    if not os.path.exists(path):
+        return result
+    with open(path, encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            w = row["d4"].strip()
+            if not w:
+                continue
+            try:
+                org = int(row.get("org", 0) or 0)
+                loc = int(row.get("loc", 0) or 0)
+            except ValueError:
+                continue
+            if org >= 10000 and org >= 10 * max(1, loc):
+                result.add(w)
+    return result
+
+
 def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
                            allow_adjacent_d4, poi_seed_path, name):
     import pickle
@@ -240,8 +260,9 @@ def _build_org_like_engine(dict_name, version, disable_short_d4_penalty,
         d4_freqs = dict(cached.get("d4_freqs", {}))
 
     bare_name_type = _build_bare_name_table()
+    sql_sfx = _load_sql_suffix_set()
     for bare_name in bare_name_type:
-        if bare_name not in d1_freqs:
+        if bare_name not in d1_freqs and bare_name not in sql_sfx:
             d1_freqs[bare_name] = 5000
     if not dict_name and version not in cache_path:
         _inject_d111_missing(d1_freqs)
