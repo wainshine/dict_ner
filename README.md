@@ -1,9 +1,9 @@
-# dict_ner v3.9.1
+# dict_ner v3.9.2
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v3.9.1** | 词典: **v1.5.0**（四词典统一编号） | 测试: **124 条全绿**
-- 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册（框架/管线/决策/踩坑）: [audit/HANDOVER.md](audit/HANDOVER.md)
+- 系统版本: **v3.9.2** | 词典: **v1.5.0**（四词典统一编号） | 测试: **124 条全绿**
+- 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
 
@@ -247,6 +247,7 @@ python3 -m unittest discover -v -s tests/    # 124 条 (112 legacy + 12 v3)
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v3.9.2** | 2026-08-05 | AGENTS.md 速通 + v4.0.0 迁移计划 + 磁盘治理 5GB |
 | **v3.9.1** | 2026-08-05 | 文档体系重构 (README/HANDOVER/CHANGELOG 三件套) |
 | **v3.9.0** | 2026-08-04 | 置信度审计合格 + TOWN/BRAND 裁决 + v1.5.0 自举收敛, test 0.9059 |
 | **v3.8.0** | 2026-08-04 | 统一版本号 + FastGBDT 30× + 纯净集评测 + bare 攻坚 |

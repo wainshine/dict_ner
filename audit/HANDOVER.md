@@ -1,11 +1,11 @@
-# HANDOVER.md v3.9.1
+# HANDOVER.md v3.9.2
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v3.9.1** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 系统版本: **v3.9.2** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
 - 测试: **124 条全绿** (`python3 -m unittest discover -s tests/`)
 - 关键指标: test macro-F1 **0.9059** | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0129 | 单条延迟 50ms / 批量 1.4ms/条
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
