@@ -1,10 +1,10 @@
 {
-  "tag": "v3.9-v1.5.0",
-  "timestamp": "2026-08-05 01:04:04",
-  "train_path": "output/v3_feat/final_train3.csv",
-  "train_md5": "22c16af238ab5261a6faad43c0dfd149",
-  "val_path": "output/v3_feat/val_feats.csv",
-  "val_md5": "b58496419239fd73763631fc0314185c",
+  "tag": "v4.0-labelfix-v1.5.0",
+  "timestamp": "2026-08-05 20:13:55",
+  "train_path": "output/v3_feat/final_train6b.csv",
+  "train_md5": "05038e69f05d35cb8c82a00736ce7dc4",
+  "val_path": "output/v3_feat/val_feats_v2.csv",
+  "val_md5": "40e92a31f896ddcd3fe46b0a6b6ff475",
   "n_train": 2686496,
   "n_val": 38512,
   "n_features": 78,
@@ -17,72 +17,73 @@
     "calibration": "isotonic"
   },
   "multipliers": {
-    "ORG": 1.0,
-    "POI": 0.85,
+    "ORG": 0.7,
+    "POI": 0.7,
     "ADDR": 1.0,
-    "UNKNOWN": 1.2
+    "UNKNOWN": 1.5
   },
   "reject_t": 0.0,
   "val_argmax": {
     "per_class": {
       "ORG": {
-        "precision": 0.8989,
-        "recall": 0.8384,
-        "f1": 0.8676,
-        "support": 6763
+        "precision": 0.8976,
+        "recall": 0.8397,
+        "f1": 0.8677,
+        "support": 6762
       },
       "POI": {
-        "precision": 0.8994,
-        "recall": 0.9133,
-        "f1": 0.9063,
-        "support": 17385
+        "precision": 0.9118,
+        "recall": 0.9117,
+        "f1": 0.9118,
+        "support": 17767
       },
       "ADDR": {
-        "precision": 0.9012,
-        "recall": 0.9393,
-        "f1": 0.9198,
-        "support": 12004
+        "precision": 0.8974,
+        "recall": 0.9542,
+        "f1": 0.9249,
+        "support": 11623
       },
       "UNKNOWN": {
-        "precision": 0.9887,
-        "recall": 0.8542,
-        "f1": 0.9166,
+        "precision": 0.9879,
+        "recall": 0.8627,
+        "f1": 0.9211,
         "support": 2360
       }
     },
-    "accuracy": 0.9046,
-    "macro_f1": 0.9026,
+    "accuracy": 0.9089,
+    "macro_f1": 0.9064,
     "total": 38512
   },
   "val_tuned": {
     "per_class": {
       "ORG": {
-        "precision": 0.8922,
-        "recall": 0.8458,
-        "f1": 0.8684,
-        "support": 6763
+        "precision": 0.9013,
+        "recall": 0.8373,
+        "f1": 0.8681,
+        "support": 6762
       },
       "POI": {
-        "precision": 0.9051,
-        "recall": 0.9084,
-        "f1": 0.9068,
-        "support": 17385
+        "precision": 0.9239,
+        "recall": 0.902,
+        "f1": 0.9128,
+        "support": 17767
       },
       "ADDR": {
-        "precision": 0.8991,
-        "recall": 0.941,
-        "f1": 0.9196,
-        "support": 12004
+        "precision": 0.8848,
+        "recall": 0.9691,
+        "f1": 0.9251,
+        "support": 11623
       },
       "UNKNOWN": {
-        "precision": 0.9856,
-        "recall": 0.8729,
-        "f1": 0.9258,
+        "precision": 0.9745,
+        "recall": 0.8898,
+        "f1": 0.9302,
         "support": 2360
       }
     },
-    "accuracy": 0.9054,
-    "macro_f1": 0.9052,
+    "accuracy": 0.9101,
+    "macro_f1": 0.9091,
     "total": 38512
-  }
+  },
+  "note": "eval 标签治理 (风景名胜/休闲娱乐倒挂修正 1846+13126 条) 后重训; test macro-F1 0.9092 (同口径 baseline 0.9062)"
 }

@@ -1,13 +1,13 @@
-# HANDOVER.md v4.0.3
+# HANDOVER.md v4.0.4
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v4.0.3** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 系统版本: **v4.0.4** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
 - 测试: **181 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 110 条)
-- 关键指标: test macro-F1 **0.9059** | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0129 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
+- 关键指标: test macro-F1 **0.9092** (v4.0.4 标签治理后口径) | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0149 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
 - v4.0.0 布局: v2 冻结代码平铺于 `/v2/`（识别器/brand/eval + v2/tools/），v2 总线 = 根 `pipeline_v2.py`，legacy 测试在 `tests/legacy/`；HTTP 服务 = `serve.py`（FastAPI）
 - **v4.0.0 起 v3 不再 import 任何 v2 模块**（`v3/pipeline.py` 自包含；`classify_suffix` 在 `core/suffix_classify.py`）；仅 gate/seg_compare/badcase_eval 保留 legacy 基线对比 import（`v2.*`，属预期）
@@ -89,7 +89,7 @@ v3/sample_pool.py     Gaode 2M + Tencent 1M 弱标注采样 (按 type 分布, �
 v3/precompute.py all  16进程特征预计算 → output/v3_feat/pool_feats.csv
 v3/labels.py          3-fold CV confident learning (--drop-org 0.55 --drop-poi 0.55
                       --drop-addr 0.65 --flip 0.9) → pool_feats_clean2.csv
-合并: clean池 + synth UNKNOWN 5万 + eval_split_train → final_train3.csv
+合并: clean池 + synth UNKNOWN 5万 + eval_split_train → final_train3.csv; v4.0.4 标签治理补丁版 = final_train6.csv (当前训练输入)
 v3/train.py           GBDT + FrozenEstimator isotonic (校准集=train_feats) + val 标定
                       → models/clf_v3.pkl + manifest_v3.json + val_pred.csv
 ```
@@ -160,7 +160,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 | 视角 | 工具 | 当前值 |
 |------|------|-------:|
-| 含噪标签 macro-F1 | `v3/evaluate.py` | test 0.9059 |
+| 含噪标签 macro-F1 | `v3/evaluate.py` | test 0.9092 (v4.0.4 标签治理后口径; 旧口径 0.9059) |
 | clean 子集 accuracy | `v3/clean_eval.py` | 0.9919（查表确认标签, ~31% 子集） |
 | 纯净集召回 | `v3/pure_eval.py` | ORG 73.9% / POI 57.5%（语义边界, 详见报告解读） |
 | 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **84.0~85.8%** / ORG ≈100%（v4.0.1 新增, 规则见 v3/poi_recall_audit.py） |
@@ -206,6 +206,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | POI 召回攻坚 D1-A 增强重训 | **回退** | 24K 真错误模式 POI 样本增强 (v3/augment_poi.py → final_train4) 重训后 val macro-F1 持平 (0.9050 vs 0.9052), 但 12 条真错误点查 0 翻转——残存误判是特征驱动 (专名含地名→geo_cov 抬升 + eval 标签 寺/景区→ADDR 倒挂), 非标签量不足。模型 artifacts 留存 models/clf_v3_poi.pkl 备查, baseline 不换 (v4.0.2) |
 | A 二期强 POI 后缀特征 | **回退** | d4_strong_poi/poi_d4_strong_poi 特征 (80维) 重训: val 0.9035 < 0.9052 未过门禁 + 0/12 翻转。eval 标签在后缀上倒挂, 加显式特征反而撞 test 噪声。features.py 回滚 78 维 (v4.0.3) |
 | macro-F1 提升路径 | 评测集标签治理, 非模型调参 | P2 逐类诊断: 四大迁移类 87% 是标签噪声+体系边界; 含噪口径可修复空间仅 ~1-2pt (v4_f1_error_audit.md) |
+| eval 标签治理 | **采纳 (v4.0.4)** | 两条错误映射修正 (tencent休闲娱乐→POI; gaode风景名胜点位后缀→POI), 三 split 1,846 条 + pool 13,126 条, `.bak_v1` 备份; 重训 val +0.0037 过门禁, baseline 更换 (旧模型归档 clf_v3_baseline_v39.pkl) |
+| eval 集重建注意 | splits 无 type_orig 列 | type_orig 只在 eval_set.csv/feats CSV; 关联用 text join; UNKNOWN 扩充行 (室内设施) 不在 eval_set, join 会 miss ~7K 属正常 |
 | POI 纯净召回口径 | 分层化 | 57.5% = 与地图源标注一致率; 真边界 (机关/交叉口/楼栋门牌/自然地名) 剔除后有效召回 84.0~85.8% (v4_poi_recall_audit.md) |
 
 ## 7. 踩过的坑
@@ -264,7 +266,7 @@ python3 v3/sample_pool.py && python3 v3/synth_unknown.py && python3 v3/sample_un
 python3 v3/make_split.py
 python3 v3/precompute.py all <输入> <输出>   # ×6 (pool/train/val/test/unknown_*)
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9
-python3 v3/train.py --train output/v3_feat/final_train3.csv --calib-set output/v3_feat/train_feats.csv
+python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v3_feat/train_feats.csv
 
 # 门禁 (详见 §4.2)
 python3 v3/engine/gate.py --n 20000

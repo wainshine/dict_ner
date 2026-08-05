@@ -1,8 +1,8 @@
-# dict_ner v4.0.3
+# dict_ner v4.0.4
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v4.0.2** | 词典: **v1.5.0**（四词典统一编号） | 测试: **181 条全绿**
+- 系统版本: **v4.0.4** | 词典: **v1.5.0**（四词典统一编号） | 测试: **181 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -93,16 +93,18 @@ python run.py info
 
 ## 识别质量
 
-### 分类评测 (test 集 38,514 条, 一次性)
+### 分类评测 (test 集 38,514 条, v4.0.4 标签治理后口径)
 
-| 指标 | v4.0.x (当前) | v2.2.1 规则链 |
+| 指标 | v4.0.4 (当前) | v2.2.1 规则链 |
 |------|:---:|:---:|
-| macro-F1 | **0.9059** | 0.3702 |
-| accuracy | **0.9056** | 0.4463 |
-| ORG F1 | 0.8666 | 0.5203 |
-| POI F1 | 0.9060 | 0.5419 |
-| ADDR F1 | 0.9214 | 0.4163 |
-| UNKNOWN F1 | 0.9296 | 0.0024 |
+| macro-F1 | **0.9092** | 0.3702 |
+| accuracy | **0.9098** | 0.4463 |
+| ORG F1 | 0.8650 | 0.5203 |
+| POI F1 | 0.9115 | 0.5419 |
+| ADDR F1 | 0.9270 | 0.4163 |
+| UNKNOWN F1 | 0.9331 | 0.0024 |
+
+> 口径说明: v4.0.4 修正了 eval 标签两条错误映射 (风景名胜/休闲娱乐倒挂, 1,846 条)。同口径下旧模型 0.9062 → 新模型 0.9092 (真实增益 +0.003); 旧口径历史值 0.9059。
 
 ### 三视角补充指标
 
@@ -111,7 +113,7 @@ python run.py info
 | clean 子集 accuracy | **0.9919** | 查表确认标签的子集 (近真实上限; 含噪标签占 ~13%) |
 | ORG 纯净召回 | 73.9% (有效 ≈100%) | org_company 5200万公司名抽样100万; "误判"为个体户门店 (语义边界) |
 | POI 纯净召回 | 57.5% (有效 **84~86%**) | split/poi 4000万抽样100万; 真边界剔除后口径见 output/v4_poi_recall_audit.md |
-| 置信度校准 | ECE=0.0129 | confidence 可直接作概率路由 |
+| 置信度校准 | ECE=0.0149 | confidence 可直接作概率路由 |
 
 ### 段健康度 (20万样本, `v3/seg_quality.py`)
 
@@ -190,7 +192,7 @@ m.save()"
 # 6. 分类器重训 (~15min)
 python3 v3/precompute.py all data/v3_train_pool.csv output/v3_feat/pool_feats.csv
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9
-python3 v3/train.py --train output/v3_feat/final_train3.csv --calib-set output/v3_feat/train_feats.csv
+python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v3_feat/train_feats.csv
 
 # 7. 门禁
 python3 v3/engine/gate.py --n 20000        # 引擎一致性
@@ -256,6 +258,7 @@ python3 -m unittest discover -v -s tests/    # 181 条 (tests/legacy/ 71 + 根�
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v4.0.4** | 2026-08-05 | eval 标签治理 (倒挂修正) + 重训采纳, test 0.9092 同口径 +0.003 |
 | **v4.0.3** | 2026-08-05 | 单条延迟 50ms→2.1ms (fast_predict 树间批量化) + macro-F1 逐类诊断 |
 | **v4.0.2** | 2026-08-05 | POI 召回攻坚: D0 分层诊断 + 有效召回口径 (A 重训实验回退) |
 | **v4.0.1** | 2026-08-05 | 迁移后审计 + v3 测试补齐 124→181 |
