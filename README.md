@@ -1,304 +1,222 @@
-# dict_ner v3.0.0
+# dict_ner v3.9.1
 
-中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，支持统一分类 (ORG/POI/ADDR/UNKNOWN)。
+中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-> **v3.0**: 分类层学习化重构 — GBDT 分类器 (300万弱标注+confident learning清洗) 替代手工规则链, 统一 DP 引擎。
-> 旧版 v2.2.1 完整保留为 baseline (`run.py classify` 默认仍为 v2; `run.py v3 classify` 走新模型)。
+- 系统版本: **v3.9.1** | 词典: **v1.5.0**（四词典统一编号） | 测试: **124 条全绿**
+- 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册（框架/管线/决策/踩坑）: [audit/HANDOVER.md](audit/HANDOVER.md)
+
+## 文档体系（定位与维护原则）
+
+| 文档 | 定位 | 更新时机 |
+|------|------|---------|
+| `README.md`（本文件） | 门面：是什么/怎么用/效果多少 | 每次发版同步 |
+| `audit/HANDOVER.md` | 接手手册：架构/管线/数据血缘/门禁/决策记录/踩坑 | 每次发版同步 |
+| `CHANGELOG.md` | 版本历史唯一来源 | 每次发版新增一节 |
+
+原则：① 版本历史只写 CHANGELOG，README 和 HANDOVER 不重复记录变更明细；② 架构/流程/决策只写 HANDOVER，README 放简版；③ 三文档版本号必须一致，发版时一并提交。
 
 ## 快速开始
 
 ```bash
 cd /Users/wainshine/newAI/dict_ner
-pip install -r requirements.txt   # v3 需要 sklearn/numpy/pandas (旧模块仍纯stdlib)
+pip install -r requirements.txt   # v3 需要 sklearn/numpy/pandas (旧 v2 模块仍纯stdlib)
 
-# v3 分类 (GBDT 模型)
-python run.py v3 classify "深圳市南山区华为技术有限公司"
-python run.py v3 classify --batch file.txt
+# 分类 (v3 GBDT 模型, 默认入口)
+python run.py classify "深圳市南山区华为技术有限公司"     # → ORG 0.98
+python run.py classify --batch file.txt                  # 批量 (1.4ms/条)
 
-# v2 旧入口 (规则链, 保留作 baseline)
-python run.py recognize "深圳市南山区华为技术有限公司"
-python run.py classify "广东省卫健委"
-python run.py test
+# 段切分 (三体系视图)
+python run.py recognize "北京市朝阳区星巴克咖啡国贸店"
+python run.py json "北京市朝阳区星巴克咖啡国贸店"
+
+# 旧版规则链 (v2.2.1 冻结 baseline)
+python run.py v2 classify "广东省卫健委"
+
+python run.py info
 ```
 
-## v3.0 架构
+输出示例：
 
 ```
-v3/
-├── engine/dp.py + configs.py   统一 Viterbi DP 引擎 (LOC/ORG/POI 三套配置,
-│                               与旧识别器 20K 样本零差异, gate.py 门禁)
-├── features.py                 78维特征 (段级/查表/统计/规则信号)
-├── pipeline.py                 V3Pipeline (引擎 + v2 后处理复用)
-├── sample_pool.py              Gaode 2M + Tencent 1M 弱标注采样 (防 val/test 泄漏)
-├── labels.py                   confident learning: 3-fold CV 交叉预测, 高置信矛盾剔除 (5.4%)
-├── train.py                    GBDT + isotonic 校准 + 类别乘数/拒绝阈值标定
-├── infer.py                    V3Classifier (契约兼容 v2)
-├── evaluate.py                 评测 + 错误仪表盘
-└── precompute.py               16进程特征预计算
-models/clf_v3.pkl + manifest_v3.json
+输入: 北京市朝阳区星巴克咖啡国贸店
+  地名: [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [POI]「星巴克咖啡国贸店」
+  机构: [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [BRAND]「星巴克」 | [INDUSTRY]「咖啡」 | [ORG_SUFFIX]「国贸店」
+  POI:  [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [POI]「星巴克」 | [POI]「咖啡」 | [POI]「国贸店」
 ```
 
-### 评测 (36K test 集, 一次性)
-
-| 指标 | v3.0.0 | v2.2.1 规则链 | Delta |
-|------|:---:|:---:|:---:|
-| macro-F1 | **0.7699** | 0.3702 | **+0.3997** |
-| accuracy | **0.9114** | 0.4463 | +0.4651 |
-| ORG F1 | 0.8756 | 0.5203 | +0.3553 |
-| POI F1 | 0.9154 | 0.5419 | +0.3735 |
-| ADDR F1 | 0.9250 | 0.4163 | +0.5087 |
-
-> val 集 macro-F1 0.8219 (乘数标定后)。UNKNOWN 类 support 极小 (test n=9), F1 波动大。
-
-## v2.2.1 四模组架构 (baseline, 保留)
+## 系统架构
 
 ```
 输入文本
   │
-  ├── loc/ (地名识别)     Viterbi DP + 120万行政词典 + 47万Gaode道路名
-  ├── org/ (机构名识别)   四层: 地址+品牌+行业(INDUSTRY)+后缀, 29条gov seed注入
-  ├── poi/ (POI识别)     复用机构DP + POI专用词典, 公司后缀自动排除
-  └── brand/ (品牌模型)   字级bigram, 90万字符对
-
-pipeline.py  统一总线 + classify() 数据驱动四类判定
-run.py       CLI入口
+  ├─ v3/engine/  统一 Viterbi DP 引擎 (Trie + 转移代价 + 钩子链, 三套配置)
+  │     loc 引擎: 行政区划/道路/LOCATION/NUMERIC/POI_SUB
+  │     org 引擎: d1地址段 + d3行业段 + d4后缀段
+  │     poi 引擎: 同构, POI 专用词典 + 宽松约束
+  │
+  ├─ v3/pipeline.py  V3Pipeline 总线
+  │     后处理: ORG_SUFFIX remap / 过度拆分合并 / 复合机构重识别 /
+  │             TOWN-BRAND 裁决 / 括号归并
+  │     查表: d4_category_map / suffix_category_gaode / SQL 三表亲和度
+  │
+  ├─ v3/features.py  78 维特征 (段级/查表/统计/规则信号)
+  │
+  └─ GBDT 分类器 (models/clf_v3.pkl, 500树×4类 + isotonic 校准)
+        v3/fast_predict.py 编译化推理 (numpy 树遍历, 与 sklearn 零误差)
+        输出: category + 校准 confidence + best 段切分
 ```
 
-### classify() 判定链
-
-```
-规则1: 公司/政府后缀在末位 → ORG
-规则2: d4 不在 SQL CSV 后缀表中 → 非标准后缀(XX路店) → POI
-规则3: d4 精确查 d4_category_map (8,299条Gaode标注) → POI_FAC/POI_STORE/ORG
-规则4: d4 endswith 查 suffix_category_gaode (1,520条高置信) → POI_FAC/POI_STORE/ORG
-规则5: argmax (geo_cov驱动addr_score, 0.10阈值兜底)
-```
-
-## 词典 (v1.2.3, 当前版)
+## 词典 (v1.5.0, 当前版)
 
 | 词典 | 条目 | 大小 | 说明 |
 |------|------|:--:|------|
-| `dicts/loc_v1.2.3.pkl` | 120万 + 49万道路 | 31MB | 含 Gaode 道路名, VILLAGE 清理 |
-| `dicts/org_v1.2.3.pkl` | d1=64K d3=20K d4=8.3K | 1.8MB | split_polluted_d4 拆分1301条 + gov seed 29条 + POI排除29条 |
-| `dicts/poi_v1.2.3.pkl` | d1=48K d3=4.7K d4=16K | 1.1MB | 41条 POI override 注入 |
-| `dicts/brand_v1.2.3.pkl` | 90万bigram | 10MB | 基于 v1.2.3 org d2 CSV 训练 |
+| `dicts/loc_v1.5.0.pkl` | VILLAGE 449K / ROAD 424K / COMMUNITY 228K / CITY 90K / TOWN 67K | 29MB | NUMERIC/POI_SUB 从零建模 |
+| `dicts/org_v1.5.0.pkl` | d1=57K d3=20K d4=8.7K | 1.5MB | v1.4.3 引擎重统词频 + 补丁固化 |
+| `dicts/poi_v1.5.0.pkl` | d1=49K d3=4.7K d4=23.6K | 1.2MB | 位置证据剪枝 (203 词 d1→d4) |
+| `dicts/brand_v1.5.0.pkl` | 91万 bigram | 9.7MB | 基于 v1.5.0 org d2 统计重训 |
 
-### 数据驱动表（运行时加载）
+**统一版本号政策**：任一词典变更，四词典版本号一起升。旧版保留：v1.2.x（v2 baseline）、v1.1.x（兜底，不可删）。
 
-| 文件 | 条目 | 说明 |
-|------|------|------|
-| `dicts/d4_category_map.pkl` | 8,299 | org d4 全量 Gaode 标注 (ORG/POI_FAC/POI_STORE/ADDR/AMBIGUOUS) |
-| `dicts/suffix_category_gaode.csv` | 1,520 | 高置信后缀→类别 (仅保留在 suffix_segments_sql.csv 中的后缀) |
+**可读审计面**：`dicts/export/{org,poi}_{d1,d3,d4}_export.csv` 词频表，可直接人工抽查。
 
-> v1.1.2 + v1.2.0 + v1.2.2 版本保留在 `dicts/` 中作为兜底和对比基准。
+### 运行时数据表
+
+| 文件 | 条目 | 用途 |
+|------|-----:|------|
+| `dicts/d4_category_map.pkl` | 8,299 | org d4 全量 Gaode 标注 (分类特征) |
+| `dicts/suffix_category_gaode.csv` | 1,520 | 高置信后缀→类别 (分类特征/误杀回补依据) |
+| `data/{addr,trade,suffix}_segments_sql.csv` | 200万/4万/2.4万 | SQL 时代三表 (质量过滤+亲和度特征) |
+
+## 识别质量
+
+### 分类评测 (test 集 38,514 条, 一次性)
+
+| 指标 | v3.9.0 (当前) | v2.2.1 规则链 |
+|------|:---:|:---:|
+| macro-F1 | **0.9059** | 0.3702 |
+| accuracy | **0.9056** | 0.4463 |
+| ORG F1 | 0.8666 | 0.5203 |
+| POI F1 | 0.9060 | 0.5419 |
+| ADDR F1 | 0.9214 | 0.4163 |
+| UNKNOWN F1 | 0.9296 | 0.0024 |
+
+### 三视角补充指标
+
+| 视角 | 值 | 说明 |
+|------|---|------|
+| clean 子集 accuracy | **0.9919** | 查表确认标签的子集 (近真实上限; 含噪标签占 ~13%) |
+| ORG 纯净召回 | 73.9% | org_company 5200万公司名抽样100万; "误判"为个体户门店 (语义边界) |
+| POI 纯净召回 | 57.5% | split/poi 4000万抽样100万; "误判"为机构网点 (语义边界) |
+| 置信度校准 | ECE=0.0129 | confidence 可直接作概率路由 |
+
+### 段健康度 (20万样本, `v3/seg_quality.py`)
+
+| 指标 | 值 |
+|------|---:|
+| org 末段 ORG_SUFFIX 率 | 97.8% |
+| org 后缀验证率 / 行业验证率 | 97.9% / 99.3% |
+| org 地址验证率 | **98.6%** |
+| LOC unknown 字符率 | 3.4% |
+| 低频序列率 (org) | 4.4% |
 
 ## 目录结构
 
 ```
 dict_ner/
-├── core/                共享类型和常量 (SegType, Trie, config, suffix_matcher, csv_index)
-├── loc/                 地名识别器 + 词典构建器
-├── org/                 机构名识别器
-├── poi/                 POI识别器 (thin wrapper over org DP)
-├── brand/               品牌词概率模型
-├── pipeline.py          统一识别总线 + classify()
+├── v3/                    v3 系统 (当前生产路径)
+│   ├── engine/            统一 DP 引擎 (dp.py + configs.py) + gate.py 门禁
+│   ├── features.py        78 维特征提取
+│   ├── pipeline.py        V3Pipeline 总线
+│   ├── infer.py           V3Classifier 推理
+│   ├── fast_predict.py    HistGBDT 编译化快速预测器
+│   ├── train.py / labels.py / sample_pool.py / sample_unknown.py   训练链
+│   ├── precompute.py / precompute_worker.py                        16进程特征预计算
+│   ├── synth_unknown.py / clean_eval.py / calibration_audit.py     数据与评估
+│   ├── evaluate.py / pure_eval.py / seg_quality.py                 评估
+│   ├── seg_compare.py / eval_cut.py / badcase_eval.py              段级对比评估
+│   ├── seq_dist_compare.py / loc_prune.py / poi_prune.py / bare_prune.py  词典挖掘
+│   └── seg_compare_worker.py / eval_cut_worker.py / pure_eval_worker.py
+├── core/                共享类型和常量 (SegType, Trie, config, csv_index, suffix_matcher)
+├── loc/ org/ poi/ brand/   v2 四模组 (冻结 baseline, run.py v2 使用)
+├── pipeline.py          v2 统一总线 (冻结 baseline)
 ├── run.py               CLI 入口
-├── eval.py              评估脚本
-├── scripts/             数据扫描脚本
-│   ├── build_gaode_index.py  Gaode 67文件单次扫描 → 3数据产物
-│   └── validate_d4_map.py    d4_category_map vs SQL CSV 一致性校验
-├── tools/               训练/迭代工具
-│   ├── org_launch.py / org_chunk_stats.py / org_aggregate.py
-│   ├── poi_launch.py / poi_chunk_stats.py / poi_aggregate.py / poi_dedup.py
-│   ├── pipeline_base.py (共享pipeline函数)
-│   ├── merge_gaode_roads.py (Gaode道路名合并入LOC词典)
-│   ├── clean_loc_villages.py (VILLAGE清理, 依据areas/)
-│   ├── build_eval_set.py (按type比例采样+自然地名)
-│   ├── eval_classify.py (分类评测)
-│   ├── extract_badcase.py / eval_badcase.py / eval_badcase_pipeline.py (badcase工具)
-│   ├── org_eval_launch.py / poi_eval_launch.py / loc_eval_launch.py (分片评估)
-│   ├── rebuild_stats_launch.py (stats重建)
-│   ├── org_eval.py / org_sample_jsonl.py
-│   ├── org_compare_launch.py / org_process_worker.py (多版本对比)
-├── data/                语料与分片
-│   ├── addr/trade/suffix_segments_sql.csv (三SQL表)
-│   ├── gov_suffix_seed.csv (29条政府后缀种子)
-│   ├── gaode_roads.csv (47万Gaode道路名)
-│   ├── eval_set.csv (18万条评测集)
-│   ├── areas/ (五级行政区划)
-│   ├── 高德amap/ (67文件, 11GB)
-│   ├── 腾讯地图/ (345文件, 7.5GB)
-│   └── split/{loc,org,poi}/ (16 chunk 分片)
-├── dicts/               词典
-│   ├── *v1.2.3.pkl (4个, 当前版)
-│   ├── *v1.2.2.pkl (4个, 上一版)
-│   ├── *v1.2.0.pkl (4个, 对比基线)
-│   ├── *v1.1.2.pkl (4个, 兜底版)
-│   ├── d4_category_map.pkl (8,299条d4 Gaode标注)
-│   ├── suffix_category_gaode.csv (1,520条高置信后缀)
-│   ├── poi_suffix_category.csv (131条后缀→类别映射)
-│   └── iter_v1.2.2/ iter_v1.2.3/ (统计中间产物)
-├── audit/               审计报告
-│   ├── HANDOVER.md      交接手册
-│   ├── v2.2.1_refactor_plan.md
-│   ├── v2.2_refactor_plan.md
-│   ├── v2.1_refactor_plan.md
-│   └── v2.0_refactor_plan.md
-└── tests/               112 条用例 (16个文件)
+├── models/              GBDT 模型 (clf_v3.pkl + manifest)
+├── dicts/               词典 (v1.5.0 当前 + 历史版本 + export/ 审计表 + iter_v1.5.0/ 统计中间产物)
+├── data/                语料与切分 (split/ 四套语料, SQL 三表, eval splits, Gaode/腾讯原始数据)
+├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
+├── tools/               训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / launch 系列)
+├── audit/               HANDOVER.md + 各代审计/方案报告
+├── tests/               124 条用例 (17 个文件)
+└── CHANGELOG.md         完整版本历史
 ```
 
-## 识别质量
-
-### 分类评测 (18万条, v2.2.1 vs baseline)
-
-| 指标 | v2.2.1 | baseline v1.2.3 | Delta |
-|------|:---:|:---:|:---:|
-| macro-F1 | 0.3702 | 0.3513 | **+0.0189** |
-| ORG F1 | 0.5203 | 0.3925 | **+0.1278** |
-| POI F1 | 0.5419 | 0.6599 | -0.1180 |
-| ADDR F1 | 0.4163 | 0.3529 | +0.0634 |
-
-### 传统指标
-
-| 指标 | 值 |
-|------|:--:|
-| 地名 Score | 62.6 (5000条采样, v1.1.2) |
-| 机构 OK 率 | 93.3% (2万条采样) |
-| 品牌分离度 | 4.1 log-units |
-
-## 完整重建流程
-
-### 1. 数据扫描 (~30min, 一次性)
+## 完整重建流程 (v1.5.0 链)
 
 ```bash
-python scripts/build_gaode_index.py
-# 产出: dicts/d4_category_map.pkl + dicts/suffix_category_gaode.csv + data/gaode_roads.csv
-```
+# 1. stats 重切 (v3 引擎 bootstrap, ~20min)
+STATS_VERSION=v1.4.3 python3 tools/stats_launch_v3.py     # → dicts/iter_v1.5.0/
 
-### 2. 地名词典 (~6min)
+# 2. aggregate (~10min)
+DICT_VERSION=v1.5.0 python3 tools/org_aggregate.py
+DICT_VERSION=v1.5.0 python3 tools/poi_aggregate.py
 
-```bash
-python -c "
-from loc.builder import DictBuilder
-b = DictBuilder('dicts', 'loc_v1.2.3')
-b.build_from_loc36kw('data'); b.build_from_areas('data')
-b.build_from_d444('data'); b.cleanup()
-b.build_orientation_dict(); b.build_location_dict(); b.save()
-"
-python tools/merge_gaode_roads.py   # 合并47万Gaode道路名 + 相邻道路拆分
-python tools/clean_loc_villages.py  # 依据areas/五级行政区划清理VILLAGE误标
-```
+# 3. 补丁固化 (括号/误杀回补/数字垃圾/村委会复合词/d3低频)
+python3 v3/poi_prune.py --dict poi_v1.5.0.pkl --out dicts/poi_prune_v1.5.0.json --chunks 4
+python3 tools/patch_v141.py --src-v v1.5.0 --dst-v v1.5.0
+python3 tools/patch_v142.py --src-v v1.5.0 --dst-v v1.5.0
+# bake 含 bare 注入互斥, 见 HANDOVER §2.2
 
-### 3. 机构名词典 (~12min)
+# 4. loc 词典 (builder + 道路 + VILLAGE 清理 + prune/注入)
+python3 tools/loc_build_v140.py       # 改版本号复用
+python3 tools/merge_gaode_roads.py    # freq≥10
+python3 tools/clean_loc_villages.py
 
-```bash
-# 版本号: 修改 core/config.py VERSION="v1.2.3"
-mkdir -p dicts/iter_v1.2.3
-cp dicts/iter_v1.2.2/org_stats_*.pkl dicts/iter_v1.2.3/   # 首次用旧版stats
-
-python tools/org_launch.py split stats       # split 仅首次, stats 并行
-python tools/org_aggregate.py                # 含 split_polluted_d4 + gov_seed(29条) + POI_EXCLUDE_D4(29条)
-```
-
-### 4. POI 词典 (~4min)
-
-```bash
-cp dicts/iter_v1.2.2/poi_stats_*.pkl dicts/iter_v1.2.3/
-
-python tools/poi_dedup.py                    # 仅首次
-python tools/poi_launch.py split stats       # split 仅首次
-python tools/poi_aggregate.py                # 含 POI override 注入
-```
-
-### 5. 品牌模型 (~1min)
-
-```python
+# 5. brand 模型 (~2min)
+python3 -c "
 from brand.model import BrandModel
-model = BrandModel('dicts', version='v1.2.3')
-model.train_from_d2_csv("dicts/iter_v1.2.3/org_d2_freqs_v1.2.3.csv", min_freq=3, min_bigram_count=10)
-model.save()
+m = BrandModel('dicts', version='v1.5.0')
+m.train_from_d2_csv('dicts/iter_v1.5.0/org_d2_freqs_v1.5.0.csv', min_freq=3, min_bigram_count=10)
+m.save()"
+
+# 6. 分类器重训 (~15min)
+python3 v3/precompute.py all data/v3_train_pool.csv output/v3_feat/pool_feats.csv
+python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9
+python3 v3/train.py --train output/v3_feat/final_train3.csv --calib-set output/v3_feat/train_feats.csv
+
+# 7. 门禁
+python3 v3/engine/gate.py --n 20000        # 引擎一致性
+python3 v3/seg_quality.py --engine org --n 200000 --v3
+python3 -m unittest discover -v -s tests/  # 124 全绿
 ```
-
-### 6. 版本跟进
-
-```bash
-# core/config.py: VERSION = "v1.2.3"
-# pipeline.py: __init__ 默认 loc_v1.2.3 / v1.2.3 / poi_v1.2.3 / t_unknown=0.10
-# tests/test_dict_snapshot.py, test_config.py: 版本号同步
-
-python -m unittest discover -v -s tests/     # 112 全绿
-```
-
----
 
 ## 评估体系
 
-### 分片语料全量评估 (段文本差异 + 类型分布 + 序列分布)
+| 工具 | 用途 | 产物 |
+|------|------|------|
+| `v3/evaluate.py` | 混淆矩阵 + 错误仪表盘 | output/v3_error_report.md |
+| `v3/clean_eval.py` | clean 子集双指标 (模型无关标签确认) | 终端 |
+| `v3/pure_eval.py` | 纯净集召回 (org_company / split_poi) | output/v3_pure_eval_report.md |
+| `v3/calibration_audit.py` | 置信度可靠性 (ECE/Brier) | output/v3_calibration_report.md |
+| `v3/seg_quality.py` | 段健康度 (后缀/行业/地址验证率/低频序列) | output/v3_seg_*.json |
+| `v3/seg_compare.py` | 两版词典全量段对比 | output/v3_seg_compare_report.md |
+| `v3/eval_cut.py` | 全量重切产出 JSONL+stats | output/*_eval/*_vX/ |
+| `v3/badcase_eval.py` | badcase 跨版修复率 | output/v*_badcase_*.md |
+| `v3/engine/gate.py` | 引擎一致性门禁 (新旧零差异) | 终端 |
+| `tools/eval_classify.py` | v2 规则链评测 (baseline 对比) | 终端/JSON |
 
-```bash
-# ORG (~6min/版本)
-python tools/org_eval_launch.py run          # 16并行, 产出 output/org_eval/org_v1.2.x/ (JSONL+stats)
-python tools/org_eval_launch.py compare      # → output/org_eval/org_eval_report.md
-
-# POI (~1.5min/版本)
-python tools/poi_eval_launch.py run
-python tools/poi_eval_launch.py compare      # → output/poi_eval/poi_eval_report.md
-
-# LOC (~3min/版本)
-python tools/loc_eval_launch.py run
-python tools/loc_eval_launch.py compare      # → output/loc_eval/loc_eval_report.md
-```
-
-报告含：覆盖率（段分布）+ 全量段类型分布 + 段文本逐条差异（chunk_00）+ 段类型序列分布（1~6段）
-
-### classify 评测 (18万条)
-
-```bash
-python tools/build_eval_set.py               # Gaode按type比例(10万)+Tencent(5万)+自然地名(3万) → eval_set.csv
-python tools/eval_classify.py --eval data/eval_set.csv --baseline baseline.json
-# → 混淆矩阵4x4 + per-class P/R/F1 + macro-F1 + delta
-```
-
-### Badcase 评估
-
-```bash
-# 提取低频序列 (<10次) 作为 baseline badcase 集
-python tools/extract_badcase.py --eval org --max-freq 10 --version v1.2.2
-# → data/badcase_org_v1.2.2.csv
-
-# Pipeline 层 badcase 评测 (测复合检测+过度拆分合并效果)
-python tools/eval_badcase_pipeline.py --badcase data/badcase_org_v1.2.2.csv \
-  --versions v1.2.2,v1.2.3 --eval org
-# → REPAIRED/STILL_LOW/CHANGED 统计
-```
-
-### 多版本段对比 (ORG/POI/LOC)
-
-```bash
-python tools/org_compare_launch.py run       # 16并行, 对52M公司名name跑多个版本
-python tools/org_compare_launch.py compare   # → output/org_compare/org_compare_report.md
-```
-
-### SQL CSV 校验
-
-```bash
-python scripts/validate_d4_map.py            # d4_category_map vs suffix_segments_sql.csv
-# → STRONG_AGREE / WEAK_AGREE / CONFLICT / UNTESTABLE 分类
-```
-
-### 迭代工作流
+## 迭代工作流
 
 ```
-改代码/改词典
+改词典 / 改引擎 / 改分类器
     │
-    ├── python -m unittest discover -v -s tests/       → 112条全绿
-    ├── tools/org_eval_launch.py compare               → 段文本差异 + 序列分布
-    ├── tools/eval_classify.py --eval data/eval_set.csv  → macro-F1 + per-class F1
-    ├── tools/eval_badcase_pipeline.py                 → badcase 修复率
-    └── tools/poi_eval_launch.py compare / tools/loc_eval_launch.py compare
+    ├─ python3 -m unittest discover -s tests/     → 124 全绿
+    ├─ v3/seg_quality.py (三体系)                  → 段健康度不降
+    ├─ v3/seg_compare.py (新旧全量对比)            → diff 逐类审查
+    ├─ v3/evaluate.py --feats val_feats.csv       → val macro-F1 不降
+    └─ v3/badcase_eval.py                          → 修复率
     │
     v
-对比 baseline → 升级 / 回滚
+词典版本号四同升 (统一版本政策) → 全链路重训 → 文档三件套更新 → 提交
 ```
 
 ## 段类型说明
@@ -306,79 +224,29 @@ python scripts/validate_d4_map.py            # d4_category_map vs suffix_segment
 | 类型 | 含义 | 识别器 |
 |------|------|--------|
 | PROVINCE/CITY/DISTRICT/TOWN/VILLAGE/COMMUNITY/ROAD | 行政区划 | loc |
-| LOCATION | 方位/位置描述 | loc |
-| ORG_SUFFIX | 机构后缀段 (原 org 输出 POI) | org |
+| LOCATION / ORIENTATION | 方位/位置描述 | loc |
+| NUMERIC | 数字段 (门牌/楼层) | loc |
+| POI_SUB | 子级点位 (号/层/栋/组) | loc |
+| ORG_SUFFIX | 机构后缀段 | org |
 | POI | POI后缀 | org/poi |
 | INDUSTRY | 行业/业态类别 | org/poi |
 | BRAND | 专名/品牌段 | org/poi |
 | UNKNOWN | 未识别 | loc |
-| ORIENTATION | 方向词 | loc |
-| NUMERIC | 数字 | loc |
 
-## 依赖
+## 依赖与测试
 
-Python 3.10+。旧模块 (loc/org/poi/brand/pipeline) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas (`pip install -r requirements.txt`)。
-
-## 测试
+Python 3.10+。v2 模块 (loc/org/poi/brand/pipeline) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas。
 
 ```bash
-cd /Users/wainshine/newAI/dict_ner
 python3 -m unittest discover -v -s tests/    # 124 条 (112 legacy + 12 v3)
 ```
 
-| 文件 | 用例 | 类型 |
-|------|:--:|------|
-| `tests/test_suffix_matcher.py` | 7 | P1: 后缀边界合并 |
-| `tests/test_importer.py` | 15 | P1: _split_admin + classify_suffix |
-| `tests/test_loc_builder.py` | 2 | P1: chunk 加载 |
-| `tests/test_pipeline_base.py` | 8 | P1: 共享 pipeline 函数 |
-| `tests/test_loc_recognizer.py` | 8 | P2: 地名识别 (真实词典) |
-| `tests/test_org_recognizer.py` | 9 | P2: 机构名识别 (真实词典) |
-| `tests/test_brand_model.py` | 6 | P2: 品牌模型 (真实模型) |
-| `tests/test_types.py` | 10 | P3: 枚举/类型 |
-| `tests/test_config.py` | 6 | P3: 路径常量 |
-| `tests/test_pipeline.py` | 8 | P3: 集成+POI |
-| `tests/test_confidence.py` | 2 | N10: 段级置信度 |
-| `tests/test_dict_snapshot.py` | 6 | 词典快照 |
-| `tests/test_short_d4_penalty.py` | 3 | N17: 短词d4惩罚 |
-| `tests/test_classify.py` | 12 | v2.2: 分类判断 |
-| `tests/test_csv_index.py` | 6 | v2.2: 亲和度索引 |
-| `tests/test_d4_map.py` | 4 | v2.2: d4标注质量 |
-| **总计** | **112** | |
-
-## 踩过的坑
-
-1. **macOS spawn 模式**: Pool 子进程必须独立 .py 文件 + `if __name__ == '__main__'`, 最稳方案是 bash `&` 16进程后台
-2. **d444 temp 字段**: 不是质量分, 是SQL处理阶段标记, 不要用来过滤
-3. **体系循环**: loc/org/poi 三个系统的后缀词典各自演化, 互不混用
-4. **d111 注入**: 只能fallback时用, POI用dict_name独立加载后必须跳过
-5. **LOCATION 语义混用**: 地名用LOCATION(方位), 机构用INDUSTRY(行业), 通过SegType分离
-6. **POI dict_name vs version**: POI训练时必须传dict_name而非version, 否则加载org词典
-7. **suffix_segments_sql.csv 无法区分ORG/POI**: org_ratio 衡量语料出现频率而非实体类型。"超市" org_ratio=1.0 (机构语料中常见) 但实际是POI。v2.2 用Gaode d4_category_map 覆盖此盲区
-8. **d4∉SQL CSV → POI 规则**: "XX黄河路店"中 d4="店"不在SQL CSV后缀表中 → 非标准后缀 → 地址信息嵌入名称 → POI
-9. **道路名复合名**: Gaode address 中"药王路与香山路"被正则误匹配, 需拆分为"药王路"和"香山路"分别统计
-10. **单字符后缀缺失**: "店""馆"不在 suffix_segments_sql.csv (d4要求 len≥2), 需在 suffix_category_gaode.csv 手动补入
-
 ## 版本记录
 
-| 版本 | 日期 | 变更 |
+最近版本（完整历史见 [CHANGELOG.md](CHANGELOG.md)）：
+
+| 版本 | 日期 | 一句话 |
 |------|------|------|
-| **v3.9.0** | 2026-08-04 | **置信度审计合格** (ECE=0.0129, `v3/calibration_audit.py`, confidence 可作概率路由)。**中部位 TOWN/BRAND 裁决** (`_post_adjudicate_town` 钩子: bare TOWN 非开头+后接 INDUSTRY/POI→BRAND, 镇村合并/政府保护; 幸福/鑫源/兴旺→BRAND, addr 验证率 90.2%→**98.5%**)。**v1.5.0 二轮自举**: stats 用 v1.4.3 引擎重切, F5 村委会复合词零新增 (自愈确认), 括号补丁重跑 131 条。seg_compare v1.4.3→v1.5.0: org 7.89% (BRAND -9.4M 碎片合并改善) / poi 4.52% / loc 0%。seg_quality addr **98.6%**, low_freq_seq 4.4%。test macro-F1 0.9059 (与 v1.4.3 持平, 噪声带内)。**自举收敛判断: 词频迭代已收敛, 不建议 v1.6 再自举**。 |
-| **v3.8.0** | 2026-08-04 | **统一版本号政策** (任一词典变更四词典同升, 用户决策)。**N4 延迟**: `v3/fast_predict.py` HistGBDT 编译化 (numpy 向量化树遍历+isotonic复算, 与 sklearn 精确一致), 单条 classify **1.5s→50ms (30×)**, 批量 1.4ms/条。**N1 纯净集评测** (output/v3_pure_eval_report.md): org_company 5200万/100万抽样 ORG 召回 73.9%, split/poi 4000万 POI 召回 57.5%——误判样例审查均为体系语义边界 (个体户门店↔机构网点), 无系统性错误。**N2 裸名攻坚**: `v3/bare_prune.py` 位置证据 (2000万语料首尾扫描) 降频 109 个商业后缀族 bare 词 (中心/商店/农场/金店/油坊/鸡场等), org_v1.4.3; 幸福/鑫源类中部位歧义残留已记录。test macro-F1 **0.9075**。 |
-| **v3.7.1** | 2026-08-04 | **v1.4.2 词典清理** (`tools/patch_v142.py`): F5 d1 村/居委会复合词清除 1,144 条 (桥村村民委员会→桥村+村民委员会POI; 村委会/居委会是行政机构不是村, d4 已有 村民委员会42万/村委会5万gov seed)。F6 d3 freq<10 清除 56 条。LOC 词典同名复合词 (VILLAGE 25.4万/COMMUNITY 6.4万) **按语义差异保留**——地址语境中"XX村委会"是地点, ORG 语境中是机构。test macro-F1 **0.9076** (系列最佳), ORG d1 60,609→59,465。 |
-| **v3.7.0** | 2026-08-04 | **v1.4.1 词典清理** (`tools/patch_v141.py`): F1 括号归一化 (121条, 有限合伙）族→有限合伙 freq=69万, 新增 leading_bracket 钩子输出整段"（有限合伙）")。F2 loc>org 误杀复合后缀回补 24 条 (广场/商场/市场/停车场/加油站等, 治"广/商"裸奔碎片) + F2b d1 冲突清理 (广场/市场/庄园 TOWN 词条) + F3 数字垃圾清理 (轿车运输1 等 4 条, 4S店/2元店保留)。F4 可读审计面 `dicts/export/{org,poi}_{d1,d3,d4}_v1.4.1.csv` (6张词频表)。test macro-F1 **0.9064**。 |
-| **v3.6.0** | 2026-08-04 | **v1.4.0 词频全量重统**: stats bootstrap 从硬编码 v1.1.1 换成 v3 引擎 v1.3.0 (`tools/org_chunk_stats_v3.py`/`poi_chunk_stats_v3.py`), org 1.65亿/poi 4000万重切统计 → aggregate 重跑 (补丁固化: bare互斥/d4互斥/poi_prune重推导) → org/poi_v1.4.0.pkl。loc 重建 (builder+道路 freq≥10 +VILLAGE清理+prune/NUMERIC注入) → loc_v1.4.0.pkl (ROAD 42.4万)。brand_v1.4.0 重训。回归: seg_compare v1.3.0→v1.4.0 (org 4.45%/poi 4.49%/loc 0.98%), badcase 修复 ORG 6.2%/POI 2.0%/LOC 0.8%, seg_quality 不降。test macro-F1 **0.9061** (UNKNOWN 0.9289)。val 0.9064。 |
-| **v3.5.0** | 2026-08-04 | UNKNOWN 真实样本扩充: 高德"室内设施"(会议室/桌号/摊位, 非独立实体=UNKNOWN) 23K→去重 11,754 条, 60/20/20 追加进 eval splits。test macro-F1 **0.9000** (UNKNOWN F1 0.9064, support 2,361 替代噪声的 9 条)。工程: 词典实体化 v1.3.0 (补丁烘焙, 零差异门禁), 亿级全量回归 (org 2.67%/poi 7.21%/loc 10.24%), run.py 默认切 v3 (v2 用 `run.py v2`), classify_batch 向量化 58× (1.5s→26ms/条), compact 模型留档 (0.45s/条)。**v1.3.0 系统评估** (output/v1.3.0_eval_report.md): badcase 修复率 POI 18.2%/ORG 5.5%/LOC 0.9%, POI 低频序列种类 -14.5%, 无回归项。 |
-| **v3.4.0** | 2026-08-04 | POI 体系 R1: 位置证据剪枝 (`v3/poi_prune.py` → `poi_prune_v1.3.0.json`)。原理: poi 名称中 d1 词应在开头(地址前缀), 千万语料统计开头/结尾位置, 结尾≥85%且≥100次的 TOWN 族词 203 个从 d1 移入 d4 (酒店47.9万/商店29.4万/市场/公园/新村/南区…, SQL 在 poi 语料把后缀错标为 d1)。配套修复: bare-name 注入跳过 d4 词 (治 Trie 碰撞 TOWN 压 POI)。POI 末段后缀率 64.7%→68.3%。test macro-F1 **0.8016**, ORG/POI/ADDR F1 0.8702/0.9141/0.9224。 |
-| **v3.3.0** | 2026-08-04 | LOC R1 第二轮: 伪行政词剪枝 (`v3/loc_prune.py` → `dicts/loc_prune_v1.3.0.json`, 36词: 超市/生鲜超市/综合门市等假CITY, 规则=未被areas证实+admin freq<1万+POI freq≥100×) + "与X路"拆分钩子 (工业路与解放路→ROAD+与+ROAD)。LOC addr验证率 88.5%→88.9%。test ORG/POI/ADDR F1 0.8684/0.9134/0.9247 (与v3.2持平), macro-F1 0.7838 (UNKNOWN n=9 噪声, 以三类F1为准)。 |
-| **v3.2.0** | 2026-08-04 | LOC 体系 R1: 补 NUMERIC/POI_SUB 建模 (词典此两类为空)。注入数字 0-9 (NUMERIC) + 号/层/楼/栋/单元/室/组等 24 词 (POI_SUB) + 9 条转移规则。"人民路88号"→ROAD+NUMERIC+POI_SUB, "瓦房村3组"→VILLAGE+NUMERIC+POI_SUB。LOC diff 7.1% 审查为改善, unknown_char_rate 4.0%→3.4%。test macro-F1 **0.8009**, val clean 子集 accuracy 0.9903。 |
-| **v3.1.0** | 2026-08-04 | 分类器优化 + R1 词典修复: 标签清洗第二轮 (类条件阈值+3.5万条翻转+17.9万剔除), UNKNOWN 合成增广5万条, clean评测子集 (clean_eval.py, 模型无关查表确认)。R1: bare-name 注入跳过 SQL 主导商业后缀 (org≥10000 且 org≥10×loc, 38词, 修"商店/酒店→TOWN"), 段健康度: 末段 ORG_SUFFIX 率 96.84%→97.65%, 地址验证率 88.5%→89.2%。test macro-F1 0.7913 (原始标签) / **0.8941 (clean子集)**, accuracy 0.9084 / clean 0.9919。R2 (转移代价学习) 因无全文本金标准按预案回退, 见 audit/v4.0_d0_findings.md。 |
-| **v3.0.0** | 2026-08-04 | 系统性重构: 分类层 GBDT 学习化 (78维特征, 270万弱标注, confident learning 清洗 5.4%)。统一 DP 引擎 (v3/engine, 20K 样本零差异)。eval train/val/test 固定切分。test macro-F1 0.7699 (v2.2.1: 0.3702)。测试 124 条。v2.2.1 冻结为 baseline。 |
-| **v2.2.1** | 2026-07-11 | 段类型体系修复 (SegType.ORG_SUFFIX)。split_polluted_d4 拆分1301条 d4→d3+d4。POI_EXCLUDE_D4 精简(41→29)。_decide 查表调score。LOC VILLAGE 清理(石家庄/枣庄→CITY)。复合机构检测+重识别。过度拆分合并(SQL CSV校验)。badcase 体系。评测18万条, macro-F1=0.3702。词典 v1.2.3。测试112条。 |
-| **v2.2.0** | 2026-07-11 | 数据驱动 classify: d4_category_map (9,577条Gaode标注) + suffix_category_gaode (1,520条高置信后缀)。移除手工后缀列表。SQL CSV 规则 (d4∉SQL→POI)。Gaode道路名合并入LOC词典 (47万条)。gov seed 29条。 |
-| v2.1.0 | 2026-07-10 | `pipeline.classify()` 统一分类: ORG/POI/ADDR/UNKNOWN。csv_index 亲和度评分。gov suffix seed 注入。评测闭环。手工后缀列表驱动。词典 v1.2.1。测试108条。待修复的问题在 v2.2 解决。 |
-| v1.2.3 | 2026-07-07 | 四代审计 F1-F22 全部修复 + Finding 1-19 全部修复。F1/F3/F7 三次迭代回归修正。Trie 碰撞优先级、线程安全、LOC 裸名、gbk fallback、original 字段一致性。测试 90 条 |
-| v1.2.2 | 2026-07-06 | 架构重构: H1-H4 + 二代审计 N1-N24 全部修复。新增 `core/config.py`, `core/suffix_matcher.py`, `tools/pipeline_base.py`。删除 `geomodel/`。词典升级至 v1.1.2。测试 77 条 |
-| v1.2.1 | 2026-07-06 | 审计修复: 22/50 (Critical 2, High 4, Medium 10, Low 6) |
-| v1.1.1 | — | 词典收敛版: 四词典统一 v1.1.1, brand 分离度 4.1, poi d4 覆盖 113% |
-| v1.1.0 | — | 初版收敛词典 |
+| **v3.9.1** | 2026-08-05 | 文档体系重构 (README/HANDOVER/CHANGELOG 三件套) |
+| **v3.9.0** | 2026-08-04 | 置信度审计合格 + TOWN/BRAND 裁决 + v1.5.0 自举收敛, test 0.9059 |
+| **v3.8.0** | 2026-08-04 | 统一版本号 + FastGBDT 30× + 纯净集评测 + bare 攻坚 |
