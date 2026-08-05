@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-- 系统版本 **v4.0.1** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
+- 系统版本 **v4.0.2** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
 - 指标：test macro-F1 0.9059 | clean accuracy 0.9919 | ECE 0.0129 | 单条 50ms / 批量 1.4ms/条
 - 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）+ fastapi/uvicorn（仅 serve.py）
 - v4.0.0：v2 代码已迁 `/v2/`（平铺）+ 根 `pipeline_v2.py`；v3 不再 import 任何 v2 模块；HTTP 服务 `serve.py`
@@ -63,6 +63,8 @@ python3 v3/engine/gate.py --n 20000                        # 引擎一致性（�
 python3 v3/seg_quality.py --engine org --n 200000 --v3     # 段健康度
 python3 v3/evaluate.py --feats output/v3_feat/test_feats.csv  # test 指标
 python3 v3/seg_compare.py run <org|poi|loc> <mode>         # 全量段对比
+python3 v3/poi_recall_audit.py                             # POI 召回分层诊断
+python3 v3/pure_eval.py report                             # 纯净召回+有效召回(分层口径)
 # 服务
 uvicorn serve:app --port 8000 --workers 4                  # FastAPI 生产服务
 ```

@@ -3,6 +3,15 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.0.2 (2026-08-05) — POI 召回攻坚 (D0 诊断 + 口径分层, A 实验回退)
+
+无算法/词典变更（D1-A 重训实验回退, baseline clf_v3.pkl 不换）。
+
+- **漏迁移捕获**: `compute_metrics/print_metrics` 提取至 `tools/metrics.py`（v3/train|evaluate|clean_eval 依赖, 重训时才发现, 踩坑 #23）
+- **POI 召回攻坚 D0 诊断**（`v3/poi_recall_audit.py` → output/v4_poi_recall_audit.md）: 纯净召回 57.5% 分解为 真边界 ~35-40pt (机关→ORG 19.4% + 交叉口/楼栋门牌/自然地名→ADDR) + 真错误 ~5-7pt (公园/寺山/广场/大厦/门店 高置信误判 ADDR); 机制=专名含地名抬 geo_cov + eval 标签寺/景区→ADDR 倒挂
+- **口径分层 (B 路线, 已落地)**: `v3/pure_eval.py report` 新增分层口径——POI 有效召回 **84.0~85.8%** (真边界剔除), ORG ≈100%
+- **模型修复实验 (A 路线, 回退)**: `v3/augment_poi.py` 24K 真错误模式 POI 增强重训, val 持平 0.9050 vs 0.9052, 12 条真错误点查 0 翻转 → 特征驱动非标签量不足, 决策回退 (HANDOVER §6); artifacts 留存 models/clf_v3_poi.pkl + data/v3_augment_poi.csv 备查
+
 ## v4.0.1 (2026-08-05) — 迁移后审计 + v3 测试补齐
 
 无算法/词典变更。v4.0.0 迁移后的质量加固版本。

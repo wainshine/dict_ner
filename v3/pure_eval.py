@@ -11,6 +11,8 @@ import os
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, "data")
 OUT_DIR = os.path.join(BASE, "output", "v3_pure_eval")
@@ -41,6 +43,8 @@ def run(system, total_n=1000000):
 
 
 def report():
+    from v3.poi_recall_audit import (
+        cluster_of, split_verdict, other_boundary_likely)
     lines = ["# 纯净集评测报告", ""]
     for system, desc in (("org_pure", "ORG 纯净集 (org_company 公司名语料)"),
                          ("poi_pure", "POI 纯净集 (split/poi POI语料)")):
@@ -72,8 +76,41 @@ def report():
             ac = conf_sum[lb] / max(1, conf_n[lb])
             lines.append(f"| {lb}{mark} | {total[lb]:,} | {100*total[lb]/n:.2f}% | {ac:.3f} |")
         recall = total[expected] / n
-        lines += ["", f"**纯净召回率: {100*recall:.2f}%**", "",
-                  "### 误判样例 (按置信度排序 top30)", ""]
+        lines += ["", f"**纯净召回率: {100*recall:.2f}%**", ""]
+
+        # 分层口径: 真边界剔除后的有效召回 (v4.0.1+, 判定规则见 v3/poi_recall_audit.py)
+        verdict_n = {"boundary": 0, "error": 0, "noise": 0}
+        other_boundary = other_total = 0
+        for name, cat, _conf in wrong:
+            if system == "org_pure":
+                # D0 审查: 门店形态→POI / 内嵌地址→ADDR 均为体系边界, UNKNOWN 为噪声
+                v = "noise" if cat == "UNKNOWN" else "boundary"
+            else:
+                v = split_verdict(cat, cluster_of(name))
+                if v == "error" and cat == "ADDR" and cluster_of(name) == "其他":
+                    other_total += 1
+                    if other_boundary_likely(name):
+                        other_boundary += 1
+            verdict_n[v] += 1
+        n_wrong = sum(verdict_n.values())
+        if n_wrong:
+            wrong_total = n - total[expected]
+            err_ratio = verdict_n["error"] / n_wrong
+            eff = total[expected] / (total[expected] + wrong_total * err_ratio)
+            line = (f"**有效召回 (真边界剔除): {100*eff:.1f}%**"
+                    if verdict_n["error"] else "")
+            lines += [f"### 分层口径 (误判样本 {n_wrong} 条: "
+                      f"boundary {verdict_n['boundary']} / "
+                      f"error {verdict_n['error']} / noise {verdict_n['noise']})", ""]
+            if verdict_n["error"]:
+                err_opt = (verdict_n["error"] - other_boundary) / n_wrong
+                eff_opt = total[expected] / (total[expected] + wrong_total * err_opt)
+                lines.append(f"- 有效召回 = {expected} / ({expected} + 真错误估计): "
+                             f"**悲观 {100*eff:.1f}% ~ 乐观 {100*eff_opt:.1f}%**")
+                lines.append("")
+            else:
+                lines += [f"- 误判全部为体系边界/噪声, **有效召回 ≈ 100%**", ""]
+        lines += ["### 误判样例 (按置信度排序 top30)", ""]
         wrong.sort(key=lambda x: -x[2])
         for name, cat, conf in wrong[:30]:
             lines.append(f"- `{name}` → {cat} (conf={conf})")

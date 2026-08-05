@@ -18,7 +18,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tools.eval_classify import compute_metrics, print_metrics
+from tools.metrics import compute_metrics, print_metrics
 
 LABELS = ("ORG", "POI", "ADDR", "UNKNOWN")
 L2I = {lb: i for i, lb in enumerate(LABELS)}

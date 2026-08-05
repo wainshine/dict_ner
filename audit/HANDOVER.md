@@ -1,11 +1,11 @@
-# HANDOVER.md v4.0.1
+# HANDOVER.md v4.0.2
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v4.0.1** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 系统版本: **v4.0.2** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
 - 测试: **181 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 110 条)
 - 关键指标: test macro-F1 **0.9059** | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0129 | 单条延迟 50ms / 批量 1.4ms/条
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
@@ -163,6 +163,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | 含噪标签 macro-F1 | `v3/evaluate.py` | test 0.9059 |
 | clean 子集 accuracy | `v3/clean_eval.py` | 0.9919（查表确认标签, ~31% 子集） |
 | 纯净集召回 | `v3/pure_eval.py` | ORG 73.9% / POI 57.5%（语义边界, 详见报告解读） |
+| 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **84.0~85.8%** / ORG ≈100%（v4.0.1 新增, 规则见 v3/poi_recall_audit.py） |
 | 置信度 | `v3/calibration_audit.py` | ECE 0.0129 |
 
 ### 4.2 段级门禁
@@ -202,6 +203,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | gaode_roads.csv 101万行 | merge 时 freq≥10 过滤 | 对齐 47万传承; 该文件是 v2.2.x 以 freq≥3 重生成 |
 | 评测集标签噪声 ~13% | 程序清洗 + clean 子集双指标, 不人工修 | 用户决策 |
 | v1.6 自举 | 不做 | 已收敛 (v3.9.0 判断) |
+| POI 召回攻坚 D1-A 增强重训 | **回退** | 24K 真错误模式 POI 样本增强 (v3/augment_poi.py → final_train4) 重训后 val macro-F1 持平 (0.9050 vs 0.9052), 但 12 条真错误点查 0 翻转——残存误判是特征驱动 (专名含地名→geo_cov 抬升 + eval 标签 寺/景区→ADDR 倒挂), 非标签量不足。模型 artifacts 留存 models/clf_v3_poi.pkl 备查, baseline 不换 (v4.0.2) |
+| POI 纯净召回口径 | 分层化 | 57.5% = 与地图源标注一致率; 真边界 (机关/交叉口/楼栋门牌/自然地名) 剔除后有效召回 84.0~85.8% (v4_poi_recall_audit.md) |
 
 ## 7. 踩过的坑
 
@@ -232,6 +235,11 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 20. **多进程 + OpenMP 过订阅**: 16 进程 × numpy 多线程互相拖慢 (47min 假象), 测量延迟前先杀干净后台 worker
 21. **bare 注入 vs d4 的 Trie 碰撞**: 5000-freq 裸名 TOWN 按行政优先级压掉 47 万 freq 的 d4 POI — bare 注入必须跳过 d4 词
 22. **聚合器 d4 质量规则误杀复合后缀**: 广场/商场 loc>org 被杀 → "广/商"裸奔碎片, 需白名单回补
+
+**v4 时代**：
+23. **迁移后的 import 漏检**: grep 只查了 `from loc./org./pipeline` 形态, 漏了 `from tools.eval_classify import` (被迁文件中的共享函数) — v3/train.py 重训时才炸。教训: 迁移后验收必须包含"全仓 py 文件 import 可解析性"检查, 不能只跑 tests (tests 不覆盖 train.py)
+24. **train.py 会覆盖 val_pred.csv**: 实验性重训 (--model 指向新文件) 也会覆盖 output/v3_feat/val_pred.csv, baseline 产物需事后用 baseline 模型重算恢复
+25. **POI 增强重训不翻转的原因**: 真错误是特征驱动 (geo_cov/d4 后缀倾向), 不是标签量不足; 0.9% 占比的增强样本推不动特征信号; 且 eval 标签本身倒挂 (寺 190 ADDR:52 POI)
 
 ## 8. 重建速查（从零到当前版）
 
