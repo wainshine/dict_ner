@@ -1,8 +1,8 @@
-# dict_ner v4.0.0
+# dict_ner v4.0.1
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v4.0.0** | 词典: **v1.5.0**（四词典统一编号） | 测试: **124 条全绿**
+- 系统版本: **v4.0.1** | 词典: **v1.5.0**（四词典统一编号） | 测试: **181 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -95,7 +95,7 @@ python run.py info
 
 ### 分类评测 (test 集 38,514 条, 一次性)
 
-| 指标 | v3.9.0 (当前) | v2.2.1 规则链 |
+| 指标 | v4.0.x (当前) | v2.2.1 规则链 |
 |------|:---:|:---:|
 | macro-F1 | **0.9059** | 0.3702 |
 | accuracy | **0.9056** | 0.4463 |
@@ -155,7 +155,7 @@ dict_ner/
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
 ├── tools/               v3 时代训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / pipeline_base)
 ├── audit/               HANDOVER.md + 各代审计/方案报告
-├── tests/               124 条用例 (tests/legacy/ 112 条 v2 锚定 + 根目录 v3/core 12+ 条)
+├── tests/               181 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 110 条 v3/core/serve)
 └── CHANGELOG.md         完整版本历史
 ```
 
@@ -195,7 +195,7 @@ python3 v3/train.py --train output/v3_feat/final_train3.csv --calib-set output/v
 # 7. 门禁
 python3 v3/engine/gate.py --n 20000        # 引擎一致性
 python3 v3/seg_quality.py --engine org --n 200000 --v3
-python3 -m unittest discover -v -s tests/  # 124 全绿
+python3 -m unittest discover -v -s tests/  # 181 全绿
 ```
 
 ## 评估体系
@@ -218,7 +218,7 @@ python3 -m unittest discover -v -s tests/  # 124 全绿
 ```
 改词典 / 改引擎 / 改分类器
     │
-    ├─ python3 -m unittest discover -s tests/     → 124 全绿
+    ├─ python3 -m unittest discover -s tests/     → 181 全绿
     ├─ v3/seg_quality.py (三体系)                  → 段健康度不降
     ├─ v3/seg_compare.py (新旧全量对比)            → diff 逐类审查
     ├─ v3/evaluate.py --feats val_feats.csv       → val macro-F1 不降
@@ -247,7 +247,7 @@ python3 -m unittest discover -v -s tests/  # 124 全绿
 Python 3.10+。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
 
 ```bash
-python3 -m unittest discover -v -s tests/    # 124 条 (tests/legacy/ 112 + 根目录 12)
+python3 -m unittest discover -v -s tests/    # 181 条 (tests/legacy/ 71 + 根目录 110)
 ```
 
 ## 版本记录
@@ -256,6 +256,7 @@ python3 -m unittest discover -v -s tests/    # 124 条 (tests/legacy/ 112 + 根�
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v4.0.1** | 2026-08-05 | 迁移后审计 + v3 测试补齐 124→181 |
 | **v4.0.0** | 2026-08-05 | v2 代码迁移 /v2/ + pipeline_v2.py + FastAPI serve.py 生产化 |
 | **v3.9.2** | 2026-08-05 | AGENTS.md 速通 + v4.0.0 迁移计划 + 磁盘治理 5GB |
 | **v3.9.1** | 2026-08-05 | 文档体系重构 (README/HANDOVER/CHANGELOG 三件套) |

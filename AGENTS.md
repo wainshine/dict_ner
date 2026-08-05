@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-- 系统版本 **v4.0.0** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
+- 系统版本 **v4.0.1** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
 - 指标：test macro-F1 0.9059 | clean accuracy 0.9919 | ECE 0.0129 | 单条 50ms / 批量 1.4ms/条
 - 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）+ fastapi/uvicorn（仅 serve.py）
 - v4.0.0：v2 代码已迁 `/v2/`（平铺）+ 根 `pipeline_v2.py`；v3 不再 import 任何 v2 模块；HTTP 服务 `serve.py`
@@ -18,7 +18,7 @@
 ```bash
 cd /Users/wainshine/newAI/dict_ner
 git status                                        # 应干净
-python3 -m unittest discover -s tests/            # 124 条全绿
+python3 -m unittest discover -s tests/            # 181 条全绿
 python3 run.py classify "深圳市南山区华为技术有限公司"   # → ORG (v3 默认入口)
 python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结规则链)
 ```
@@ -35,7 +35,7 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
 | `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv、高德amap/腾讯地图（GBK 大文件） |
 | `output/` | 评估产物；`v3_feat/` 特征中间体（`*_feats.csv` 主文件留，chunks/feats 分片可删可再生） |
-| `tests/` | 124 条（tests/legacy/ 112 条 v2 锚定 + 根目录 v3/core 12 条） |
+| `tests/` | 181 条（tests/legacy/ 71 条 v2 锚定 + 根目录 110 条 v3/core/serve） |
 | `audit/` | HANDOVER.md + 各代方案/审计报告 |
 
 ## 红线（违反即 reject）

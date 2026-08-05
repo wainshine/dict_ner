@@ -3,6 +3,13 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.0.1 (2026-08-05) — 迁移后审计 + v3 测试补齐
+
+无算法/词典变更。v4.0.0 迁移后的质量加固版本。
+
+- **v3 测试补齐** 124 → **181 条**（+57）: `test_v3_engine.py`（DPEngine 合成小词典 21 条: Trie 碰撞优先级/词成本/短 d4 惩罚/8 个后处理钩子）、`test_v3_pipeline.py`（后处理四方法+三表懒加载 15 条）、`test_suffix_classify.py`（core 直测 6 条）、`test_v3_brand_model.py`（v3 副本 save/load 回环 6 条）、`test_fast_predict.py`（FastCalibrated vs sklearn 零误差 3 条）、`test_serve.py`（FastAPI TestClient 契约 6 条）
+- **迁移后审计修复**: 三文档测试计数失真修正（实际 tests/legacy/ 71 + 根目录 110，旧文案笼统写 112+12）；README 指标表头 v3.9.0→v4.0.x；`serve.py` `@app.on_event` 废弃写法改 lifespan；迁移计划文档加"已执行"眉注
+
 ## v4.0.0 (2026-08-05) — v2 代码迁移 /v2/ + FastAPI 生产化
 
 按 `audit/v4.0.0_migration_plan.md` 执行（用户两处拍板调整：pipeline.py 留根改名 `pipeline_v2.py`；`tests/v2/` 因与根 `v2/` 包同名冲突改为 `tests/legacy/`）。无算法/词典变更。
