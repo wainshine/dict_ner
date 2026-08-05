@@ -58,7 +58,7 @@ def main():
         from v3.pipeline import V3Pipeline
         pipe = V3Pipeline()
     else:
-        from pipeline import DictNerPipeline
+        from pipeline_v2 import DictNerPipeline
         pipe = DictNerPipeline()
     sql_suffixes, trade, addr = load_sql_sets()
     print(f"SQL sets: suffix={len(sql_suffixes):,} trade={len(trade):,} addr={len(addr):,}")

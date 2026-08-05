@@ -1,7 +1,7 @@
 import sys
 
 sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__))))
-from loc.builder import DictBuilder
+from v2.loc_builder import DictBuilder
 
 b = DictBuilder("dicts", "loc_v1.4.0_base")
 b.build_from_loc36kw("data")

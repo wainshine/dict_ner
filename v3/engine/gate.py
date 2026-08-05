@@ -31,10 +31,10 @@ def main():
     texts = random.sample(texts, min(args.n, len(texts)))
     print(f"gate sample: {len(texts):,} texts")
 
-    from loc.builder import DictBuilder
-    from loc.recognizer import AddressRecognizer
-    from org.recognizer import OrgDPRecognizer
-    from poi.recognizer import PoiRecognizer
+    from v2.loc_builder import DictBuilder
+    from v2.loc_recognizer import AddressRecognizer
+    from v2.org_recognizer import OrgDPRecognizer
+    from v2.poi_recognizer import PoiRecognizer
     from v3.engine.configs import build_loc_engine, build_org_engine, build_poi_engine
 
     pairs = []

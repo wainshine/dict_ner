@@ -1,14 +1,16 @@
-# HANDOVER.md v3.9.2
+# HANDOVER.md v4.0.0
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v3.9.2** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
-- 测试: **124 条全绿** (`python3 -m unittest discover -s tests/`)
+- 系统版本: **v4.0.0** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 测试: **124 条全绿** (`python3 -m unittest discover -s tests/`，含 `tests/legacy/` 112 条)
 - 关键指标: test macro-F1 **0.9059** | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0129 | 单条延迟 50ms / 批量 1.4ms/条
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
+- v4.0.0 布局: v2 冻结代码平铺于 `/v2/`（识别器/brand/eval + v2/tools/），v2 总线 = 根 `pipeline_v2.py`，legacy 测试在 `tests/legacy/`；HTTP 服务 = `serve.py`（FastAPI）
+- **v4.0.0 起 v3 不再 import 任何 v2 模块**（`v3/pipeline.py` 自包含；`classify_suffix` 在 `core/suffix_classify.py`）；仅 gate/seg_compare/badcase_eval 保留 legacy 基线对比 import（`v2.*`，属预期）
 
 ## 文档定位与维护原则
 
@@ -167,7 +169,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 | 门禁 | 工具 | 标准 |
 |------|------|------|
-| 引擎一致性 | `v3/engine/gate.py` | 实体化/重构后新旧零差异 |
+| 引擎一致性 | `v3/engine/gate.py` | 实体化/重构后新旧零差异。**注意 (v4.0.0 核实)**: 当前词典 v1.5.0 下 gate 对比 legacy 识别器（锚定 v1.2.x 词典）必然 FAIL (20K diff loc 1943/org 1753/poi 2604)，属词典代差非引擎问题；重构类变更的验收标准是 diff 计数与变更前逐项一致 |
 | 段健康度 | `v3/seg_quality.py` | 后缀/行业/地址验证率不降 |
 | 全量段对比 | `v3/seg_compare.py` | diff 率 + 类型迁移逐类审查 |
 | badcase 修复率 | `v3/badcase_eval.py` | REPAIRED 提升无回归 |
@@ -181,7 +183,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 ## 5. 治理规则（红线）
 
-1. v2 四模组（loc/org/poi/brand/pipeline.py）冻结为 baseline，只读不改
+1. v2 模组（`/v2/` + 根 `pipeline_v2.py`，v4.0.0 迁移后）冻结为 baseline，只读不改
 2. 词典不覆盖旧版；v1.1.x 兜底不可删
 3. 词典改动 → 四词典版本号同升 + seg_quality 不降 + 分类器重训
 4. 引擎改动 → gate 零差异门禁（或 diff 逐类审查为改善）

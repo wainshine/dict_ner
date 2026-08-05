@@ -1,18 +1,35 @@
-"""v3 统一总线 — 新 DPEngine ×3 + 复用 v2 后处理与查表
+"""v3 统一总线 — 新 DPEngine ×3 + 自包含后处理与查表 (v4.0.0 起不再依赖 v2 pipeline)
 
 段识别由 v3.engine 提供 (与旧识别器 20K 样本零差异, 见 engine/gate.py)。
-复合机构检测/过度拆分合并/ORG_SUFFIX remap 复用 pipeline.py 逻辑。
+复合机构检测/过度拆分合并/ORG_SUFFIX remap 逻辑复制自 v2 pipeline.py (逐方法不改逻辑)。
 """
+import csv
 import os
+import pickle
 import sys
+import threading
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.types import AddressResult, SegType
-from pipeline import DictNerPipeline
 from v3.engine.configs import build_loc_engine, build_org_engine, build_poi_engine
 
+COMPANY_SUFFIXES = {
+    "公司", "有限公司", "有限责任公司", "股份有限公司",
+    "集团", "企业", "总公司", "分公司", "子公司",
+}
+
+GOV_SUFFIXES = {
+    "卫健委", "卫生健康委", "卫生健康局", "管理局", "事务局", "监督局",
+    "办公室", "办事处", "管理处", "管理所", "监督所",
+    "监察委", "监察委员会", "管委会", "管理委员会",
+    "指挥部", "工作站", "政务服务中心", "行政服务中心",
+    "派出所", "村委会", "人民政府", "居委会", "警务室",
+    "工商所", "税务所", "税务局", "联合会", "协会", "党支部",
+}
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE, "data")
 DICT_DIR = os.path.join(BASE, "dicts")
 
 
@@ -31,13 +48,16 @@ class _OrgAdapter:
 class V3Pipeline:
     def __init__(self, loc_dict="loc_v1.5.0", org_version="v1.5.0",
                  poi_dict="poi_v1.5.0.pkl"):
-        from brand.model import BrandModel
+        from v3.brand_model import BrandModel
         brand = BrandModel(DICT_DIR, version="v1.5.0")
         brand.load()
         self._loc_engine = build_loc_engine(loc_dict)
         self._poi_engine = build_poi_engine(poi_dict)
         self.org = _OrgAdapter(build_org_engine(org_version), brand)
-        self._tables = DictNerPipeline()
+        self._lock = threading.Lock()
+        self._d4_map = None
+        self._suffix_table = None
+        self._sql_suffixes = None
 
     @property
     def loc(self):
@@ -49,27 +69,94 @@ class V3Pipeline:
 
     @property
     def d4_map(self):
-        return self._tables.d4_map
+        if self._d4_map is None:
+            with self._lock:
+                if self._d4_map is None:
+                    path = os.path.join(DICT_DIR, "d4_category_map.pkl")
+                    if os.path.exists(path):
+                        with open(path, "rb") as f:
+                            self._d4_map = pickle.load(f)
+                    else:
+                        self._d4_map = {}
+        return self._d4_map
 
     @property
     def suffix_table(self):
-        return self._tables.suffix_table
+        if self._suffix_table is None:
+            with self._lock:
+                if self._suffix_table is None:
+                    self._suffix_table = {}
+                    path = os.path.join(DICT_DIR, "suffix_category_gaode.csv")
+                    if os.path.exists(path):
+                        with open(path, encoding="utf-8-sig") as f:
+                            for row in csv.DictReader(f):
+                                sfx = row["suffix"]
+                                cat = row["gaode_category"]
+                                self._suffix_table[sfx] = cat
+        return self._suffix_table
 
     @property
     def sql_suffixes(self):
-        return self._tables.sql_suffixes
+        if self._sql_suffixes is None:
+            with self._lock:
+                if self._sql_suffixes is None:
+                    self._sql_suffixes = set()
+                    path = os.path.join(DATA_DIR, "suffix_segments_sql.csv")
+                    if os.path.exists(path):
+                        with open(path, encoding="utf-8-sig") as f:
+                            for row in csv.DictReader(f):
+                                sfx = row["d4"].strip()
+                                if sfx and len(sfx) >= 2:
+                                    self._sql_suffixes.add(sfx)
+        return self._sql_suffixes
+
+    def _has_company_suffix(self, org_result):
+        for s in org_result.segments:
+            for sfx in COMPANY_SUFFIXES:
+                if s.text.endswith(sfx):
+                    return True
+        return False
 
     def _remap_org_segments(self, result):
-        return self._tables._remap_org_segments(result)
+        if result and result.segments:
+            for s in result.segments:
+                if s.seg_type == SegType.POI:
+                    s.seg_type = SegType.ORG_SUFFIX
+        return result
 
     def _merge_over_split(self, segments):
-        return self._tables._merge_over_split(segments)
+        from core.csv_index import CsvIndex
+        idx = CsvIndex.instance()
+        addr_types = {SegType.PROVINCE, SegType.CITY, SegType.DISTRICT,
+                      SegType.TOWN, SegType.VILLAGE, SegType.COMMUNITY, SegType.ROAD}
+        no_merge_types = {SegType.ORG_SUFFIX, SegType.POI}
+
+        i = 0
+        while i < len(segments) - 1:
+            s1, s2 = segments[i], segments[i + 1]
+            if s1.seg_type in addr_types or s2.seg_type in addr_types:
+                i += 1
+                continue
+            if s1.seg_type in no_merge_types or s2.seg_type in no_merge_types:
+                i += 1
+                continue
+            merged = s1.text + s2.text
+            if merged in idx.suffix or merged in idx.trade:
+                s1.text = merged
+                s1.seg_type = SegType.INDUSTRY
+                del segments[i + 1]
+                continue
+            i += 1
+        return segments
 
     def _detect_compound(self, segments):
-        return self._tables._detect_compound(segments)
-
-    def _has_company_suffix(self, result):
-        return self._tables._has_company_suffix(result)
+        company_suffixes = {"有限公司", "有限责任公司", "股份有限公司"}
+        for i, s in enumerate(segments):
+            if i == len(segments) - 1:
+                continue
+            if s.seg_type == SegType.ORG_SUFFIX and s.text in company_suffixes:
+                return s.end
+        return None
 
     def _re_split_and_recognize(self, text, split_pos):
         part1 = text[:split_pos]

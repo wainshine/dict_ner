@@ -3,6 +3,15 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.0.0 (2026-08-05) — v2 代码迁移 /v2/ + FastAPI 生产化
+
+按 `audit/v4.0.0_migration_plan.md` 执行（用户两处拍板调整：pipeline.py 留根改名 `pipeline_v2.py`；`tests/v2/` 因与根 `v2/` 包同名冲突改为 `tests/legacy/`）。无算法/词典变更。
+
+- **V1 切除 v3→v2 依赖**: `classify_suffix`/`_SAFE_SINGLE_SUFFIXES` 提取至 `core/suffix_classify.py`（`v2/loc_importer.py` re-export 兼容）；`v3/pipeline.py` 自包含化（COMPANY/GOV 后缀常量 + 后处理四方法 + d4_map/suffix_table/sql_suffixes 三表懒加载，逐方法复制不改逻辑）；`BrandModel` 复制为 `v3/brand_model.py`；`v3/features.py` 常量改自 `v3.pipeline`
+- **V2 物理迁移**: v2 独有代码平铺迁入 `/v2/`（`loc_recognizer/loc_builder/loc_importer/org_recognizer/poi_recognizer/brand_model/eval` + `v2/tools/` 19 个 v2 时代工具）；根 `pipeline.py` → `pipeline_v2.py`（留根，文件名带版本与 `v3/pipeline.py` 区分）；112 条 legacy 测试迁 `tests/legacy/`；`loc/ org/ poi/ brand/` 四空包删除；`v3/engine/gate.py`、`v3/seg_compare_worker.py`、`v3/badcase_eval.py`、`tools/loc_build_v140.py` 的 legacy 基线 import 改 `v2.*`
+- **V3 三保险**: 124 tests 全绿；gate 20K diff 计数与迁移前 HEAD 逐项一致（1943/1753/2604，该 FAIL 为既有现象——legacy 识别器锚定 v1.2.x 词典 vs v3 用 v1.5.0，非本次引入）；双 CLI 冒烟通过
+- **V4 生产化**: 新增 `serve.py`（FastAPI：POST /classify、/classify_batch、GET /health，单例预加载 V3Classifier）；requirements +fastapi/uvicorn；压测（output/v4_serve_bench.md）：单条 p50 50ms/p99 52ms，批量 1.9ms/条，单 worker 并发受 GIL 限制需多 worker 水平扩展
+
 ## v3.9.2 (2026-08-05)
 
 工程收尾版本。新增 `AGENTS.md`（新会话 5 分钟速通：验证三连/文件地图/红线/常用命令）。新增 `audit/v4.0.0_migration_plan.md`（下轮 v2→/v2/ 迁移+FastAPI 生产化的文件级计划）。磁盘治理 ~5GB（iter_v1.4.0、v3_feat 临时分片、被取代的训练合并文件、loc v1.4.0 构建中间态）。无算法变更。

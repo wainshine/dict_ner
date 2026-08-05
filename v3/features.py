@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.types import SegType
 from core.csv_index import CsvIndex
-from pipeline import DictNerPipeline, COMPANY_SUFFIXES, GOV_SUFFIXES
+from v3.pipeline import COMPANY_SUFFIXES, GOV_SUFFIXES
 
 D4_CATEGORIES = ("ORG", "POI_FAC", "POI_STORE", "ADDR", "AMBIGUOUS", "UNKNOWN")
 

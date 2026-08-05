@@ -33,13 +33,13 @@ def build_old(system, version="v1.2.3"):
     if version >= "v1.3.0":
         return build_new(system, version)
     if system == "org":
-        from org.recognizer import OrgDPRecognizer
+        from v2.org_recognizer import OrgDPRecognizer
         return OrgDPRecognizer(DATA, version=version)
     if system == "poi":
-        from poi.recognizer import PoiRecognizer
+        from v2.poi_recognizer import PoiRecognizer
         return PoiRecognizer(DATA, dict_name=f"poi_{version}.pkl")
-    from loc.builder import DictBuilder
-    from loc.recognizer import AddressRecognizer
+    from v2.loc_builder import DictBuilder
+    from v2.loc_recognizer import AddressRecognizer
     b = DictBuilder.load(os.path.join(BASE, "dicts"), f"loc_{version}")
     return AddressRecognizer(b.dict_data)
 

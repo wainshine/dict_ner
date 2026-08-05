@@ -19,13 +19,13 @@ DATA = os.path.join(BASE, "data")
 
 def build_old(system):
     if system == "org":
-        from org.recognizer import OrgDPRecognizer
+        from v2.org_recognizer import OrgDPRecognizer
         return OrgDPRecognizer(DATA, version="v1.2.3")
     if system == "poi":
-        from poi.recognizer import PoiRecognizer
+        from v2.poi_recognizer import PoiRecognizer
         return PoiRecognizer(DATA, dict_name="poi_v1.2.3.pkl")
-    from loc.builder import DictBuilder
-    from loc.recognizer import AddressRecognizer
+    from v2.loc_builder import DictBuilder
+    from v2.loc_recognizer import AddressRecognizer
     b = DictBuilder.load(os.path.join(BASE, "dicts"), "loc_v1.2.3")
     return AddressRecognizer(b.dict_data)
 

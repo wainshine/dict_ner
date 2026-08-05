@@ -10,7 +10,7 @@ from core.types import (
     SegType, AddressSegment, AddressResult,
     LEVEL_ORDER, ADMIN_SUFFIX_MAP, LOCATION_SUFFIX_SET, POI_SUFFIX_MAP,
 )
-from loc.importer import classify_suffix
+from core.suffix_classify import classify_suffix
 
 STOP_CHARS = frozenset("，。；、！？：,.!?;: \t\r\n　 ")
 _SEPARATOR_CHARS = "，。；、！？：,.!?;: \t\r\n　 "
@@ -287,7 +287,7 @@ class DPEngine:
         return segments
 
     def _detect_poi_type(self, text):
-        from loc.importer import _SAFE_SINGLE_SUFFIXES
+        from core.suffix_classify import _SAFE_SINGLE_SUFFIXES
         for sfx, cat in sorted(POI_SUFFIX_MAP.items(), key=lambda x: -len(x[0])):
             if len(sfx) == 1:
                 if sfx in _SAFE_SINGLE_SUFFIXES and len(text) <= 3 and text.endswith(sfx):

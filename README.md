@@ -1,8 +1,8 @@
-# dict_ner v3.9.2
+# dict_ner v4.0.0
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v3.9.2** | 词典: **v1.5.0**（四词典统一编号） | 测试: **124 条全绿**
+- 系统版本: **v4.0.0** | 词典: **v1.5.0**（四词典统一编号） | 测试: **124 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -19,7 +19,7 @@
 
 ```bash
 cd /Users/wainshine/newAI/dict_ner
-pip install -r requirements.txt   # v3 需要 sklearn/numpy/pandas (旧 v2 模块仍纯stdlib)
+pip install -r requirements.txt   # v3 需要 sklearn/numpy/pandas; serve 需要 fastapi/uvicorn
 
 # 分类 (v3 GBDT 模型, 默认入口)
 python run.py classify "深圳市南山区华为技术有限公司"     # → ORG 0.98
@@ -29,8 +29,12 @@ python run.py classify --batch file.txt                  # 批量 (1.4ms/条)
 python run.py recognize "北京市朝阳区星巴克咖啡国贸店"
 python run.py json "北京市朝阳区星巴克咖啡国贸店"
 
-# 旧版规则链 (v2.2.1 冻结 baseline)
+# 旧版规则链 (v2 冻结 baseline, pipeline_v2.py + /v2/)
 python run.py v2 classify "广东省卫健委"
+
+# HTTP 服务 (FastAPI)
+uvicorn serve:app --host 0.0.0.0 --port 8000 --workers 4
+#   POST /classify {"text": ...}  POST /classify_batch {"texts": [...]}  GET /health
 
 python run.py info
 ```
@@ -126,7 +130,8 @@ dict_ner/
 ├── v3/                    v3 系统 (当前生产路径)
 │   ├── engine/            统一 DP 引擎 (dp.py + configs.py) + gate.py 门禁
 │   ├── features.py        78 维特征提取
-│   ├── pipeline.py        V3Pipeline 总线
+│   ├── pipeline.py        V3Pipeline 总线 (v4.0.0 起自包含, 不再依赖 v2)
+│   ├── brand_model.py     品牌 bigram 模型 (v3 自有副本)
 │   ├── infer.py           V3Classifier 推理
 │   ├── fast_predict.py    HistGBDT 编译化快速预测器
 │   ├── train.py / labels.py / sample_pool.py / sample_unknown.py   训练链
@@ -136,17 +141,21 @@ dict_ner/
 │   ├── seg_compare.py / eval_cut.py / badcase_eval.py              段级对比评估
 │   ├── seq_dist_compare.py / loc_prune.py / poi_prune.py / bare_prune.py  词典挖掘
 │   └── seg_compare_worker.py / eval_cut_worker.py / pure_eval_worker.py
-├── core/                共享类型和常量 (SegType, Trie, config, csv_index, suffix_matcher)
-├── loc/ org/ poi/ brand/   v2 四模组 (冻结 baseline, run.py v2 使用)
-├── pipeline.py          v2 统一总线 (冻结 baseline)
+├── v2/                  v2 冻结 baseline (v4.0.0 起平铺迁移至此)
+│   ├── loc_recognizer.py / loc_builder.py / loc_importer.py
+│   ├── org_recognizer.py / poi_recognizer.py / brand_model.py / eval.py
+│   └── tools/             v2 时代训练/评估工具 (launch/worker/eval 系列)
+├── core/                共享类型和常量 (SegType, Trie, config, csv_index, suffix_matcher, suffix_classify)
+├── pipeline_v2.py       v2 统一总线 (冻结 baseline, run.py v2 使用)
 ├── run.py               CLI 入口
+├── serve.py             FastAPI 服务 (POST /classify /classify_batch, GET /health)
 ├── models/              GBDT 模型 (clf_v3.pkl + manifest)
 ├── dicts/               词典 (v1.5.0 当前 + 历史版本 + export/ 审计表 + iter_v1.5.0/ 统计中间产物)
 ├── data/                语料与切分 (split/ 四套语料, SQL 三表, eval splits, Gaode/腾讯原始数据)
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
-├── tools/               训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / launch 系列)
+├── tools/               v3 时代训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / pipeline_base)
 ├── audit/               HANDOVER.md + 各代审计/方案报告
-├── tests/               124 条用例 (17 个文件)
+├── tests/               124 条用例 (tests/legacy/ 112 条 v2 锚定 + 根目录 v3/core 12+ 条)
 └── CHANGELOG.md         完整版本历史
 ```
 
@@ -173,7 +182,7 @@ python3 tools/clean_loc_villages.py
 
 # 5. brand 模型 (~2min)
 python3 -c "
-from brand.model import BrandModel
+from v3.brand_model import BrandModel
 m = BrandModel('dicts', version='v1.5.0')
 m.train_from_d2_csv('dicts/iter_v1.5.0/org_d2_freqs_v1.5.0.csv', min_freq=3, min_bigram_count=10)
 m.save()"
@@ -202,7 +211,7 @@ python3 -m unittest discover -v -s tests/  # 124 全绿
 | `v3/eval_cut.py` | 全量重切产出 JSONL+stats | output/*_eval/*_vX/ |
 | `v3/badcase_eval.py` | badcase 跨版修复率 | output/v*_badcase_*.md |
 | `v3/engine/gate.py` | 引擎一致性门禁 (新旧零差异) | 终端 |
-| `tools/eval_classify.py` | v2 规则链评测 (baseline 对比) | 终端/JSON |
+| `v2/tools/eval_classify.py` | v2 规则链评测 (baseline 对比) | 终端/JSON |
 
 ## 迭代工作流
 
@@ -235,10 +244,10 @@ python3 -m unittest discover -v -s tests/  # 124 全绿
 
 ## 依赖与测试
 
-Python 3.10+。v2 模块 (loc/org/poi/brand/pipeline) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas。
+Python 3.10+。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
 
 ```bash
-python3 -m unittest discover -v -s tests/    # 124 条 (112 legacy + 12 v3)
+python3 -m unittest discover -v -s tests/    # 124 条 (tests/legacy/ 112 + 根目录 12)
 ```
 
 ## 版本记录
@@ -247,6 +256,7 @@ python3 -m unittest discover -v -s tests/    # 124 条 (112 legacy + 12 v3)
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v4.0.0** | 2026-08-05 | v2 代码迁移 /v2/ + pipeline_v2.py + FastAPI serve.py 生产化 |
 | **v3.9.2** | 2026-08-05 | AGENTS.md 速通 + v4.0.0 迁移计划 + 磁盘治理 5GB |
 | **v3.9.1** | 2026-08-05 | 文档体系重构 (README/HANDOVER/CHANGELOG 三件套) |
 | **v3.9.0** | 2026-08-04 | 置信度审计合格 + TOWN/BRAND 裁决 + v1.5.0 自举收敛, test 0.9059 |

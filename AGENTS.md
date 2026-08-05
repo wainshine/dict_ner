@@ -8,9 +8,10 @@
 
 ## 当前状态
 
-- 系统版本 **v3.9.2** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
+- 系统版本 **v4.0.0** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
 - 指标：test macro-F1 0.9059 | clean accuracy 0.9919 | ECE 0.0129 | 单条 50ms / 批量 1.4ms/条
-- 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）
+- 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）+ fastapi/uvicorn（仅 serve.py）
+- v4.0.0：v2 代码已迁 `/v2/`（平铺）+ 根 `pipeline_v2.py`；v3 不再 import 任何 v2 模块；HTTP 服务 `serve.py`
 
 ## 上手验证三连
 
@@ -26,20 +27,21 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 
 | 路径 | 说明 |
 |------|------|
-| `v3/` | **当前活代码**：engine/(统一DP引擎+gate门禁) features.py pipeline.py infer.py fast_predict.py train.py labels.py 及全套评估/挖掘工具 |
-| `loc/ org/ poi/ brand/ pipeline.py eval.py` | **v2 冻结 baseline**（v3 仍 import pipeline.py 的后处理方法与查表加载器、loc/importer.py 的 classify_suffix——迁移计划中，见下） |
-| `core/` | 共享：types(SegType) / config(VERSION) / csv_index / suffix_matcher |
+| `v3/` | **当前活代码**：engine/(统一DP引擎+gate门禁) features.py pipeline.py(自包含) brand_model.py infer.py fast_predict.py train.py labels.py 及全套评估/挖掘工具 |
+| `v2/` + 根 `pipeline_v2.py` | **v2 冻结 baseline**：识别器平铺（loc_recognizer/loc_builder/loc_importer/org_recognizer/poi_recognizer/brand_model/eval）+ v2/tools/（v2 时代 launch/worker/eval 工具） |
+| `core/` | 共享：types(SegType) / config(VERSION) / csv_index / suffix_matcher / suffix_classify |
+| `serve.py` | FastAPI 服务：POST /classify /classify_batch、GET /health；压测见 output/v4_serve_bench.md |
 | `models/` | clf_v3.pkl（GBDT+校准+乘数）+ manifest；clf_v3_compact.pkl（备选小模型） |
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
 | `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv、高德amap/腾讯地图（GBK 大文件） |
 | `output/` | 评估产物；`v3_feat/` 特征中间体（`*_feats.csv` 主文件留，chunks/feats 分片可删可再生） |
-| `tests/` | 124 条（112 legacy + 12 v3） |
+| `tests/` | 124 条（tests/legacy/ 112 条 v2 锚定 + 根目录 v3/core 12 条） |
 | `audit/` | HANDOVER.md + 各代方案/审计报告 |
 
 ## 红线（违反即 reject）
 
 1. `dicts/*v1.1.*.pkl` 兜底不可删；v1.2.x 是 v2 baseline 保留
-2. v2 文件（loc/org/poi/brand/pipeline.py）冻结只读——直到 v4.0.0 迁移完成
+2. v2 文件（`/v2/` + `pipeline_v2.py`）冻结只读
 3. 词典任一变更 → 四词典版本号同升（统一版本政策）
 4. 发版 = 代码 + README/HANDOVER/CHANGELOG 三文档 + git 提交，一次完成
 5. 并行用 bash `&` 16 进程独立 .py（macOS spawn 坑）；跑性能测量前先杀干净后台 worker（OpenMP 过订阅）
@@ -57,12 +59,14 @@ python3 v3/precompute.py all <输入csv> <输出csv>            # 特征 (16进�
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --flip 0.9
 python3 v3/train.py --train <final_train> --calib-set output/v3_feat/train_feats.csv
 # 门禁/评估
-python3 v3/engine/gate.py --n 20000                        # 引擎一致性
+python3 v3/engine/gate.py --n 20000                        # 引擎一致性（现状下与 legacy v1.2.x 词典有代差 FAIL，验收看 diff 计数与变更前一致，见 HANDOVER §4.2）
 python3 v3/seg_quality.py --engine org --n 200000 --v3     # 段健康度
 python3 v3/evaluate.py --feats output/v3_feat/test_feats.csv  # test 指标
 python3 v3/seg_compare.py run <org|poi|loc> <mode>         # 全量段对比
+# 服务
+uvicorn serve:app --port 8000 --workers 4                  # FastAPI 生产服务
 ```
 
-## 下轮任务（v4.0.0）
+## 下轮任务（v4.1.0 候选）
 
-v2 代码迁移 `/v2/` + 生产化（FastAPI）。**详细文件级计划见 `audit/v4.0.0_migration_plan.md`**，照单执行。
+serve.py 压测已留档（单 worker 受 GIL 限制）；可选：pip 包化 pyproject.toml、多 worker 压测、Docker 化。
