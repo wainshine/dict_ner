@@ -1,4 +1,4 @@
-# dict_ner v4.0.2
+# dict_ner v4.0.3
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
@@ -23,7 +23,7 @@ pip install -r requirements.txt   # v3 需要 sklearn/numpy/pandas; serve 需要
 
 # 分类 (v3 GBDT 模型, 默认入口)
 python run.py classify "深圳市南山区华为技术有限公司"     # → ORG 0.98
-python run.py classify --batch file.txt                  # 批量 (1.4ms/条)
+python run.py classify --batch file.txt                  # 批量 (1.9ms/条)
 
 # 段切分 (三体系视图)
 python run.py recognize "北京市朝阳区星巴克咖啡国贸店"
@@ -256,6 +256,7 @@ python3 -m unittest discover -v -s tests/    # 181 条 (tests/legacy/ 71 + 根�
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v4.0.3** | 2026-08-05 | 单条延迟 50ms→2.1ms (fast_predict 树间批量化) + macro-F1 逐类诊断 |
 | **v4.0.2** | 2026-08-05 | POI 召回攻坚: D0 分层诊断 + 有效召回口径 (A 重训实验回退) |
 | **v4.0.1** | 2026-08-05 | 迁移后审计 + v3 测试补齐 124→181 |
 | **v4.0.0** | 2026-08-05 | v2 代码迁移 /v2/ + pipeline_v2.py + FastAPI serve.py 生产化 |

@@ -3,6 +3,14 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.0.3 (2026-08-05) — 单条延迟 25× + macro-F1 逐类诊断 (A 二期回退)
+
+无算法/词典变更（A 二期特征实验回退, baseline clf_v3.pkl 不换）。
+
+- **单条延迟 50ms → 2.1ms (25×)**: profile 定位 98% 耗时在 `fast_predict.decision_function` 逐树遍历 (2000 树 × 25 次 numpy 调用); 修复为树间批量化——全部树 padding 到统一节点数, (n_rows × n_trees) 同步遍历, numpy 调用 ~25×2000 → ~25×max_depth。与 sklearn 零误差对拍 (test_fast_predict 3 条)。serve 压测: 单 worker c=1 16→103 req/s, c=4 10→292 req/s (并发不再反噬)。批量 1.9ms/条持平
+- **P2 macro-F1 逐类诊断**（`v3/error_audit.py` → output/v4_f1_error_audit.md）: 四大迁移类 (POI→ADDR 1066 / ORG→POI 873 / POI→ORG 618 / ADDR→POI 594, 占错误 87%) 以标签噪声+体系边界为主, 与 clean 0.9919 vs 含噪 0.9059 差距自洽; **含噪口径可修复空间 ~1-2pt 上限, 提升正路是评测集标签治理而非模型调参**
+- **A 二期特征实验 (回退)**: `d4_strong_poi`/`poi_d4_strong_poi` 强 POI 后缀特征 (80 维) 重训 → val macro-F1 0.9035 < 0.9052 未过门禁, 12 条真错误点查 0 翻转; 回滚 features.py + 删除 f2 artifacts + val_pred.csv 恢复 baseline 重算 (HANDOVER §6/§7)
+
 ## v4.0.2 (2026-08-05) — POI 召回攻坚 (D0 诊断 + 口径分层, A 实验回退)
 
 无算法/词典变更（D1-A 重训实验回退, baseline clf_v3.pkl 不换）。

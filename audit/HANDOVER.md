@@ -1,13 +1,13 @@
-# HANDOVER.md v4.0.2
+# HANDOVER.md v4.0.3
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v4.0.2** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 系统版本: **v4.0.3** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
 - 测试: **181 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 110 条)
-- 关键指标: test macro-F1 **0.9059** | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0129 | 单条延迟 50ms / 批量 1.4ms/条
+- 关键指标: test macro-F1 **0.9059** | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0129 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
 - v4.0.0 布局: v2 冻结代码平铺于 `/v2/`（识别器/brand/eval + v2/tools/），v2 总线 = 根 `pipeline_v2.py`，legacy 测试在 `tests/legacy/`；HTTP 服务 = `serve.py`（FastAPI）
 - **v4.0.0 起 v3 不再 import 任何 v2 模块**（`v3/pipeline.py` 自包含；`classify_suffix` 在 `core/suffix_classify.py`）；仅 gate/seg_compare/badcase_eval 保留 legacy 基线对比 import（`v2.*`，属预期）
@@ -76,7 +76,7 @@ loc 引擎钩子: merge_orientation / strip_road_conjunction ("与X路"拆分) /
 ### 1.4 分类器
 
 - 训练: GBDT (max_iter=500, lr=0.08, leaves=63, l2=1.0) on 268 万样本 → CalibratedClassifierCV(FrozenEstimator, isotonic) 校准集=eval_train → 类别乘数+拒绝阈值在 val 按 macro-F1 标定
-- FastGBDT 原理: sklearn 逐树 Python 调用慢 (0.7ms×2000), 编译化为 numpy 数组批量遍历; **注意 sklearn 节点值已含 learning_rate (lr=1.0)**; 叶掩码防止提前到叶的行弹回根节点
+- FastGBDT 原理: sklearn 逐树 Python 调用慢 (0.7ms×2000), 编译化为 numpy 数组批量遍历; **注意 sklearn 节点值已含 learning_rate (lr=1.0)**; 叶掩码防止提前到叶的行弹回根节点; **v4.0.3 树间批量化**: 全部树 padding 统一节点数, (n_rows × n_trees) 同步遍历, 单条 50ms→2.1ms
 - 置信度: isotonic 校准, ECE=0.0129, 可直接作概率路由
 
 ## 2. 训练与词典管线
@@ -204,6 +204,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | 评测集标签噪声 ~13% | 程序清洗 + clean 子集双指标, 不人工修 | 用户决策 |
 | v1.6 自举 | 不做 | 已收敛 (v3.9.0 判断) |
 | POI 召回攻坚 D1-A 增强重训 | **回退** | 24K 真错误模式 POI 样本增强 (v3/augment_poi.py → final_train4) 重训后 val macro-F1 持平 (0.9050 vs 0.9052), 但 12 条真错误点查 0 翻转——残存误判是特征驱动 (专名含地名→geo_cov 抬升 + eval 标签 寺/景区→ADDR 倒挂), 非标签量不足。模型 artifacts 留存 models/clf_v3_poi.pkl 备查, baseline 不换 (v4.0.2) |
+| A 二期强 POI 后缀特征 | **回退** | d4_strong_poi/poi_d4_strong_poi 特征 (80维) 重训: val 0.9035 < 0.9052 未过门禁 + 0/12 翻转。eval 标签在后缀上倒挂, 加显式特征反而撞 test 噪声。features.py 回滚 78 维 (v4.0.3) |
+| macro-F1 提升路径 | 评测集标签治理, 非模型调参 | P2 逐类诊断: 四大迁移类 87% 是标签噪声+体系边界; 含噪口径可修复空间仅 ~1-2pt (v4_f1_error_audit.md) |
 | POI 纯净召回口径 | 分层化 | 57.5% = 与地图源标注一致率; 真边界 (机关/交叉口/楼栋门牌/自然地名) 剔除后有效召回 84.0~85.8% (v4_poi_recall_audit.md) |
 
 ## 7. 踩过的坑
@@ -240,6 +242,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 23. **迁移后的 import 漏检**: grep 只查了 `from loc./org./pipeline` 形态, 漏了 `from tools.eval_classify import` (被迁文件中的共享函数) — v3/train.py 重训时才炸。教训: 迁移后验收必须包含"全仓 py 文件 import 可解析性"检查, 不能只跑 tests (tests 不覆盖 train.py)
 24. **train.py 会覆盖 val_pred.csv**: 实验性重训 (--model 指向新文件) 也会覆盖 output/v3_feat/val_pred.csv, baseline 产物需事后用 baseline 模型重算恢复
 25. **POI 增强重训不翻转的原因**: 真错误是特征驱动 (geo_cov/d4 后缀倾向), 不是标签量不足; 0.9% 占比的增强样本推不动特征信号; 且 eval 标签本身倒挂 (寺 190 ADDR:52 POI)
+26. **fast_predict 逐树遍历才是真瓶颈**: v3.8.0 编译化后单条仍 50ms——逐树循环本身 (2000 树 × 25 次 numpy 小数组调用) 占 98%; 树间批量化 ((n×T) 同步遍历, padding 统一节点数) 后 2.1ms。教训: numpy 小数组调用开销 ~3µs/次, 循环 5 万次比纯 Python 还慢
+27. **实验重训必护 val_pred.csv**: train.py 无条件覆盖 output/v3_feat/val_pred.csv; A 一期/二期两次踩中, 均用 baseline 模型重算恢复 (v3/train.py 见踩坑 #24 同类)
 
 ## 8. 重建速查（从零到当前版）
 
