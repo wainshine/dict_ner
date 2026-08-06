@@ -6,7 +6,7 @@
 ## 0. 当前状态速览
 
 - 系统版本: **v4.1.1** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
-- 测试: **184 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 113 条)
+- 测试: **188 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 117 条)
 - 关键指标: test macro-F1 **0.9092** (v4.0.4 标签治理后口径) | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0149 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
 - v4.0.0 布局: v2 冻结代码平铺于 `/v2/`（识别器/brand/eval + v2/tools/），v2 总线 = 根 `pipeline_v2.py`，legacy 测试在 `tests/legacy/`；HTTP 服务 = `serve.py`（FastAPI）

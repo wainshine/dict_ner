@@ -129,5 +129,39 @@ class TestReSplit(unittest.TestCase):
             self.assertEqual(s.end, s.start + len(s.text))
 
 
+class TestRecognizeAPI(unittest.TestCase):
+    """v4.1.1 新增公开 API: recognize/recognize_simple (run.py rec/json/test 命令)"""
+    @classmethod
+    def setUpClass(cls):
+        cls.p = V3Pipeline()
+
+    def test_recognize_contract(self):
+        r = self.p.recognize("北京市朝阳区星巴克咖啡国贸店")
+        self.assertEqual(set(r.keys()), {"text", "loc", "org", "poi"})
+        self.assertTrue(r["loc"]["segments"])
+        self.assertTrue(r["org"]["segments"])
+        for s in r["org"]["segments"]:
+            self.assertIn(s["type"], ("PROVINCE", "CITY", "DISTRICT", "TOWN",
+                                      "VILLAGE", "BRAND", "INDUSTRY", "ORG_SUFFIX"))
+
+    def test_recognize_company_poi_none(self):
+        # 有公司后缀 → poi 视图为 None (与 v2 契约一致)
+        r = self.p.recognize("深圳市南山区华为技术有限公司")
+        self.assertIsNone(r["poi"])
+
+    def test_recognize_compound_resplit(self):
+        # 复合机构: 中部 ORG_SUFFIX 触发 _re_split_and_recognize
+        # (坐标连续性由 test_re_split_and_recognize 覆盖, to_dict 不含坐标)
+        r = self.p.recognize("中国工商银行股份有限公司北京分行")
+        joined = "".join(s["text"] for s in r["org"]["segments"])
+        self.assertEqual(joined, "中国工商银行股份有限公司北京分行")
+
+    def test_recognize_simple_format(self):
+        out = self.p.recognize_simple("北京市朝阳区星巴克咖啡国贸店")
+        self.assertIn("输入:", out)
+        self.assertIn("地名:", out)
+        self.assertIn("机构:", out)
+
+
 if __name__ == "__main__":
     unittest.main()

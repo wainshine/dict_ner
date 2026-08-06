@@ -18,7 +18,7 @@
 ```bash
 cd /Users/wainshine/newAI/dict_ner
 git status                                        # 应干净
-python3 -m unittest discover -s tests/            # 184 条全绿
+python3 -m unittest discover -s tests/            # 188 条全绿
 python3 run.py classify "深圳市南山区华为技术有限公司"   # → ORG (v3 默认入口)
 python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结规则链)
 ```
@@ -35,7 +35,7 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
 | `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv（原始地图语料已删有异地备份，见 HANDOVER §3.1） |
 | `output/` | 评估产物；`v3_feat/` 白名单制（只留 final_train6 + train/val/test_feats + val_pred，其余可再生） |
-| `tests/` | 184 条（tests/legacy/ 71 条 v2 锚定 + 根目录 113 条 v3/core/serve/metrics） |
+| `tests/` | 188 条（tests/legacy/ 71 条 v2 锚定 + 根目录 117 条 v3/core/serve/metrics） |
 | `audit/` | HANDOVER.md + 各代方案/审计报告 |
 
 ## 红线（违反即 reject）

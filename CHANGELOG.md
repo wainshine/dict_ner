@@ -11,6 +11,7 @@
 - **技术原理入文档**: HANDOVER 新增 §1.0 技术原理速览 (词典+Viterbi 切分 / GBDT 分类 / isotonic 校准 / numpy 编译化推理); README 架构节加通俗版一句话
 - **yiname/poi 前身项目补记** (目录已删, 凭会话记录重建): HANDOVER §6 加 v1 时代四模型路线废弃决策 (BERT/CRF/边界/无监督) + §3.1 血缘修正 (org16kw.csv/公司名input.txt 上游去向: 移动硬盘备份)
 - **HANDOVER §7 踩坑列表渲染修复**: 有序列表从 11./14./23. 起编导致 CommonMark 不渲染为列表, 改 `- **#N 标题**` 无序格式, 全局编号锚点保留 (CHANGELOG 有交叉引用)
+- **自审二轮修复**: README 输出示例同步为 v3 真实输出 (D3 切路由后示例未更新); `V3Pipeline.recognize/recognize_simple` 补 4 条契约测试 (184→188)
 
 ## v4.1.0 (2026-08-05) — v1.6.0 词典自举实验 (门禁未过, 回退留档)
 

@@ -2,7 +2,7 @@
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v4.1.1** | 词典: **v1.5.0**（四词典统一编号） | 测试: **184 条全绿**
+- 系统版本: **v4.1.1** | 词典: **v1.5.0**（四词典统一编号） | 测试: **188 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -43,8 +43,8 @@ python run.py info
 
 ```
 输入: 北京市朝阳区星巴克咖啡国贸店
-  地名: [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [POI]「星巴克咖啡国贸店」
-  机构: [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [BRAND]「星巴克」 | [INDUSTRY]「咖啡」 | [ORG_SUFFIX]「国贸店」
+  地名: [PROVINCE]「北京市」 | [DISTRICT]「朝阳区」 | [POI]「星巴克咖啡国贸店」
+  机构: [DISTRICT]「北京市朝阳区」 | [ORG_SUFFIX]「星巴克」 | [INDUSTRY]「咖啡」 | [BRAND]「国贸」 | [ORG_SUFFIX]「店」
   POI:  [CITY]「北京市」 | [DISTRICT]「朝阳区」 | [POI]「星巴克」 | [POI]「咖啡」 | [POI]「国贸店」
 ```
 
@@ -159,7 +159,7 @@ dict_ner/
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
 ├── tools/               v3 时代训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / pipeline_base)
 ├── audit/               HANDOVER.md + 各代审计/方案报告
-├── tests/               184 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 113 条 v3/core/serve/metrics)
+├── tests/               188 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 117 条 v3/core/serve/metrics)
 └── CHANGELOG.md         完整版本历史
 ```
 
@@ -199,7 +199,7 @@ python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v
 # 7. 门禁
 python3 v3/engine/gate.py --n 20000        # 引擎一致性
 python3 v3/seg_quality.py --engine org --n 200000 --v3
-python3 -m unittest discover -v -s tests/  # 184 全绿
+python3 -m unittest discover -v -s tests/  # 188 全绿
 ```
 
 ## 评估体系
@@ -222,7 +222,7 @@ python3 -m unittest discover -v -s tests/  # 184 全绿
 ```
 改词典 / 改引擎 / 改分类器
     │
-    ├─ python3 -m unittest discover -s tests/     → 184 全绿
+    ├─ python3 -m unittest discover -s tests/     → 188 全绿
     ├─ v3/seg_quality.py (三体系)                  → 段健康度不降
     ├─ v3/seg_compare.py (新旧全量对比)            → diff 逐类审查
     ├─ v3/evaluate.py --feats val_feats.csv       → val macro-F1 不降
@@ -251,7 +251,7 @@ python3 -m unittest discover -v -s tests/  # 184 全绿
 Python 3.10+。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
 
 ```bash
-python3 -m unittest discover -v -s tests/    # 184 条 (tests/legacy/ 71 + 根目录 113)
+python3 -m unittest discover -v -s tests/    # 188 条 (tests/legacy/ 71 + 根目录 117)
 ```
 
 ## 版本记录
