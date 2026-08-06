@@ -1,37 +1,40 @@
 #!/usr/bin/env python3
-"""dict_ner v4.1.0 — 中文地名/机构名/POI/品牌识别系统 CLI (默认 v3 模型)"""
+"""dict_ner v4.1.1 — 中文地名/机构名/POI/品牌识别系统 CLI (默认 v3 模型)"""
 import os, sys, json
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-VERSION = "v4.1.0"
+VERSION = "v4.1.1"
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
 from pipeline_v2 import DictNerPipeline
 
 
+def _v3_pipe():
+    from v3.pipeline import V3Pipeline
+    return V3Pipeline()
+
+
 def cmd_recognize(text: str):
-    pipe = DictNerPipeline()
+    pipe = _v3_pipe()
     print(pipe.recognize_simple(text))
 
 
 def cmd_json(text: str):
-    pipe = DictNerPipeline()
+    pipe = _v3_pipe()
     print(json.dumps(pipe.recognize(text), ensure_ascii=False, indent=2))
 
 
 def cmd_info():
-    pipe = DictNerPipeline()
+    from core.config import VERSION as DICT_VER
     print(f"dict_ner {VERSION}")
-    print(f"  地名:   dicts/{pipe.loc_version}.pkl")
-    print(f"  机构:   dicts/org_{pipe.org_version}.pkl")
-    print(f"  POI:    dicts/{pipe.poi_version}.pkl")
-    print(f"  品牌:   dicts/brand_{pipe.org_version}.pkl")
+    print(f"  词典:   {DICT_VER} (loc/org/poi/brand 统一编号)")
+    print(f"  模型:   models/clf_v3.pkl")
     print()
-    print(f"使用: python run.py recognize \"深圳市南山区华为技术有限公司\"")
-    print(f"      python run.py json \"北京市朝阳区星巴克咖啡\"")
-    print(f"      python run.py classify \"广东省卫健委\"")
+    print(f"使用: python run.py classify \"深圳市南山区华为技术有限公司\"   # v3 GBDT 分类 (默认)")
+    print(f"      python run.py recognize/json \"北京市朝阳区星巴克咖啡国贸店\"  # v3 段切分视图")
+    print(f"      python run.py v2 classify \"广东省卫健委\"   # v2 冻结规则链")
     print(f"      python run.py info")
 
 
@@ -91,7 +94,7 @@ def main():
             "峨眉山景区游客中心",
             "中国工商银行股份有限公司北京分行",
         ]
-        pipe = DictNerPipeline()
+        pipe = _v3_pipe()
         for t in tests:
             print(pipe.recognize_simple(t))
             print()

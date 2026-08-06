@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from core.config import VERSION as DICT_VERSION
 from v3.infer import V3Classifier
 
-SYSTEM_VERSION = "v4.1.0"
+SYSTEM_VERSION = "v4.1.1"
 
 _MANIFEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               "models", "manifest_v3.json")

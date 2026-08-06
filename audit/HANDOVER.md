@@ -1,11 +1,11 @@
-# HANDOVER.md v4.1.0
+# HANDOVER.md v4.1.1
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v4.1.0** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 系统版本: **v4.1.1** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
 - 测试: **184 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 113 条)
 - 关键指标: test macro-F1 **0.9092** (v4.0.4 标签治理后口径) | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0149 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
@@ -26,6 +26,16 @@
 3. **版本号一致**：三文档头部版本号与 `run.py VERSION`、`core/config.py VERSION` 保持一致；词典任一变更四词典版本号同升（统一版本政策）。
 
 ## 1. 系统框架
+
+### 1.0 技术原理速览（一段话版）
+
+系统不是端到端大模型，是**"传统 NLP 切分 + 机器学习分类"混合架构**：
+- **切分（无学习）**：词典 → Trie 树 + 词成本（IDF+长度惩罚）+ 转移代价表，**Viterbi 动态规划**找全局最优切分路径（与 jieba 同族）。知识全部在词典词频里，词频由语料自举统计产出（"自演化"）
+- **分类（机器学习）**：**GBDT 梯度提升树**（sklearn HistGradientBoosting，XGBoost/LightGBM 同族），500 树×4 类串行学残差；输入是 78 维手工特征（段类型计数/地理覆盖/后缀查表/亲和度/brand bigram 分），不看原始文本
+- **置信度**：isotonic 保序回归校准成真实概率（ECE 0.0149，可直接作概率路由）
+- **推理加速**：2000 棵树编译为 numpy 数组批量遍历（v3.8.0 编译化 + v4.0.3 树间批量化），单条 2.1ms
+
+一句话：**切分靠词典+Viterbi，分类靠 GBDT，置信度靠 isotonic 校准**。选型理由（为什么不用 BERT/CRF）见 §6 决策记录。
 
 ### 1.1 四层架构
 
@@ -133,8 +143,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | `兴趣点A(6500w)/T(7200w) input.txt` | GBK 纯名称 | 已删 (更早期清理) |
 | `地名A(7300w)/T(7200w) input.txt` | GBK 纯名称 | **已删 (v4.1.0)**; 副作用: `v2/eval.py` (冻结 LOC 采样评估器) 失效, v2 classify 运行时不受影响 |
 | `公司名input.txt` | GBK 5200万公司名 | 已删 (更早期清理); split/org_company 留存 |
-| `org_corpus.csv` | — | **不存在**（split/org chunks 是历史产物） |
-| `loc_corpus.csv` | — | **已删**（split/loc chunks 留存） |
+| `org_corpus.csv` | — | **不存在**（split/org chunks 是历史产物；上游 `org16kw.csv` 6GB 存于前身项目 yiname/poi——该目录 v4.1.0 已删，移动硬盘有备份） |
+| `loc_corpus.csv` | — | **已删**（split/loc chunks 留存；上游 loc3.6kw.csv 同 yiname/poi 处置） |
 
 ### 3.2 split 语料（训练/统计的唯一来源）
 
@@ -198,6 +208,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 | 事项 | 决策 | 理由 |
 |------|------|------|
+| v1 前身项目四模型路线 (yiname/poi, 2026-07 迁移 dict_ner 前, 交接文档已随目录删除) | **全部废弃** | BERT token 分类两次失败 (需人工标注, 没有); CRF 学规则伪标签无法超越规则; 边界逻辑回归 +0.4 分不显著; 无监督字符 bigram 转移 -2.5 分不如规则 → 确立"DP+词典自演化+GBDT"主路线; 其遗留待办"d2 品牌 bigram 模型"已在 dict_ner 完成 (brand train_from_d2_csv) |
 | 裸名歧义残留 (幸福/鑫源类中部位品牌词) | 暂缓, 分类器兜底 | 真镇名 vs 品牌词, 位置证据不可分; v4.1.0 seq_anomaly 量化: org 6.8%/poi 4.2%/loc 12.3% (段级), 分类指标不受影响; 修复候选 (尾部 bare 约束钩子) 留档 output/v4_seq_anomaly.md |
 | demote_bare_admin 段美化钩子 | **回退 (v4.1.0)** | 行政后置降级钩子段级效果显著 (org R2 -71%, low_freq_seq 4.4%→3.5%) 但分类器特征漂移: 不重训 -1.5pt / 重训 val 0.9047<0.9091。**段美观与分类指标不可兼得——组织段的行政信息被分类器有效利用 (分公司城市名等)。三次修复实验 (A一期/二期/demote) 同结论: val 门禁是硬约束, 段级问题分类器兜底的架构是有效的** |
 | 结构 badcase 清洗 (seq 单例/≥13段) | **不采纳 (v4.1.0)** | 训练池 1.21% (32,633 条) 结构可疑行剔除重训: val 0.9086<0.9091, test 持平 0.9092 → 结构噪声对分类器无可见收益 (GBDT 鲁棒 + CL 已洗标签)。badcase 清单留档 output/v4_train_badcase.csv 可用作切分质量审计样本源 |
@@ -220,41 +231,41 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 ## 7. 踩过的坑
 
 **v1 时代**：
-1. **macOS spawn 模式**: Pool 子进程必须独立 .py + `__name__` 包裹, 最稳方案是 bash `&` 16 进程后台
-2. **d444 temp 字段**: 不是质量分, 是 SQL 处理阶段标记, 不要用来过滤
-3. **体系循环**: loc/org/poi 三个系统的后缀词典各自演化, 互不混用
-4. **d111 注入**: 只能 fallback 时用, POI 用 dict_name 独立加载后必须跳过
-5. **POI dict_name vs version**: poi_chunk_stats.py 必须传 dict_name 而非 version, 否则加载 org 词典
-6. **suffix_segments_sql.csv 无法区分 ORG/POI**: org_ratio 衡量语料出现频率而非实体类型
-7. **道路名复合名**: "药王路与香山路"需拆分统计
-8. **单字符后缀缺失**: "店""馆"不在 SQL CSV (d4 要求 len≥2), 需手动补入
-9. **csv.field_size_limit**: 3 个 Gaode 文件超默认限制, 需设 100MB
-10. **Gaode 单文件 type 分布偏移**: 不能按文件均分采样, 需先扫描全量 type 分布再按比例采样
+- **#1 macOS spawn 模式**: Pool 子进程必须独立 .py + `__name__` 包裹, 最稳方案是 bash `&` 16 进程后台
+- **#2 d444 temp 字段**: 不是质量分, 是 SQL 处理阶段标记, 不要用来过滤
+- **#3 体系循环**: loc/org/poi 三个系统的后缀词典各自演化, 互不混用
+- **#4 d111 注入**: 只能 fallback 时用, POI 用 dict_name 独立加载后必须跳过
+- **#5 POI dict_name vs version**: poi_chunk_stats.py 必须传 dict_name 而非 version, 否则加载 org 词典
+- **#6 suffix_segments_sql.csv 无法区分 ORG/POI**: org_ratio 衡量语料出现频率而非实体类型
+- **#7 道路名复合名**: "药王路与香山路"需拆分统计
+- **#8 单字符后缀缺失**: "店""馆"不在 SQL CSV (d4 要求 len≥2), 需手动补入
+- **#9 csv.field_size_limit**: 3 个 Gaode 文件超默认限制, 需设 100MB
+- **#10 Gaode 单文件 type 分布偏移**: 不能按文件均分采样, 需先扫描全量 type 分布再按比例采样
 
 **v2 时代**：
-11. **d4∉SQL CSV → POI 规则**: "XX黄河路店"中"店"不在 SQL CSV → 地址信息嵌入名称 → 一定 POI
-12. **addr_affinity 的 loc_ratio 不能作 addr_score 基础分**: 短地址前缀在 org 语料高频 ("深圳市" loc_ratio=0.00), 只能 boost
-13. **gov seed 注入用 max 而非 not in**: 13 个已有但低频的 gov 后缀需提升到 50000
+- **#11 d4∉SQL CSV → POI 规则**: "XX黄河路店"中"店"不在 SQL CSV → 地址信息嵌入名称 → 一定 POI
+- **#12 addr_affinity 的 loc_ratio 不能作 addr_score 基础分**: 短地址前缀在 org 语料高频 ("深圳市" loc_ratio=0.00), 只能 boost
+- **#13 gov seed 注入用 max 而非 not in**: 13 个已有但低频的 gov 后缀需提升到 50000
 
 **v3 时代**：
-14. **sklearn HistGBDT 单条预测极慢**: 2000 树逐树 Python 调用 (~0.7ms×2000), 批量也按树计; 解法是 fast_predict.py 编译化。**节点值已含 learning_rate, 勿重复乘**
-15. **树遍历叶掩码**: 提前到叶子的行继续循环会被 left/right=0 弹回根节点
-16. **eval split 追加 UNKNOWN 后**: split 文件已含新增行, 特征文件再追加会重复计数
-17. **`open(p,'w').write(open(p).read())`**: 先截断后读取 → 文件清空 (config.py 中招, git 恢复)
-18. **F2 误杀回补范围**: 初版未限"仅 loc>org 误杀"导致 2,051 条过度回补, 必须 loc>org 且 org≥5000 且 ratio<15
-19. **F3 数字清理白名单**: 4S店/2元店/1号店是合法后缀, 不能一刀切
-20. **多进程 + OpenMP 过订阅**: 16 进程 × numpy 多线程互相拖慢 (47min 假象), 测量延迟前先杀干净后台 worker
-21. **bare 注入 vs d4 的 Trie 碰撞**: 5000-freq 裸名 TOWN 按行政优先级压掉 47 万 freq 的 d4 POI — bare 注入必须跳过 d4 词
-22. **聚合器 d4 质量规则误杀复合后缀**: 广场/商场 loc>org 被杀 → "广/商"裸奔碎片, 需白名单回补
+- **#14 sklearn HistGBDT 单条预测极慢**: 2000 树逐树 Python 调用 (~0.7ms×2000), 批量也按树计; 解法是 fast_predict.py 编译化。**节点值已含 learning_rate, 勿重复乘**
+- **#15 树遍历叶掩码**: 提前到叶子的行继续循环会被 left/right=0 弹回根节点
+- **#16 eval split 追加 UNKNOWN 后**: split 文件已含新增行, 特征文件再追加会重复计数
+- **#17 `open(p,'w').write(open(p).read())`**: 先截断后读取 → 文件清空 (config.py 中招, git 恢复)
+- **#18 F2 误杀回补范围**: 初版未限"仅 loc>org 误杀"导致 2,051 条过度回补, 必须 loc>org 且 org≥5000 且 ratio<15
+- **#19 F3 数字清理白名单**: 4S店/2元店/1号店是合法后缀, 不能一刀切
+- **#20 多进程 + OpenMP 过订阅**: 16 进程 × numpy 多线程互相拖慢 (47min 假象), 测量延迟前先杀干净后台 worker
+- **#21 bare 注入 vs d4 的 Trie 碰撞**: 5000-freq 裸名 TOWN 按行政优先级压掉 47 万 freq 的 d4 POI — bare 注入必须跳过 d4 词
+- **#22 聚合器 d4 质量规则误杀复合后缀**: 广场/商场 loc>org 被杀 → "广/商"裸奔碎片, 需白名单回补
 
 **v4 时代**：
-23. **迁移后的 import 漏检**: grep 只查了 `from loc./org./pipeline` 形态, 漏了 `from tools.eval_classify import` (被迁文件中的共享函数) — v3/train.py 重训时才炸。教训: 迁移后验收必须包含"全仓 py 文件 import 可解析性"检查, 不能只跑 tests (tests 不覆盖 train.py)
-24. **train.py 会覆盖 val_pred.csv**: 实验性重训 (--model 指向新文件) 也会覆盖 output/v3_feat/val_pred.csv, baseline 产物需事后用 baseline 模型重算恢复
-25. **POI 增强重训不翻转的原因**: 真错误是特征驱动 (geo_cov/d4 后缀倾向), 不是标签量不足; 0.9% 占比的增强样本推不动特征信号; 且 eval 标签本身倒挂 (寺 190 ADDR:52 POI)
-26. **fast_predict 逐树遍历才是真瓶颈**: v3.8.0 编译化后单条仍 50ms——逐树循环本身 (2000 树 × 25 次 numpy 小数组调用) 占 98%; 树间批量化 ((n×T) 同步遍历, padding 统一节点数) 后 2.1ms。教训: numpy 小数组调用开销 ~3µs/次, 循环 5 万次比纯 Python 还慢
-27. **实验重训必护 val_pred.csv**: train.py 无条件覆盖 output/v3_feat/val_pred.csv; A 一期/二期两次踩中, 均用 baseline 模型重算恢复 (v3/train.py 见踩坑 #24 同类)
-28. **引擎改动必须同步重训验证**: demote 钩子只改段类型, 不重训直接 -1.5pt (特征分布漂移)——任何引擎/段行为变更, 评估必须走"重算特征+重训+val 门禁"全链, 不能拿旧模型测新特征下结论也不能拿新特征配旧模型上线
-29. **bare 碰撞词不一定是 bare 注入**: 低频排行榜显示惠民/石屏/古城等碰撞词是真实区县名 (d1 真实词频), freq==5000 注入标记识别不到; 位置 (非头部/行政后置) 才是可靠判据——但位置判据又误伤分公司城市名 (见决策记录 demote 回退)
+- **#23 迁移后的 import 漏检**: grep 只查了 `from loc./org./pipeline` 形态, 漏了 `from tools.eval_classify import` (被迁文件中的共享函数) — v3/train.py 重训时才炸。教训: 迁移后验收必须包含"全仓 py 文件 import 可解析性"检查, 不能只跑 tests (tests 不覆盖 train.py)
+- **#24 train.py 会覆盖 val_pred.csv**: 实验性重训 (--model 指向新文件) 也会覆盖 output/v3_feat/val_pred.csv, baseline 产物需事后用 baseline 模型重算恢复
+- **#25 POI 增强重训不翻转的原因**: 真错误是特征驱动 (geo_cov/d4 后缀倾向), 不是标签量不足; 0.9% 占比的增强样本推不动特征信号; 且 eval 标签本身倒挂 (寺 190 ADDR:52 POI)
+- **#26 fast_predict 逐树遍历才是真瓶颈**: v3.8.0 编译化后单条仍 50ms——逐树循环本身 (2000 树 × 25 次 numpy 小数组调用) 占 98%; 树间批量化 ((n×T) 同步遍历, padding 统一节点数) 后 2.1ms。教训: numpy 小数组调用开销 ~3µs/次, 循环 5 万次比纯 Python 还慢
+- **#27 实验重训必护 val_pred.csv**: train.py 无条件覆盖 output/v3_feat/val_pred.csv; A 一期/二期两次踩中, 均用 baseline 模型重算恢复 (v3/train.py 见踩坑 #24 同类)
+- **#28 引擎改动必须同步重训验证**: demote 钩子只改段类型, 不重训直接 -1.5pt (特征分布漂移)——任何引擎/段行为变更, 评估必须走"重算特征+重训+val 门禁"全链, 不能拿旧模型测新特征下结论也不能拿新特征配旧模型上线
+- **#29 bare 碰撞词不一定是 bare 注入**: 低频排行榜显示惠民/石屏/古城等碰撞词是真实区县名 (d1 真实词频), freq==5000 注入标记识别不到; 位置 (非头部/行政后置) 才是可靠判据——但位置判据又误伤分公司城市名 (见决策记录 demote 回退)
 
 ## 8. 重建速查（从零到当前版）
 

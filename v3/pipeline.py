@@ -168,3 +168,36 @@ class V3Pipeline:
             s.start = 0 if i == 0 else merged[i - 1].end
             s.end = s.start + len(s.text)
         return AddressResult(original=text, segments=merged)
+
+    def recognize(self, text: str):
+        """三体系段切分视图 (与 v2 pipeline.recognize 输出契约一致)"""
+        text = text.strip()
+        loc_result = self.loc.recognize(text)
+        org_result = self._remap_org_segments(self.org.recognize(text))
+        org_result.segments = self._merge_over_split(org_result.segments)
+        split_pos = self._detect_compound(org_result.segments)
+        if split_pos is not None:
+            org_result = self._re_split_and_recognize(text, split_pos)
+
+        is_company = self._has_company_suffix(org_result)
+        poi_result = None if is_company else self.poi.recognize(text)
+
+        return {
+            "text": text,
+            "loc": loc_result.to_dict(),
+            "org": org_result.to_dict(),
+            "poi": poi_result.to_dict() if poi_result else None,
+        }
+
+    def recognize_simple(self, text: str):
+        """Simple segment output for CLI display."""
+        r = self.recognize(text)
+        lines = [f"输入: {r['text']}"]
+        for label, key in [("地名", "loc"), ("机构", "org"), ("POI", "poi")]:
+            if r[key] and r[key].get("segments"):
+                segs = " | ".join(
+                    f"[{s['type']}]「{s['text']}」"
+                    for s in r[key]["segments"]
+                )
+                lines.append(f"  {label}: {segs}")
+        return "\n".join(lines)
