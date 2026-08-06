@@ -1,12 +1,12 @@
-# HANDOVER.md v4.0.4
+# HANDOVER.md v4.1.0
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v4.0.4** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
-- 测试: **181 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 110 条)
+- 系统版本: **v4.1.0** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 测试: **184 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 113 条)
 - 关键指标: test macro-F1 **0.9092** (v4.0.4 标签治理后口径) | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0149 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
 - v4.0.0 布局: v2 冻结代码平铺于 `/v2/`（识别器/brand/eval + v2/tools/），v2 总线 = 根 `pipeline_v2.py`，legacy 测试在 `tests/legacy/`；HTTP 服务 = `serve.py`（FastAPI）
@@ -86,6 +86,8 @@ loc 引擎钩子: merge_orientation / strip_road_conjunction ("与X路"拆分) /
 ```
 v3/sample_pool.py     Gaode 2M + Tencent 1M 弱标注采样 (按 type 分布, 剔 val/test 文本防泄漏)
                       → data/v3_train_pool.csv (270万)
+                      ⚠️ v4.1.0 起原始语料已删 (异地备份): sample_pool/sample_unknown/
+                      build_eval_set/scripts/* 重跑需先恢复备份; 衍生产物均在库可直接用
 v3/precompute.py all  16进程特征预计算 → output/v3_feat/pool_feats.csv
 v3/labels.py          3-fold CV confident learning (--drop-org 0.55 --drop-poi 0.55
                       --drop-addr 0.65 --flip 0.9) → pool_feats_clean2.csv
@@ -126,11 +128,11 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 | 数据 | 规模 | 状态 |
 |------|------|------|
-| `data/高德amap/` | 67 文件 11GB GBK 6450万行 | 在 |
-| `data/腾讯地图/` | 345 文件 7.5GB GBK 7200万行 | 在 |
-| `兴趣点A(6500w)/T(7200w) input.txt` | GBK 纯名称 | 在（poi 语料源） |
-| `地名A(7300w)/T(7200w) input.txt` | GBK 纯名称 | 在（loc 语料源） |
-| `公司名input.txt` | GBK 5200万公司名 | 在（org_company 源） |
+| `data/高德amap/` | 67 文件 11GB GBK 6450万行 | **已删 (v4.1.0 磁盘治理, 有异地备份)**; 衍生产物 eval_set/pool/splits 全留存 |
+| `data/腾讯地图/` | 345 文件 7.5GB GBK 7200万行 | **已删 (同上)** |
+| `兴趣点A(6500w)/T(7200w) input.txt` | GBK 纯名称 | 已删 (更早期清理) |
+| `地名A(7300w)/T(7200w) input.txt` | GBK 纯名称 | **已删 (v4.1.0)**; 副作用: `v2/eval.py` (冻结 LOC 采样评估器) 失效, v2 classify 运行时不受影响 |
+| `公司名input.txt` | GBK 5200万公司名 | 已删 (更早期清理); split/org_company 留存 |
 | `org_corpus.csv` | — | **不存在**（split/org chunks 是历史产物） |
 | `loc_corpus.csv` | — | **已删**（split/loc chunks 留存） |
 
@@ -162,7 +164,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 |------|------|-------:|
 | 含噪标签 macro-F1 | `v3/evaluate.py` | test 0.9092 (v4.0.4 标签治理后口径; 旧口径 0.9059) |
 | clean 子集 accuracy | `v3/clean_eval.py` | 0.9919（查表确认标签, ~31% 子集） |
-| 纯净集召回 | `v3/pure_eval.py` | ORG 73.9% / POI 57.5%（语义边界, 详见报告解读） |
+| 纯净集召回 | `v3/pure_eval.py` | ORG 74.4% / POI 58.3%（语义边界, 详见报告解读） |
 | 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **84.0~85.8%** / ORG ≈100%（v4.0.1 新增, 规则见 v3/poi_recall_audit.py） |
 | 置信度 | `v3/calibration_audit.py` | ECE 0.0129 |
 
@@ -178,9 +180,10 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 ### 4.3 磁盘治理
 
-- `output/*_eval/*` 只保留 `_stats.json` + `chunk_00.jsonl`（评估完成后 JSONL 15/16 清理，可再生）
-- `output/v3_feat/chunks|feats` 临时分片可删；`*_feats.csv` 主文件保留
-- `dicts/iter_vX/` 只留最新一代
+- `output/*_eval/*` 只保留 `_stats.json`（v4.1.0 起 JSONL 全清——chunk_00.jsonl 单个可达 3.1GB，eval_cut.py 可再生）
+- `output/v3_feat/chunks|feats` 临时分片可删；只留现役 `final_train6.csv` + `train/val/test_feats.csv`（pool_feats/final_train3 等历史特征文件 v4.1.0 已清，可由 `data/v3_train_pool.csv` 重算再生）
+- `dicts/iter_vX/` 只留最新一代（现役 iter_v1.5.0；iter_v1.2.x v4.1.0 已清，iter_v1.6.0 实验结束后已清）
+- v4.1.0 大清理 (~42GB)：原始语料（高德/腾讯/地名 input）删除有异地备份；v2 评测快照 json 删除；被否实验模型一律不留（数字记档即可）
 
 ## 5. 治理规则（红线）
 
@@ -195,7 +198,9 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 | 事项 | 决策 | 理由 |
 |------|------|------|
-| 裸名歧义残留 (幸福/鑫源类中部位品牌词) | 暂缓, 分类器兜底 | 真镇名 vs 品牌词, 位置证据不可分; 影响 ~0.1% org 语料 |
+| 裸名歧义残留 (幸福/鑫源类中部位品牌词) | 暂缓, 分类器兜底 | 真镇名 vs 品牌词, 位置证据不可分; v4.1.0 seq_anomaly 量化: org 6.8%/poi 4.2%/loc 12.3% (段级), 分类指标不受影响; 修复候选 (尾部 bare 约束钩子) 留档 output/v4_seq_anomaly.md |
+| demote_bare_admin 段美化钩子 | **回退 (v4.1.0)** | 行政后置降级钩子段级效果显著 (org R2 -71%, low_freq_seq 4.4%→3.5%) 但分类器特征漂移: 不重训 -1.5pt / 重训 val 0.9047<0.9091。**段美观与分类指标不可兼得——组织段的行政信息被分类器有效利用 (分公司城市名等)。三次修复实验 (A一期/二期/demote) 同结论: val 门禁是硬约束, 段级问题分类器兜底的架构是有效的** |
+| 结构 badcase 清洗 (seq 单例/≥13段) | **不采纳 (v4.1.0)** | 训练池 1.21% (32,633 条) 结构可疑行剔除重训: val 0.9086<0.9091, test 持平 0.9092 → 结构噪声对分类器无可见收益 (GBDT 鲁棒 + CL 已洗标签)。badcase 清单留档 output/v4_train_badcase.csv 可用作切分质量审计样本源 |
 | R2 转移代价学习 | 回退 | D0 调研确认全文本金标准不存在 (audit/v4.0_d0_findings.md) |
 | LOC 村委会复合词 (VILLAGE 25.4万) | **保留** | 地址语境中"XX村委会"指地点; ORG 语境才是机构 (v1.4.2 已删 ORG 侧) |
 | org_company 5200万 | 仅作评测集 | 用户决策, 不并入 org stats |
@@ -208,6 +213,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | macro-F1 提升路径 | 评测集标签治理, 非模型调参 | P2 逐类诊断: 四大迁移类 87% 是标签噪声+体系边界; 含噪口径可修复空间仅 ~1-2pt (v4_f1_error_audit.md) |
 | eval 标签治理 | **采纳 (v4.0.4)** | 两条错误映射修正 (tencent休闲娱乐→POI; gaode风景名胜点位后缀→POI), 三 split 1,846 条 + pool 13,126 条, `.bak_v1` 备份; 重训 val +0.0037 过门禁, baseline 更换 (旧模型归档 clf_v3_baseline_v39.pkl) |
 | eval 集重建注意 | splits 无 type_orig 列 | type_orig 只在 eval_set.csv/feats CSV; 关联用 text join; UNKNOWN 扩充行 (室内设施) 不在 eval_set, join 会 miss ~7K 属正常 |
+| 标签治理二轮 | **不动 (v4.0.5)** | gaode商务住宅/tencent建筑房产→ADDR 样本审查正确 (小区/楼栋); 公司企业→ORG 个体户残留无 t2 可分, 属体系边界。eval 标签治理收敛 |
+| v1.6.0 词典自举 | **回退留档 (v4.1.0)** | 推翻 v3.9.0 不做决策执行全链验证: stats 重切→bake→四词典产出; seg_quality 持平但 seg_compare org BRAND 碎化 (+6.5K/20万); 重训 val 0.9056 < 0.9091 未过门禁 → 生产保持 v1.5.0。**结论: v3.9.0 收敛判断正确, 自举正式关闭**。artifacts: dicts/*v1.6.0.pkl + models/clf_v3_v160.pkl + dicts/iter_v1.6.0/ |
 | POI 纯净召回口径 | 分层化 | 57.5% = 与地图源标注一致率; 真边界 (机关/交叉口/楼栋门牌/自然地名) 剔除后有效召回 84.0~85.8% (v4_poi_recall_audit.md) |
 
 ## 7. 踩过的坑
@@ -246,6 +253,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 25. **POI 增强重训不翻转的原因**: 真错误是特征驱动 (geo_cov/d4 后缀倾向), 不是标签量不足; 0.9% 占比的增强样本推不动特征信号; 且 eval 标签本身倒挂 (寺 190 ADDR:52 POI)
 26. **fast_predict 逐树遍历才是真瓶颈**: v3.8.0 编译化后单条仍 50ms——逐树循环本身 (2000 树 × 25 次 numpy 小数组调用) 占 98%; 树间批量化 ((n×T) 同步遍历, padding 统一节点数) 后 2.1ms。教训: numpy 小数组调用开销 ~3µs/次, 循环 5 万次比纯 Python 还慢
 27. **实验重训必护 val_pred.csv**: train.py 无条件覆盖 output/v3_feat/val_pred.csv; A 一期/二期两次踩中, 均用 baseline 模型重算恢复 (v3/train.py 见踩坑 #24 同类)
+28. **引擎改动必须同步重训验证**: demote 钩子只改段类型, 不重训直接 -1.5pt (特征分布漂移)——任何引擎/段行为变更, 评估必须走"重算特征+重训+val 门禁"全链, 不能拿旧模型测新特征下结论也不能拿新特征配旧模型上线
+29. **bare 碰撞词不一定是 bare 注入**: 低频排行榜显示惠民/石屏/古城等碰撞词是真实区县名 (d1 真实词频), freq==5000 注入标记识别不到; 位置 (非头部/行政后置) 才是可靠判据——但位置判据又误伤分公司城市名 (见决策记录 demote 回退)
 
 ## 8. 重建速查（从零到当前版）
 
@@ -262,6 +271,8 @@ python3 tools/patch_v142.py --src-v v1.5.0 --dst-v v1.5.0
 # loc/brand 见 §2.2 第 4/5 步
 
 # 分类器 (详见 §2.1)
+# ⚠️ 首行 sample_pool/sample_unknown 需原始地图语料 (v4.1.0 已删, 从异地备份恢复后重跑);
+#    跳过采样直接用库内 data/v3_train_pool.csv + eval splits 即可
 python3 v3/sample_pool.py && python3 v3/synth_unknown.py && python3 v3/sample_unknown.py
 python3 v3/make_split.py
 python3 v3/precompute.py all <输入> <输出>   # ×6 (pool/train/val/test/unknown_*)

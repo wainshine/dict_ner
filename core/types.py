@@ -109,6 +109,7 @@ class AddressSegment:
     end: int
     confidence: float = 1.0
     poi_type: Optional[str] = None
+    freq: int = 0
 
     @property
     def length(self) -> int:

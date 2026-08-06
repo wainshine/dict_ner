@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-- 系统版本 **v4.0.4** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
+- 系统版本 **v4.1.0** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
 - 指标：test macro-F1 0.9092 | clean accuracy 0.9919 | ECE 0.0149 | 单条 2.1ms / 批量 1.9ms/条
 - 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）+ fastapi/uvicorn（仅 serve.py）
 - v4.0.0：v2 代码已迁 `/v2/`（平铺）+ 根 `pipeline_v2.py`；v3 不再 import 任何 v2 模块；HTTP 服务 `serve.py`
@@ -18,7 +18,7 @@
 ```bash
 cd /Users/wainshine/newAI/dict_ner
 git status                                        # 应干净
-python3 -m unittest discover -s tests/            # 181 条全绿
+python3 -m unittest discover -s tests/            # 184 条全绿
 python3 run.py classify "深圳市南山区华为技术有限公司"   # → ORG (v3 默认入口)
 python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结规则链)
 ```
@@ -33,9 +33,9 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 | `serve.py` | FastAPI 服务：POST /classify /classify_batch、GET /health；压测见 output/v4_serve_bench.md |
 | `models/` | clf_v3.pkl（GBDT+校准+乘数）+ manifest；clf_v3_compact.pkl（备选小模型） |
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
-| `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv、高德amap/腾讯地图（GBK 大文件） |
-| `output/` | 评估产物；`v3_feat/` 特征中间体（`*_feats.csv` 主文件留，chunks/feats 分片可删可再生） |
-| `tests/` | 181 条（tests/legacy/ 71 条 v2 锚定 + 根目录 110 条 v3/core/serve） |
+| `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv（原始地图语料已删有异地备份，见 HANDOVER §3.1） |
+| `output/` | 评估产物；`v3_feat/` 白名单制（只留 final_train6 + train/val/test_feats + val_pred，其余可再生） |
+| `tests/` | 184 条（tests/legacy/ 71 条 v2 锚定 + 根目录 113 条 v3/core/serve/metrics） |
 | `audit/` | HANDOVER.md + 各代方案/审计报告 |
 
 ## 红线（违反即 reject）
@@ -69,6 +69,6 @@ python3 v3/pure_eval.py report                             # 纯净召回+有效
 uvicorn serve:app --port 8000 --workers 4                  # FastAPI 生产服务
 ```
 
-## 下轮任务（v4.1.0 候选）
+## 下轮任务
 
-serve.py 压测已留档（单 worker 受 GIL 限制）；可选：pip 包化 pyproject.toml、多 worker 压测、Docker 化。
+项目进入维护期。已关闭的方向：v1.6 词典自举（v4.1.0 验证回退，收敛确认）、eval 标签治理（v4.0.4/4.0.5 收敛）、模型侧 macro-F1（标签噪声天花板，v4_f1_error_audit.md）。可选遗留：pip 包化 pyproject.toml、多 worker 压测、Docker 化（用户暂缓）。

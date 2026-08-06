@@ -3,6 +3,29 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.1.0 (2026-08-05) — v1.6.0 词典自举实验 (门禁未过, 回退留档)
+
+推翻 v3.9.0「v1.6 不做」决策做了一轮完整自举验证（用户拍板：现役引擎多了 adjudicate_town 钩子，值得验证）。**结论：原判断正确，已收敛**。生产保持词典 v1.5.0 + 模型 clf_v3.pkl (v4.0-labelfix)。
+
+- **全链执行**: stats 重切 (STATS_VERSION=v1.5.0 现役引擎, 7min) → aggregate → poi_prune (move=0, 进一步收敛证据) → patch_v141/v142 → bake (bare 注入 11,052 条) → loc 内容拷贝 (v1.5.0==v1.4.3 已实证) → brand 重训 → 四词典 v1.6.0 产出
+- **段级门禁**: seg_quality 三体系持平 (org 后缀 97.85%/addr 98.54%/末段 97.79%); seg_compare 抽样 20万: org diff 7.04% (BRAND +6.5K 碎化方向, 20/30 样例段变多) / poi 1.52%
+- **分类器门禁未过**: v1.6.0 特征重算 + 重训 → val macro-F1 0.9056 < 0.9091 (v1.5.0 基线), test 0.9071 < 0.9092 → **回退**。v1.6.0 词典/模型/iter 全部留档 (dicts/*v1.6.0.pkl, models/clf_v3_v160.pkl, dicts/iter_v1.6.0/)
+- **工具改进**: stats_launch_v3.py 输出目录 DICT_VERSION 参数化; seg_compare 新增 v150_vs_v160 模式; loc_build 链确认无 loc_corpus.csv 依赖 (走 split/loc chunks)
+- **新增 `v3/seq_anomaly.py`** (结构异常挖掘: 行政逆序 R1/行政后置 R2 × 低频): 三体系 20万抽样扫描 → output/v4_seq_anomaly.md。全部异常同属**裸名碰撞家族** (bare 注入单义化的系统代价): org 6.8%/poi 4.2%/loc 12.3% 段级影响, 分类兜底不受影响; 修复候选 (尾部 bare 约束钩子) 留档未实施
+- **全量低频挖掘 `v3/lowfreq_mine.py`** (2.4亿条全量 seq 频次 + 模式聚类 + 词级排行榜, ~20min): output/v4_lowfreq_{org,poi,loc}.md。低频 (≤3) 序列: org 16.5万种/0.14%、poi 13万种、loc 27万种; 排行榜证实主异常族=真区划词品牌碰撞 (惠民/石屏/古城 有真实 d1 词频, 非 bare 5000 注入)
+- **demote_bare_admin 钩子实验 (回退)**: 行政后置降级钩子 (org R2 -71%/poi -30%, low_freq_seq 4.4%→3.5%, 段美观显著改善) 但分类器特征分布漂移: 不重训 -1.5pt, 重训后 val 0.9047 < 0.9091 仍未过门禁 → **段美观与分类指标不可兼得, 回退**。AddressSegment.freq 字段保留 (零差异基础设施); 实验 artifacts 已清理
+- **结构 badcase 实验 (回退, badcase 留档)**: `v3/struct_badcase.py` 从训练池提取 seq 全池单例 + 段数≥13 的行 **32,633 条 (1.21%)** → output/v4_train_badcase.csv 永久保留; 剔除后重训 val 0.9086 < 0.9091 / test 0.9092 持平 → 结构噪声清洗对分类器无可见收益, 不采纳
+- **死分支清理**: iter_v1.6.0/ (2.5GB) + clf_v3_v160/clf_v3_poi 被否模型 + augment 实验产物删除; v1.6.0 四词典 pkl 保留作证伪留档
+- **磁盘大治理 (~42GB)**: 原始语料删除 (高德amap 11G/腾讯 7.5G/地名 input 1.7G, 有异地备份; 副作用 v2/eval.py 失效已记档 HANDOVER §3.1); v2 时代 output/*_eval JSONL 全清 (13.4G, 留 stats); dicts/iter_v1.2.x (5G) 删除; 历史特征文件 (final_train3/pool_feats) 删除可再生; v2 评测快照 json 删除。验收: 181 tests 绿 + 双 CLI + badcase_eval 引用完好
+- **系统性自审修复**: 4 处文档 stale 引用修正 (AGENTS/README 文件地图、HANDOVER 重建链加"原始语料已删需备份恢复"注记); 补 tests/test_metrics.py 3 条 (181→184); 代码层全量核查 (import 解析/运行时文件存在性/AddressSegment.freq 兼容性/钩子等价回退) 无 bug
+
+## v4.0.5 (2026-08-05) — 纯净集刷新 + 标签治理二轮审查 (结论: 不动)
+
+无代码/模型/词典变更。指标口径刷新与审计记档。
+
+- **pure_eval 新 baseline 刷新**: ORG 纯净召回 73.9%→**74.4%** (有效 ≈100%); POI 57.5%→**58.3%**, 有效召回 84.0~85.8%→**85.5~87.3%**。标签治理无回退, 两纯净集均小幅提升
+- **标签治理二轮审查 (不动)**: gaode商务住宅→ADDR (649 test, 小区/楼栋/门牌正确)、tencent建筑房产→ADDR (657, 全楼栋正确)、公司企业→ORG 个体户残留 (无 t2 类型可分, 属体系边界) — 三个候选映射均不改。至此 eval 标签治理收敛
+
 ## v4.0.4 (2026-08-05) — eval 标签治理 + 重训采纳 (test 0.9062→0.9092 同口径)
 
 P2 诊断指出的唯一提升路径落地。词典未动；**eval 三 split 标签修正（基准变更，双口径留档）**。

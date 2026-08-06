@@ -22,7 +22,8 @@ def run(system):
     mode = sys.argv[3] if len(sys.argv) > 3 else "legacy_vs_v130"
     os.makedirs(OUT_DIR, exist_ok=True)
     worker = os.path.join(BASE, "v3", "seg_compare_worker.py")
-    suffix = {"v130_vs_v140": "_v140", "v143_vs_v150": "_v150"}.get(mode, "")
+    suffix = {"v130_vs_v140": "_v140", "v143_vs_v150": "_v150",
+              "v150_vs_v160": "_v160"}.get(mode, "")
     procs = []
     for i in range(NUM_CHUNKS):
         chunk = os.path.join(DATA, "split", system, f"chunk_{i:02d}.csv")

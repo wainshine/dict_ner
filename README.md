@@ -1,8 +1,8 @@
-# dict_ner v4.0.4
+# dict_ner v4.1.0
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v4.0.4** | 词典: **v1.5.0**（四词典统一编号） | 测试: **181 条全绿**
+- 系统版本: **v4.1.0** | 词典: **v1.5.0**（四词典统一编号） | 测试: **184 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -111,8 +111,8 @@ python run.py info
 | 视角 | 值 | 说明 |
 |------|---|------|
 | clean 子集 accuracy | **0.9919** | 查表确认标签的子集 (近真实上限; 含噪标签占 ~13%) |
-| ORG 纯净召回 | 73.9% (有效 ≈100%) | org_company 5200万公司名抽样100万; "误判"为个体户门店 (语义边界) |
-| POI 纯净召回 | 57.5% (有效 **84~86%**) | split/poi 4000万抽样100万; 真边界剔除后口径见 output/v4_poi_recall_audit.md |
+| ORG 纯净召回 | 74.4% (有效 ≈100%) | org_company 5200万公司名抽样100万; "误判"为个体户门店 (语义边界) |
+| POI 纯净召回 | 58.3% (有效 **85.5~87.3%**) | split/poi 4000万抽样100万; 真边界剔除后口径见 output/v4_poi_recall_audit.md |
 | 置信度校准 | ECE=0.0149 | confidence 可直接作概率路由 |
 
 ### 段健康度 (20万样本, `v3/seg_quality.py`)
@@ -153,11 +153,11 @@ dict_ner/
 ├── serve.py             FastAPI 服务 (POST /classify /classify_batch, GET /health)
 ├── models/              GBDT 模型 (clf_v3.pkl + manifest)
 ├── dicts/               词典 (v1.5.0 当前 + 历史版本 + export/ 审计表 + iter_v1.5.0/ 统计中间产物)
-├── data/                语料与切分 (split/ 四套语料, SQL 三表, eval splits, Gaode/腾讯原始数据)
+├── data/                语料与切分 (split/ 四套语料, SQL 三表, eval splits; 原始地图语料已删有备份)
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
 ├── tools/               v3 时代训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / pipeline_base)
 ├── audit/               HANDOVER.md + 各代审计/方案报告
-├── tests/               181 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 110 条 v3/core/serve)
+├── tests/               184 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 113 条 v3/core/serve/metrics)
 └── CHANGELOG.md         完整版本历史
 ```
 
@@ -197,7 +197,7 @@ python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v
 # 7. 门禁
 python3 v3/engine/gate.py --n 20000        # 引擎一致性
 python3 v3/seg_quality.py --engine org --n 200000 --v3
-python3 -m unittest discover -v -s tests/  # 181 全绿
+python3 -m unittest discover -v -s tests/  # 184 全绿
 ```
 
 ## 评估体系
@@ -220,7 +220,7 @@ python3 -m unittest discover -v -s tests/  # 181 全绿
 ```
 改词典 / 改引擎 / 改分类器
     │
-    ├─ python3 -m unittest discover -s tests/     → 181 全绿
+    ├─ python3 -m unittest discover -s tests/     → 184 全绿
     ├─ v3/seg_quality.py (三体系)                  → 段健康度不降
     ├─ v3/seg_compare.py (新旧全量对比)            → diff 逐类审查
     ├─ v3/evaluate.py --feats val_feats.csv       → val macro-F1 不降
@@ -249,7 +249,7 @@ python3 -m unittest discover -v -s tests/  # 181 全绿
 Python 3.10+。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
 
 ```bash
-python3 -m unittest discover -v -s tests/    # 181 条 (tests/legacy/ 71 + 根目录 110)
+python3 -m unittest discover -v -s tests/    # 184 条 (tests/legacy/ 71 + 根目录 113)
 ```
 
 ## 版本记录
@@ -258,6 +258,8 @@ python3 -m unittest discover -v -s tests/    # 181 条 (tests/legacy/ 71 + 根�
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v4.1.0** | 2026-08-05 | v1.6.0 词典自举实验: val 门禁未过回退, 收敛判断正式关闭 (留档) |
+| **v4.0.5** | 2026-08-05 | 纯净集刷新 (POI 有效召回 85.5~87.3%) + 标签治理二轮审查收敛 |
 | **v4.0.4** | 2026-08-05 | eval 标签治理 (倒挂修正) + 重训采纳, test 0.9092 同口径 +0.003 |
 | **v4.0.3** | 2026-08-05 | 单条延迟 50ms→2.1ms (fast_predict 树间批量化) + macro-F1 逐类诊断 |
 | **v4.0.2** | 2026-08-05 | POI 召回攻坚: D0 分层诊断 + 有效召回口径 (A 重训实验回退) |

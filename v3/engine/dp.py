@@ -260,6 +260,7 @@ class DPEngine:
                 segments.append(AddressSegment(
                     text=word, seg_type=seg_type, start=prev, end=pos,
                     confidence=1.0 / (1.0 + segment_cost),
+                    freq=int(freq),
                 ))
             else:
                 ch = text[prev:pos]
