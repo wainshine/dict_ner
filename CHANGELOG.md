@@ -18,6 +18,7 @@
 - **死分支清理**: iter_v1.6.0/ (2.5GB) + clf_v3_v160/clf_v3_poi 被否模型 + augment 实验产物删除; v1.6.0 四词典 pkl 保留作证伪留档
 - **磁盘大治理 (~42GB)**: 原始语料删除 (高德amap 11G/腾讯 7.5G/地名 input 1.7G, 有异地备份; 副作用 v2/eval.py 失效已记档 HANDOVER §3.1); v2 时代 output/*_eval JSONL 全清 (13.4G, 留 stats); dicts/iter_v1.2.x (5G) 删除; 历史特征文件 (final_train3/pool_feats) 删除可再生; v2 评测快照 json 删除。验收: 181 tests 绿 + 双 CLI + badcase_eval 引用完好
 - **系统性自审修复**: 4 处文档 stale 引用修正 (AGENTS/README 文件地图、HANDOVER 重建链加"原始语料已删需备份恢复"注记); 补 tests/test_metrics.py 3 条 (181→184); 代码层全量核查 (import 解析/运行时文件存在性/AddressSegment.freq 兼容性/钩子等价回退) 无 bug
+- **output/*_eval 整目录清除 (656MB)**: 引用核查确认无活依赖 (读取方全为 v2 生成期工具/死路径), 144 个 stats.json 删除, 3 个 eval_report.md 移至 output/ 根保留; eval_cut.py 可再生
 
 ## v4.0.5 (2026-08-05) — 纯净集刷新 + 标签治理二轮审查 (结论: 不动)
 

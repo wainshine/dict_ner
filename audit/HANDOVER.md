@@ -180,7 +180,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 ### 4.3 磁盘治理
 
-- `output/*_eval/*` 只保留 `_stats.json`（v4.1.0 起 JSONL 全清——chunk_00.jsonl 单个可达 3.1GB，eval_cut.py 可再生）
+- `output/*_eval/` v4.1.0 起整目录清除（JSONL 13.4G + stats.json 656MB 全删，只留 3 个 `*_eval_report.md` 于 output/ 根；可再生：`v3/eval_cut.py run <system>` 从 split/ 重切）
 - `output/v3_feat/chunks|feats` 临时分片可删；只留现役 `final_train6.csv` + `train/val/test_feats.csv`（pool_feats/final_train3 等历史特征文件 v4.1.0 已清，可由 `data/v3_train_pool.csv` 重算再生）
 - `dicts/iter_vX/` 只留最新一代（现役 iter_v1.5.0；iter_v1.2.x v4.1.0 已清，iter_v1.6.0 实验结束后已清）
 - v4.1.0 大清理 (~42GB)：原始语料（高德/腾讯/地名 input）删除有异地备份；v2 评测快照 json 删除；被否实验模型一律不留（数字记档即可）
