@@ -1,9 +1,9 @@
 {
   "tag": "v4.0-labelfix-v1.5.0",
   "timestamp": "2026-08-05 20:13:55",
-  "train_path": "output/v3_feat/final_train6b.csv",
+  "train_path": "output/v3_feat/final_train6.csv",
   "train_md5": "05038e69f05d35cb8c82a00736ce7dc4",
-  "val_path": "output/v3_feat/val_feats_v2.csv",
+  "val_path": "output/v3_feat/val_feats.csv",
   "val_md5": "40e92a31f896ddcd3fe46b0a6b6ff475",
   "n_train": 2686496,
   "n_val": 38512,

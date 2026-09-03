@@ -1,8 +1,8 @@
-# dict_ner v4.1.1
+# dict_ner v4.1.2
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v4.1.1** | 词典: **v1.5.0**（四词典统一编号） | 测试: **188 条全绿**
+- 系统版本: **v4.1.2** | 词典: **v1.5.0**（四词典统一编号） | 测试: **188 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -12,8 +12,9 @@
 | `README.md`（本文件） | 门面：是什么/怎么用/效果多少 | 每次发版同步 |
 | `audit/HANDOVER.md` | 接手手册：架构/管线/数据血缘/门禁/决策记录/踩坑 | 每次发版同步 |
 | `CHANGELOG.md` | 版本历史唯一来源 | 每次发版新增一节 |
+| `AGENTS.md` | 新会话速通：状态/文件地图/红线/常用命令 | 每次发版同步 |
 
-原则：① 版本历史只写 CHANGELOG，README 和 HANDOVER 不重复记录变更明细；② 架构/流程/决策只写 HANDOVER，README 放简版；③ 三文档版本号必须一致，发版时一并提交。
+原则：① 版本历史只写 CHANGELOG，README 和 HANDOVER 不重复记录变更明细；② 架构/流程/决策只写 HANDOVER，README 放简版；③ 四文档版本号必须一致，发版时一并提交。
 
 ## 快速开始
 
@@ -117,14 +118,14 @@ python run.py info
 | POI 纯净召回 | 58.3% (有效 **85.5~87.3%**) | split/poi 4000万抽样100万; 真边界剔除后口径见 output/v4_poi_recall_audit.md |
 | 置信度校准 | ECE=0.0149 | confidence 可直接作概率路由 |
 
-### 段健康度 (20万样本, `v3/seg_quality.py`)
+### 段健康度 (20万样本, `v3/seg_quality.py`; 现役产物 output/v3_seg_v412_{org,loc}.json)
 
 | 指标 | 值 |
 |------|---:|
 | org 末段 ORG_SUFFIX 率 | 97.8% |
-| org 后缀验证率 / 行业验证率 | 97.9% / 99.3% |
+| org 后缀验证率 / 行业验证率 | 97.9% / 99.2% |
 | org 地址验证率 | **98.6%** |
-| LOC unknown 字符率 | 3.4% |
+| LOC unknown 字符率 | 3.6% |
 | 低频序列率 (org) | 4.4% |
 
 ## 目录结构
@@ -153,12 +154,12 @@ dict_ner/
 ├── pipeline_v2.py       v2 统一总线 (冻结 baseline, run.py v2 使用)
 ├── run.py               CLI 入口
 ├── serve.py             FastAPI 服务 (POST /classify /classify_batch, GET /health)
-├── models/              GBDT 模型 (clf_v3.pkl + manifest)
+├── models/              GBDT 模型 (clf_v3.pkl + manifest; clf_v3_compact.pkl = 150树备选小模型, 非现役基线)
 ├── dicts/               词典 (v1.5.0 当前 + 历史版本 + export/ 审计表 + iter_v1.5.0/ 统计中间产物)
 ├── data/                语料与切分 (split/ 四套语料, SQL 三表, eval splits; 原始地图语料已删有备份)
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
 ├── tools/               v3 时代训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / pipeline_base)
-├── audit/               HANDOVER.md + 各代审计/方案报告
+├── audit/               HANDOVER.md + 各代审计/方案报告 (temp/ 为 v1 时代中文审计存档)
 ├── tests/               188 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 117 条 v3/core/serve/metrics)
 └── CHANGELOG.md         完整版本历史
 ```
@@ -197,7 +198,7 @@ python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop
 python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v3_feat/train_feats.csv
 
 # 7. 门禁
-python3 v3/engine/gate.py --n 20000        # 引擎一致性
+python3 v3/engine/gate.py --n 20000        # 引擎一致性 (现状预期 FAIL: 词典代差, 看 diff 计数与变更前一致, 见 HANDOVER §4.2)
 python3 v3/seg_quality.py --engine org --n 200000 --v3
 python3 -m unittest discover -v -s tests/  # 188 全绿
 ```
@@ -214,7 +215,7 @@ python3 -m unittest discover -v -s tests/  # 188 全绿
 | `v3/seg_compare.py` | 两版词典全量段对比 | output/v3_seg_compare_report.md |
 | `v3/eval_cut.py` | 全量重切产出 JSONL+stats | output/*_eval/*_vX/ |
 | `v3/badcase_eval.py` | badcase 跨版修复率 | output/v*_badcase_*.md |
-| `v3/engine/gate.py` | 引擎一致性门禁 (新旧零差异) | 终端 |
+| `v3/engine/gate.py` | 引擎一致性门禁 (重构类变更要求新旧零差异; **注意**: 当前 v1.5.0 词典 vs legacy v1.2.x 有代差，现状预期 FAIL，验收看 diff 计数与变更前一致，见 HANDOVER §4.2) | 终端 |
 | `v2/tools/eval_classify.py` | v2 规则链评测 (baseline 对比) | 终端/JSON |
 
 ## 迭代工作流
@@ -254,12 +255,15 @@ Python 3.10+。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 sc
 python3 -m unittest discover -v -s tests/    # 188 条 (tests/legacy/ 71 + 根目录 117)
 ```
 
+许可证: Apache License 2.0 (见 `LICENSE`)。
+
 ## 版本记录
 
 最近版本（完整历史见 [CHANGELOG.md](CHANGELOG.md)）：
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v4.1.2** | 2026-09-03 | 7代会话自审计: 文档一致性修正 + 评估产物复跑确认 + HANDOVER §3.5 仓库边界 |
 | **v4.1.1** | 2026-08-06 | CLI 路由修复 (recognize/json/info 切 v3) + 技术原理入文档 + 前身项目补记 |
 | **v4.1.0** | 2026-08-05 | v1.6.0 词典自举实验: val 门禁未过回退, 收敛判断正式关闭 (留档) |
 | **v4.0.5** | 2026-08-05 | 纯净集刷新 (POI 有效召回 85.5~87.3%) + 标签治理二轮审查收敛 |

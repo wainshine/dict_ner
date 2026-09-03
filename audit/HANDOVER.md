@@ -1,11 +1,11 @@
-# HANDOVER.md v4.1.1
+# HANDOVER.md v4.1.2
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v4.1.1** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 系统版本: **v4.1.2** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
 - 测试: **188 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 117 条)
 - 关键指标: test macro-F1 **0.9092** (v4.0.4 标签治理后口径) | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0149 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
@@ -19,11 +19,12 @@
 | `README.md` | 门面: 是什么/怎么用/效果多少 | 每次发版同步 |
 | `audit/HANDOVER.md`（本文件） | 接手手册: 架构/管线/血缘/门禁/决策/踩坑 | 每次发版同步 |
 | `CHANGELOG.md` | 版本历史唯一来源 | 每次发版新增一节 |
+| `AGENTS.md` | 新会话速通: 状态/文件地图/红线/常用命令 | 每次发版同步 |
 
 维护原则：
 1. **单一来源**：版本历史只写 CHANGELOG；架构/流程/决策/踩坑只写 HANDOVER；README 放简版+链接。
-2. **发版三件套**：改代码发版 = 代码 + 三文档 + git 提交，一次完成，不留文档债。
-3. **版本号一致**：三文档头部版本号与 `run.py VERSION`、`core/config.py VERSION` 保持一致；词典任一变更四词典版本号同升（统一版本政策）。
+2. **发版四件套**：改代码发版 = 代码 + 四文档（README/HANDOVER/CHANGELOG/AGENTS）+ git 提交，一次完成，不留文档债。
+3. **版本号一致**：四文档头部系统版本号与 `run.py VERSION` 保持一致；`core/config.py VERSION` 是词典版本，与词典版本号（当前 v1.5.0）保持一致；词典任一变更四词典版本号同升（统一版本政策）。
 
 ## 1. 系统框架
 
@@ -87,7 +88,7 @@ loc 引擎钩子: merge_orientation / strip_road_conjunction ("与X路"拆分) /
 
 - 训练: GBDT (max_iter=500, lr=0.08, leaves=63, l2=1.0) on 268 万样本 → CalibratedClassifierCV(FrozenEstimator, isotonic) 校准集=eval_train → 类别乘数+拒绝阈值在 val 按 macro-F1 标定
 - FastGBDT 原理: sklearn 逐树 Python 调用慢 (0.7ms×2000), 编译化为 numpy 数组批量遍历; **注意 sklearn 节点值已含 learning_rate (lr=1.0)**; 叶掩码防止提前到叶的行弹回根节点; **v4.0.3 树间批量化**: 全部树 padding 统一节点数, (n_rows × n_trees) 同步遍历, 单条 50ms→2.1ms
-- 置信度: isotonic 校准, ECE=0.0129, 可直接作概率路由
+- 置信度: isotonic 校准, ECE=0.0149, 可直接作概率路由
 
 ## 2. 训练与词典管线
 
@@ -162,9 +163,17 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 ### 3.4 其他数据资产
 
 - `data/areas/` 五级区划（省32/市343/区县2979/街道41353/村620574）：loc 词典 + bare 注入 + prune 证实
-- `data/gov_suffix_seed.csv` 29 条 / `data/suffix_seed.csv` 2.4 万条：种子注入
+- `data/gov_suffix_seed.csv` 30 条 / `data/suffix_seed.csv` 2.4 万条：种子注入
 - `dicts/d4_category_map.pkl` 8,299 条 / `dicts/suffix_category_gaode.csv` 1,520 条：Gaode 标注（特征+回补依据）
 - `data/eval_set.csv` 18万 → `eval_split_{train,val,test}.csv`（+室内设施 UNKNOWN 扩充后 11.6万/3.85万/3.85万）
+
+### 3.5 仓库边界（git 追踪范围）与文件获取
+
+**git 追踪**：全部代码 + 文档 + `dicts/*.pkl` + `models/`。**不追踪**（.gitignore）：`/data` 全部（split 语料/SQL 三表/eval splits/种子）、`dicts/suffix_category_gaode.csv`、`/dicts/export`、`/dicts/iter_v*`、`/output`。
+
+**缺失行为 = 静默降级**（不抛错）：`v3/pipeline.py` suffix_table 缺失置 `{}`、`core/csv_index.py` 亲和度 CSV 缺失返回空 dict、`pipeline.py` sql_suffixes 缺失置空集。git clone 后 `classify` 可运行，但查表/亲和度特征全零，**指标低于文档值且无任何报错**。
+
+**文件获取**：本机完整目录为准；原始地图语料在异地备份（§3.1）；衍生产物可再生——export 审计表由 stats→aggregate 链产出，`*_eval/` 由 `v3/eval_cut.py run <system>` 从 split/ 重切，v3_feat 特征文件由 `data/v3_train_pool.csv` + eval splits 重算。
 
 ## 4. 评测体系与门禁
 
@@ -175,8 +184,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | 含噪标签 macro-F1 | `v3/evaluate.py` | test 0.9092 (v4.0.4 标签治理后口径; 旧口径 0.9059) |
 | clean 子集 accuracy | `v3/clean_eval.py` | 0.9919（查表确认标签, ~31% 子集） |
 | 纯净集召回 | `v3/pure_eval.py` | ORG 74.4% / POI 58.3%（语义边界, 详见报告解读） |
-| 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **84.0~85.8%** / ORG ≈100%（v4.0.1 新增, 规则见 v3/poi_recall_audit.py） |
-| 置信度 | `v3/calibration_audit.py` | ECE 0.0129 |
+| 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **85.5~87.3%** / ORG ≈100%（v4.0.1 新增, v4.0.5 刷新, 规则见 v3/poi_recall_audit.py） |
+| 置信度 | `v3/calibration_audit.py` | ECE 0.0149 |
 
 ### 4.2 段级门禁
 
@@ -202,7 +211,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 3. 词典改动 → 四词典版本号同升 + seg_quality 不降 + 分类器重训
 4. 引擎改动 → gate 零差异门禁（或 diff 逐类审查为改善）
 5. 分类器改动 → val macro-F1 不降 + manifest 更新
-6. 发版 = 代码 + README/HANDOVER/CHANGELOG 三件套 + git 提交
+6. 发版 = 代码 + README/HANDOVER/CHANGELOG/AGENTS 四件套 + git 提交
 
 ## 6. 已知遗留与决策记录
 
@@ -219,14 +228,14 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | gaode_roads.csv 101万行 | merge 时 freq≥10 过滤 | 对齐 47万传承; 该文件是 v2.2.x 以 freq≥3 重生成 |
 | 评测集标签噪声 ~13% | 程序清洗 + clean 子集双指标, 不人工修 | 用户决策 |
 | v1.6 自举 | 不做 | 已收敛 (v3.9.0 判断) |
-| POI 召回攻坚 D1-A 增强重训 | **回退** | 24K 真错误模式 POI 样本增强 (v3/augment_poi.py → final_train4) 重训后 val macro-F1 持平 (0.9050 vs 0.9052), 但 12 条真错误点查 0 翻转——残存误判是特征驱动 (专名含地名→geo_cov 抬升 + eval 标签 寺/景区→ADDR 倒挂), 非标签量不足。模型 artifacts 留存 models/clf_v3_poi.pkl 备查, baseline 不换 (v4.0.2) |
+| POI 召回攻坚 D1-A 增强重训 | **回退** | 24K 真错误模式 POI 样本增强 (v3/augment_poi.py → final_train4) 重训后 val macro-F1 持平 (0.9050 vs 0.9052), 但 12 条真错误点查 0 翻转——残存误判是特征驱动 (专名含地名→geo_cov 抬升 + eval 标签 寺/景区→ADDR 倒挂), 非标签量不足。baseline 不换 (v4.0.2)；artifacts clf_v3_poi.pkl 已于 v4.1.0 磁盘治理删除（见 §4.3） |
 | A 二期强 POI 后缀特征 | **回退** | d4_strong_poi/poi_d4_strong_poi 特征 (80维) 重训: val 0.9035 < 0.9052 未过门禁 + 0/12 翻转。eval 标签在后缀上倒挂, 加显式特征反而撞 test 噪声。features.py 回滚 78 维 (v4.0.3) |
 | macro-F1 提升路径 | 评测集标签治理, 非模型调参 | P2 逐类诊断: 四大迁移类 87% 是标签噪声+体系边界; 含噪口径可修复空间仅 ~1-2pt (v4_f1_error_audit.md) |
 | eval 标签治理 | **采纳 (v4.0.4)** | 两条错误映射修正 (tencent休闲娱乐→POI; gaode风景名胜点位后缀→POI), 三 split 1,846 条 + pool 13,126 条, `.bak_v1` 备份; 重训 val +0.0037 过门禁, baseline 更换 (旧模型归档 clf_v3_baseline_v39.pkl) |
 | eval 集重建注意 | splits 无 type_orig 列 | type_orig 只在 eval_set.csv/feats CSV; 关联用 text join; UNKNOWN 扩充行 (室内设施) 不在 eval_set, join 会 miss ~7K 属正常 |
 | 标签治理二轮 | **不动 (v4.0.5)** | gaode商务住宅/tencent建筑房产→ADDR 样本审查正确 (小区/楼栋); 公司企业→ORG 个体户残留无 t2 可分, 属体系边界。eval 标签治理收敛 |
-| v1.6.0 词典自举 | **回退留档 (v4.1.0)** | 推翻 v3.9.0 不做决策执行全链验证: stats 重切→bake→四词典产出; seg_quality 持平但 seg_compare org BRAND 碎化 (+6.5K/20万); 重训 val 0.9056 < 0.9091 未过门禁 → 生产保持 v1.5.0。**结论: v3.9.0 收敛判断正确, 自举正式关闭**。artifacts: dicts/*v1.6.0.pkl + models/clf_v3_v160.pkl + dicts/iter_v1.6.0/ |
-| POI 纯净召回口径 | 分层化 | 57.5% = 与地图源标注一致率; 真边界 (机关/交叉口/楼栋门牌/自然地名) 剔除后有效召回 84.0~85.8% (v4_poi_recall_audit.md) |
+| v1.6.0 词典自举 | **回退留档 (v4.1.0)** | 推翻 v3.9.0 不做决策执行全链验证: stats 重切→bake→四词典产出; seg_quality 持平但 seg_compare org BRAND 碎化 (+6.5K/20万); 重训 val 0.9056 < 0.9091 未过门禁 → 生产保持 v1.5.0。**结论: v3.9.0 收敛判断正确, 自举正式关闭**。artifacts: dicts/*v1.6.0.pkl 留存作证伪留档；clf_v3_v160.pkl 与 iter_v1.6.0/ 已于 v4.1.0 清理（见 §4.3） |
+| POI 纯净召回口径 | 分层化 | 57.5% = 与地图源标注一致率; 真边界 (机关/交叉口/楼栋门牌/自然地名) 剔除后有效召回 85.5~87.3% (v4.0.5 刷新, v4_poi_recall_audit.md) |
 
 ## 7. 踩过的坑
 
@@ -266,6 +275,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 - **#27 实验重训必护 val_pred.csv**: train.py 无条件覆盖 output/v3_feat/val_pred.csv; A 一期/二期两次踩中, 均用 baseline 模型重算恢复 (v3/train.py 见踩坑 #24 同类)
 - **#28 引擎改动必须同步重训验证**: demote 钩子只改段类型, 不重训直接 -1.5pt (特征分布漂移)——任何引擎/段行为变更, 评估必须走"重算特征+重训+val 门禁"全链, 不能拿旧模型测新特征下结论也不能拿新特征配旧模型上线
 - **#29 bare 碰撞词不一定是 bare 注入**: 低频排行榜显示惠民/石屏/古城等碰撞词是真实区县名 (d1 真实词频), freq==5000 注入标记识别不到; 位置 (非头部/行政后置) 才是可靠判据——但位置判据又误伤分公司城市名 (见决策记录 demote 回退)
+- **#30 多址记载的数字刷新时漏改**: ECE 0.0129→0.0149 (v4.0.4) 与 POI 有效召回 84.0~85.8%→85.5~87.3% (v4.0.5) 刷新时只改了 README/§0, 漏了本文件 §1.4/§4.1/§6, 同文档自相矛盾直到 v4.1.2 审计发现。教训: 同一事实尽量单一出处 (一处记载+他处引用); 必须多址记载时在发版 checklist 列出全部位置
 
 ## 8. 重建速查（从零到当前版）
 

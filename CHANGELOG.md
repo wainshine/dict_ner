@@ -3,6 +3,18 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.1.2 (2026-09-03) — 7代会话自审计: 文档一致性修正 + 产物复跑确认
+
+无算法/词典/模型变更（仅 `run.py VERSION`）。审计报告存档 `audit/audit_gen7_v412_audit.md`。
+
+- **自审计**: 功能/测试全健康（188 全绿, CLI 冒烟与 README 示例逐字一致, 15 条文档命令与脚本 argparse 全吻合, 文件地图所列路径全部存在, 词典条目数属实）
+- **HANDOVER 陈旧值修正**（v4.0.4/4.0.5 刷新时漏改, 新增踩坑 #30）: ECE 0.0129→0.0149 (§1.4/§4.1); POI 有效召回 84.0~85.8%→85.5~87.3% (§4.1/§6); 两处悬空 artifacts 引用 (clf_v3_poi.pkl / clf_v3_v160.pkl / iter_v1.6.0/ 已于 v4.1.0 删除) 改为指向 §4.3; gov seed 29→30 条; 维护原则"两个 VERSION 一致"不可达成的表述修正 (系统版 vs 词典版)
+- **manifest 血缘修复**: `manifest_v3.json` train/val 路径字段指向不存在的临时名 (final_train6b/val_feats_v2) → 改回现役名; **md5 实证血缘未断** (final_train6.csv 与 val_feats.csv 的 md5 与 manifest 记录完全一致)
+- **产物复跑确认**: `v3/evaluate.py --feats test_feats.csv --report output/v3_error_report.md` 完全复现 README 全部 test 指标 (0.9092/0.9098/四类 F1, 从此有落盘出处, 原报告系 v3.5.0 前陈旧产物); seg_quality 现役词典复测 → output/v3_seg_v412_{org,loc}.json: org 97.8/97.9/99.2/98.6/4.4 确认文档值正确 (审计初判"无产物支撑"系误对 v1.4.3 旧词典产物), 修正 README 行业 99.3→99.2 / LOC unknown 3.4→3.6; 删除陈旧孤儿 output/v3_test_report.md (旧口径 0.9059, 无引用)
+- **v3.9.0 节内 addr 98.5%/98.6% 两写说明**: 98.5 出自 v1.4.3 词典产物 (v143adj), 98.6 系 v1.5.0 现役口径, 复测证实 98.6 正确, 历史条目保留不改
+- **文档体系补强**: HANDOVER 新增 §3.5 仓库边界 (git 追踪范围/运行时 CSV 缺失静默降级行为/文件获取途径——clone 重建场景的最大文档缺口); AGENTS.md 纳入发版同步 ("三件套"→"四件套") + 红线补第 7 条 (val_pred.csv 覆盖坑 #24/#27); README gate 行加现状预期 FAIL 注记 + LICENSE 节 + clf_v3_compact/audit temp 说明 + v3_feat 白名单表述补全; v4_serve_bench.md 节标题 v4.0.2→v4.0.3 误标修正
+- **审计结论留档**: 不需要 project.md/HANDOFF.md (AGENTS.md+HANDOVER.md 已覆盖该角色); CONTRIBUTING 不必要; HTTP API 正式文档可选 (3 端点+FastAPI /docs)
+
 ## v4.1.1 (2026-08-06) — CLI 路由修复 + 文档体系加固
 
 无算法/词典/模型变更。

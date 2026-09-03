@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-- 系统版本 **v4.1.1** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
+- 系统版本 **v4.1.2** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
 - 指标：test macro-F1 0.9092 | clean accuracy 0.9919 | ECE 0.0149 | 单条 2.1ms / 批量 1.9ms/条
 - 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）+ fastapi/uvicorn（仅 serve.py）
 - v4.0.0：v2 代码已迁 `/v2/`（平铺）+ 根 `pipeline_v2.py`；v3 不再 import 任何 v2 模块；HTTP 服务 `serve.py`
@@ -34,7 +34,7 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 | `models/` | clf_v3.pkl（GBDT+校准+乘数）+ manifest；clf_v3_compact.pkl（备选小模型） |
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
 | `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv（原始地图语料已删有异地备份，见 HANDOVER §3.1） |
-| `output/` | 评估产物；`v3_feat/` 白名单制（只留 final_train6 + train/val/test_feats + val_pred，其余可再生） |
+| `output/` | 评估产物；`v3_feat/` 白名单制（现役 final_train6 + train/val/test_feats + val_pred + synth_feats + unknown_*_feats + pool_clean*_stats.json，其余可再生） |
 | `tests/` | 188 条（tests/legacy/ 71 条 v2 锚定 + 根目录 117 条 v3/core/serve/metrics） |
 | `audit/` | HANDOVER.md + 各代方案/审计报告 |
 
@@ -43,9 +43,10 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 1. `dicts/*v1.1.*.pkl` 兜底不可删；v1.2.x 是 v2 baseline 保留
 2. v2 文件（`/v2/` + `pipeline_v2.py`）冻结只读
 3. 词典任一变更 → 四词典版本号同升（统一版本政策）
-4. 发版 = 代码 + README/HANDOVER/CHANGELOG 三文档 + git 提交，一次完成
+4. 发版 = 代码 + README/HANDOVER/CHANGELOG/AGENTS 四文档 + git 提交，一次完成
 5. 并行用 bash `&` 16 进程独立 .py（macOS spawn 坑）；跑性能测量前先杀干净后台 worker（OpenMP 过订阅）
 6. `open(p,'w').write(open(p).read())` 会先截断后读取 → 清空文件，禁止此写法
+7. `v3/train.py` 无条件覆盖 `output/v3_feat/val_pred.csv`：实验重训（--model 指向新文件）后必须用 baseline 模型重算恢复（踩坑 #24/#27，已踩中两次）
 
 ## 常用命令
 
