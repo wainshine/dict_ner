@@ -113,7 +113,7 @@ python run.py info
 
 | 视角 | 值 | 说明 |
 |------|---|------|
-| clean 子集 accuracy | **0.9919** | 查表确认标签的子集 (近真实上限; 含噪标签占 ~13%) |
+| clean 子集 accuracy | **0.9719** | test 集查表确认标签的子集 (12,477 条/32.4%; 含噪标签占 ~13%)。v4.1.2 复跑修正: 0.9919 系 v3.1.0 时代旧模型值, 见 output/v3_clean_eval_report.md |
 | ORG 纯净召回 | 74.4% (有效 ≈100%) | org_company 5200万公司名抽样100万; "误判"为个体户门店 (语义边界) |
 | POI 纯净召回 | 58.3% (有效 **85.5~87.3%**) | split/poi 4000万抽样100万; 真边界剔除后口径见 output/v4_poi_recall_audit.md |
 | 置信度校准 | ECE=0.0149 | confidence 可直接作概率路由 |
@@ -144,6 +144,8 @@ dict_ner/
 │   ├── synth_unknown.py / clean_eval.py / calibration_audit.py     数据与评估
 │   ├── evaluate.py / pure_eval.py / seg_quality.py                 评估
 │   ├── seg_compare.py / eval_cut.py / badcase_eval.py              段级对比评估
+│   ├── error_audit.py / fix_eval_labels.py / poi_recall_audit.py   v4 时代诊断与标签治理
+│   ├── seq_anomaly.py / lowfreq_mine.py / struct_badcase.py        段级异常挖掘
 │   ├── seq_dist_compare.py / loc_prune.py / poi_prune.py / bare_prune.py  词典挖掘
 │   └── seg_compare_worker.py / eval_cut_worker.py / pure_eval_worker.py
 ├── v2/                  v2 冻结 baseline (v4.0.0 起平铺迁移至此)
@@ -194,7 +196,7 @@ m.save()"
 
 # 6. 分类器重训 (~15min)
 python3 v3/precompute.py all data/v3_train_pool.csv output/v3_feat/pool_feats.csv
-python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9
+python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9 --out output/v3_feat/pool_feats_clean2.csv
 python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v3_feat/train_feats.csv
 
 # 7. 门禁
@@ -208,7 +210,7 @@ python3 -m unittest discover -v -s tests/  # 188 全绿
 | 工具 | 用途 | 产物 |
 |------|------|------|
 | `v3/evaluate.py` | 混淆矩阵 + 错误仪表盘 | output/v3_error_report.md |
-| `v3/clean_eval.py` | clean 子集双指标 (模型无关标签确认) | 终端 |
+| `v3/clean_eval.py` | clean 子集双指标 (模型无关标签确认) | output/v3_clean_eval_report.md |
 | `v3/pure_eval.py` | 纯净集召回 (org_company / split_poi) | output/v3_pure_eval_report.md |
 | `v3/calibration_audit.py` | 置信度可靠性 (ECE/Brier) | output/v3_calibration_report.md |
 | `v3/seg_quality.py` | 段健康度 (后缀/行业/地址验证率/低频序列) | output/v3_seg_*.json |
@@ -249,7 +251,7 @@ python3 -m unittest discover -v -s tests/  # 188 全绿
 
 ## 依赖与测试
 
-Python 3.10+。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
+Python 3.10+（实测环境 3.14）。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
 
 ```bash
 python3 -m unittest discover -v -s tests/    # 188 条 (tests/legacy/ 71 + 根目录 117)

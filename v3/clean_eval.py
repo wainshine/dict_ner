@@ -8,7 +8,7 @@ clean 规则 (特征列直接可得, 不依赖任何模型):
   UNKNOWN: all_chinese==0 或 n_digit>=len
 子集 = 查表推导类 == 原始标签 的样本 (标签被独立信号确认)
 
-用法: python v3/clean_eval.py [--feats val] [--model models/clf_v3.pkl]
+用法: python v3/clean_eval.py [--feats val] [--model models/clf_v3.pkl] [--report out.md]
 """
 import argparse
 import os
@@ -50,6 +50,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--feats", default="val", choices=["val", "test"])
     ap.add_argument("--model", default=os.path.join(BASE, "models", "clf_v3.pkl"))
+    ap.add_argument("--report", default=None)
     args = ap.parse_args()
 
     path = os.path.join(FEAT_DIR, f"{args.feats}_feats.csv")
@@ -81,8 +82,30 @@ def main():
 
     disagree = ~clean_mask
     n_dis = int(disagree.sum())
+    dis_acc = (pred[disagree] == y[disagree]).mean()
     print(f"\n标签未被查表确认的 {n_dis:,} 条中, 模型与标签一致率: "
-          f"{(pred[disagree] == y[disagree]).mean():.2%}")
+          f"{dis_acc:.2%}")
+
+    if args.report:
+        lines = ["# v3 clean 子集双指标报告", "",
+                 f"- feats: {path}", f"- model: {args.model}",
+                 f"- 总量: {len(df):,} | clean 子集: {int(clean_mask.sum()):,} "
+                 f"({100*clean_mask.mean():.1f}%)", "",
+                 "## 双指标", "",
+                 "| 口径 | n | accuracy | macro-F1 |", "|---|---:|---:|---:|",
+                 f"| 原始标签 | {len(df):,} | {m_raw['accuracy']:.4f} | {m_raw['macro_f1']:.4f} |",
+                 f"| clean 子集 (查表确认标签) | {int(clean_mask.sum()):,} "
+                 f"| {m_clean['accuracy']:.4f} | {m_clean['macro_f1']:.4f} |", "",
+                 "## clean 子集 per-class", "",
+                 "| 类 | P | R | F1 | support |", "|---|---|---|---|---|"]
+        for lb in LABELS:
+            p = m_clean["per_class"][lb]
+            lines.append(f"| {lb} | {p['precision']:.4f} | {p['recall']:.4f} "
+                         f"| {p['f1']:.4f} | {p['support']:,} |")
+        lines += ["", f"标签未被查表确认的 {n_dis:,} 条中, 模型与标签一致率: {dis_acc:.2%}", ""]
+        with open(args.report, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        print(f"\nreport: {args.report}")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@
 复合机构检测/过度拆分合并/ORG_SUFFIX remap 逻辑复制自 v2 pipeline.py (逐方法不改逻辑)。
 """
 import csv
+import logging
 import os
 import pickle
 import sys
@@ -13,6 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.types import AddressResult, SegType
 from v3.engine.configs import build_loc_engine, build_org_engine, build_poi_engine
+
+logger = logging.getLogger(__name__)
 
 COMPANY_SUFFIXES = {
     "公司", "有限公司", "有限责任公司", "股份有限公司",
@@ -77,6 +80,7 @@ class V3Pipeline:
                         with open(path, "rb") as f:
                             self._d4_map = pickle.load(f)
                     else:
+                        logger.warning("d4_category_map.pkl 缺失, d4 类别特征置空 (静默降级): %s", path)
                         self._d4_map = {}
         return self._d4_map
 
@@ -93,6 +97,8 @@ class V3Pipeline:
                                 sfx = row["suffix"]
                                 cat = row["gaode_category"]
                                 self._suffix_table[sfx] = cat
+                    else:
+                        logger.warning("suffix_category_gaode.csv 缺失, 后缀类别特征置空 (静默降级): %s", path)
         return self._suffix_table
 
     @property
@@ -108,6 +114,8 @@ class V3Pipeline:
                                 sfx = row["d4"].strip()
                                 if sfx and len(sfx) >= 2:
                                     self._sql_suffixes.add(sfx)
+                    else:
+                        logger.warning("suffix_segments_sql.csv 缺失, SQL 后缀验证置空 (静默降级): %s", path)
         return self._sql_suffixes
 
     def _has_company_suffix(self, org_result):

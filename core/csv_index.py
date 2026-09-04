@@ -1,6 +1,9 @@
 import csv
+import logging
 import os
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -24,6 +27,7 @@ class AffinityEntry:
 def _load_affinity_csv(path, key_col):
     result = {}
     if not os.path.exists(path):
+        logger.warning("亲和度 CSV 缺失, 亲和度特征置空 (静默降级, 见 HANDOVER §3.5): %s", path)
         return result
     with open(path, encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):

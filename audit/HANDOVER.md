@@ -7,7 +7,7 @@
 
 - 系统版本: **v4.1.2** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
 - 测试: **188 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 117 条)
-- 关键指标: test macro-F1 **0.9092** (v4.0.4 标签治理后口径) | clean 子集 accuracy 0.9919 | 置信度 ECE 0.0149 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
+- 关键指标: test macro-F1 **0.9092** (v4.0.4 标签治理后口径) | clean 子集 accuracy 0.9719 (v4.1.2 复跑修正) | 置信度 ECE 0.0149 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
 - v4.0.0 布局: v2 冻结代码平铺于 `/v2/`（识别器/brand/eval + v2/tools/），v2 总线 = 根 `pipeline_v2.py`，legacy 测试在 `tests/legacy/`；HTTP 服务 = `serve.py`（FastAPI）
 - **v4.0.0 起 v3 不再 import 任何 v2 模块**（`v3/pipeline.py` 自包含；`classify_suffix` 在 `core/suffix_classify.py`）；仅 gate/seg_compare/badcase_eval 保留 legacy 基线对比 import（`v2.*`，属预期）
@@ -182,7 +182,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | 视角 | 工具 | 当前值 |
 |------|------|-------:|
 | 含噪标签 macro-F1 | `v3/evaluate.py` | test 0.9092 (v4.0.4 标签治理后口径; 旧口径 0.9059) |
-| clean 子集 accuracy | `v3/clean_eval.py` | 0.9919（查表确认标签, ~31% 子集） |
+| clean 子集 accuracy | `v3/clean_eval.py` | 0.9719（test 集查表确认标签, 12,477 条/32.4%; v4.1.2 复跑修正, 0.9919 系 v3.1.0 时代旧模型值） |
 | 纯净集召回 | `v3/pure_eval.py` | ORG 74.4% / POI 58.3%（语义边界, 详见报告解读） |
 | 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **85.5~87.3%** / ORG ≈100%（v4.0.1 新增, v4.0.5 刷新, 规则见 v3/poi_recall_audit.py） |
 | 置信度 | `v3/calibration_audit.py` | ECE 0.0149 |
@@ -297,7 +297,7 @@ python3 tools/patch_v142.py --src-v v1.5.0 --dst-v v1.5.0
 python3 v3/sample_pool.py && python3 v3/synth_unknown.py && python3 v3/sample_unknown.py
 python3 v3/make_split.py
 python3 v3/precompute.py all <输入> <输出>   # ×6 (pool/train/val/test/unknown_*)
-python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9
+python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9 --out output/v3_feat/pool_feats_clean2.csv
 python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v3_feat/train_feats.csv
 
 # 门禁 (详见 §4.2)
