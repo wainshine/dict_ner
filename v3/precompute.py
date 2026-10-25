@@ -43,15 +43,15 @@ def split(in_csv):
 
 def run():
     os.makedirs(FEAT_DIR, exist_ok=True)
-    # 清掉上一轮特征, 防止本轮 chunk 数变少时 merge 混入旧文件
-    for old in (glob.glob(os.path.join(FEAT_DIR, "chunk_*.csv"))
-                + glob.glob(os.path.join(FEAT_DIR, "chunk_*.log"))):
-        os.remove(old)
     worker = os.path.join(BASE, "v3", "precompute_worker.py")
     chunks = sorted(glob.glob(os.path.join(CHUNK_DIR, "chunk_*.csv")))
     if not chunks:
         print(f"No chunks in {CHUNK_DIR}; run 'precompute.py split <in_csv>' first")
         return False
+    # 确认有 chunk 后再清上一轮特征, 避免误删有效产物
+    for old in (glob.glob(os.path.join(FEAT_DIR, "chunk_*.csv"))
+                + glob.glob(os.path.join(FEAT_DIR, "chunk_*.log"))):
+        os.remove(old)
     procs = []
     t0 = time.time()
     for c in chunks:

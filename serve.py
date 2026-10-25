@@ -1,6 +1,6 @@
 """dict_ner FastAPI 服务 — v3 分类器对外 HTTP 接口
 
-启动: uvicorn serve:app --host 0.0.0.0 --port 8000 --workers 2
+启动: uvicorn serve:app --host 0.0.0.0 --port 8000 --workers 4
 """
 import json
 import os

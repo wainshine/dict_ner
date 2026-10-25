@@ -6,7 +6,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 DICT_DIR = os.path.join(BASE_DIR, "dicts")
 
 VERSION = "v1.5.0"
-SYSTEM_VERSION = "v4.1.2"
+SYSTEM_VERSION = "v4.2.0"
 NUM_CHUNKS = 16
 
 ADDR_TYPES = {

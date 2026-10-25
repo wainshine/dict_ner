@@ -1,8 +1,8 @@
-# dict_ner v4.1.2
+# dict_ner v4.2.0
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v4.1.2** | 词典: **v1.5.0**（四词典统一编号） | 测试: **189 条全绿**
+- 系统版本: **v4.2.0** | 词典: **v1.5.0**（四词典统一编号） | 测试: **195 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -162,7 +162,7 @@ dict_ner/
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
 ├── tools/               v3 时代训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / pipeline_base)
 ├── audit/               HANDOVER.md + 各代审计/方案报告 (temp/ 为 v1 时代中文审计存档)
-├── tests/               189 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 118 条 v3/core/serve/metrics)
+├── tests/               195 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 124 条 v3/core/serve/metrics)
 └── CHANGELOG.md         完整版本历史
 ```
 
@@ -202,7 +202,7 @@ python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v
 # 7. 门禁
 python3 v3/engine/gate.py --n 20000        # 引擎一致性 (现状预期 FAIL: 词典代差, 看 diff 计数与变更前一致, 见 HANDOVER §4.2)
 python3 v3/seg_quality.py --engine org --n 200000 --v3
-python3 -m unittest discover -v -s tests/  # 189 全绿
+python3 -m unittest discover -v -s tests/  # 195 全绿
 ```
 
 ## 评估体系
@@ -225,7 +225,7 @@ python3 -m unittest discover -v -s tests/  # 189 全绿
 ```
 改词典 / 改引擎 / 改分类器
     │
-    ├─ python3 -m unittest discover -s tests/     → 189 全绿
+    ├─ python3 -m unittest discover -s tests/     → 195 全绿
     ├─ v3/seg_quality.py (三体系)                  → 段健康度不降
     ├─ v3/seg_compare.py (新旧全量对比)            → diff 逐类审查
     ├─ v3/evaluate.py --feats val_feats.csv       → val macro-F1 不降
@@ -254,7 +254,7 @@ python3 -m unittest discover -v -s tests/  # 189 全绿
 Python 3.10+（实测环境 3.14）。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
 
 ```bash
-python3 -m unittest discover -v -s tests/    # 189 条 (tests/legacy/ 71 + 根目录 118)
+python3 -m unittest discover -v -s tests/    # 195 条 (tests/legacy/ 71 + 根目录 124)
 ```
 
 许可证: Apache License 2.0 (见 `LICENSE`)。
@@ -265,6 +265,7 @@ python3 -m unittest discover -v -s tests/    # 189 条 (tests/legacy/ 71 + 根�
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v4.2.0** | 2026-10-26 | 运行时/词典链安全修复 (Batch 0): serve 并发竞态、val_pred 防护、precompute 清理、词典 fail-fast/原子写、指标口径统一; 指标不变 |
 | **v4.1.2** | 2026-09-03 | 7代会话自审计: 文档一致性修正 + 评估产物复跑确认 + HANDOVER §3.5 仓库边界 |
 | **v4.1.1** | 2026-08-06 | CLI 路由修复 (recognize/json/info 切 v3) + 技术原理入文档 + 前身项目补记 |
 | **v4.1.0** | 2026-08-05 | v1.6.0 词典自举实验: val 门禁未过回退, 收敛判断正式关闭 (留档) |

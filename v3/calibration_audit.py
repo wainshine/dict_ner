@@ -58,6 +58,7 @@ def main():
         ece += cnt / n * abs(acc - mc)
         rows.append((f"[{lo:.1f},{hi:.1f})", cnt, mc, acc, acc - mc))
 
+    # 置信度 Brier: 最终预测类概率 vs 对错 (pred-class, 非标准多类 Brier)
     brier = float(np.mean(
         (proba[np.arange(n), pred_i] - correct.astype(float)) ** 2))
     overall_acc = float(correct.mean())
@@ -66,7 +67,7 @@ def main():
     lines = ["# 置信度可靠性审计", "",
              f"- feats: {args.feats}", f"- model: {args.model}",
              f"- n={n:,} | overall acc={overall_acc:.4f} | mean conf={overall_conf:.4f}",
-             f"- **ECE = {ece:.4f}** | Brier = {brier:.4f}", "",
+             f"- **ECE = {ece:.4f}** | Brier(pred-class) = {brier:.4f}", "",
              "## 可靠性表", "",
              "| 置信度桶 | 样本数 | 平均置信度 | 实际准确率 | 差值(acc-conf) |",
              "|---------|-------:|-----------:|-----------:|---------------:|"]

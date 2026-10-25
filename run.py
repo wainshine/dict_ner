@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""dict_ner v4.1.2 — 中文地名/机构名/POI/品牌识别系统 CLI (默认 v3 模型)"""
+"""dict_ner — 中文地名/机构名/POI/品牌识别系统 CLI (默认 v3 模型)"""
 import os, sys, json
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")

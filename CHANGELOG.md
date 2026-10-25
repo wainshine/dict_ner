@@ -3,6 +3,19 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.2.0 (2026-10-26) — 运行时/词典链安全修复 (Batch 0)
+
+无算法/词典/模型变更；test 指标不变（macro-F1 **0.9092** / accuracy **0.9098** / clean 0.9719 / ECE 0.0149），测试 **188→195**。本版为审计后的安全修复，不改变现役模型与词典。
+
+- **serve 并发竞态修复 (P1)**: `FeatureExtractor.extract()` 不再把三体系结果写入共享实例字段（分类器改用 `extract_with_results()` 局部结果；兼容接口 `last_results` 改 thread-local）。修复前 FastAPI 同步端点线程池并发时 `best/all` 串扰（4800 次实测 91.4% 错乱），修复后 0 错乱；新增并发回归测试
+- **系统版本单一来源**: `core/config.SYSTEM_VERSION` 统一供 `run.py`/`serve.py` 使用；`/health` 与 `app.version` 从陈旧的 v4.1.1 修正为 v4.2.0
+- **val_pred 防护 (P1)**: `v3/train.py` 新增 `--val-pred`；默认仅基线 `clf_v3.pkl` 写 `output/v3_feat/val_pred.csv`，实验模型默认跳过，避免踩坑 #24/#27 再次覆盖基线
+- **precompute 残留清理**: `run()` 先确认 chunk 再清 `FEAT_DIR`；`merge()` 按本轮 `CHUNK_DIR` 校验特征集合，缺失即报错，不再混入旧 chunk
+- **词典链 fail-fast + 原子写 (P1)**: `STATS_VERSION` 在 launcher/worker 均必填；aggregate 校验 16/16 stats 齐全；`atomic_pickle_dump`（tmp + `os.replace` + `.bak`）覆盖 aggregate/patch/bake/clean 写路径；`patch_v141` 日志名随 `--src-v/--dst-v` 动态化
+- **运行时校验**: 词典 pkl 缺失改为 `FileNotFoundError`（仅旧 v1.1.1 兜底保留 warning）；`BrandModel` 缺失 warning 且 `brand_score` 退 0.5；`V3Classifier` 启动校验模型 78 维特征 schema；`clean_eval`/`calibration_audit` 与 `evaluate` 共用 `finalize_proba`，Brier 修正为最终预测类概率（标注 `pred-class`）
+- **测试与文档**: 新增并发回归 + Batch 0 回归 6 条（共 195）；README/AGENTS/HANDOVER/CHANGELOG 同步；HANDOVER §3.5 补词典 pkl fail-fast、#24/#27 更新、新增踩坑 #31（serve 并发串扰）
+- **未纳入本版**: Batch 1 文本分组切分原型（`data/eval_split_group_*.csv` 与 `output/v3_group_split_report.md`，均为可再生/未追踪文件）；现役 `eval_split_*`、特征与模型未改，评测泄漏治理留待下一版
+
 ## v4.1.2 (2026-09-03) — 7代会话自审计: 文档一致性修正 + 产物复跑确认
 
 无算法/词典/模型变更（仅 `run.py VERSION`）。审计报告存档 `audit/audit_gen7_v412_audit.md`。

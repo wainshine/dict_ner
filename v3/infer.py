@@ -45,9 +45,15 @@ class V3Classifier:
         self.labels = bundle["labels"]
         self.feature_names = bundle["feature_names"]
         if list(self.feature_names) != list(FEATURE_NAMES):
+            missing = [n for n in FEATURE_NAMES if n not in set(self.feature_names)]
+            extra = [n for n in self.feature_names if n not in set(FEATURE_NAMES)]
+            first_diff = next(
+                (i for i, (a, b) in enumerate(zip(self.feature_names, FEATURE_NAMES))
+                 if a != b), None)
             raise ValueError(
                 "模型特征与当前 FEATURE_NAMES 不一致, 拒绝加载: "
-                f"model={len(self.feature_names)} current={len(FEATURE_NAMES)}")
+                f"model={len(self.feature_names)} current={len(FEATURE_NAMES)} "
+                f"first_diff={first_diff} missing={missing[:5]} extra={extra[:5]}")
         self.classes_ = [int(c) for c in self.clf.classes_]
         try:
             from v3.fast_predict import FastCalibrated

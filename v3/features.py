@@ -5,6 +5,7 @@
 """
 import os
 import sys
+import threading
 
 import numpy as np
 
@@ -71,7 +72,16 @@ class FeatureExtractor:
             pipe = V3Pipeline()
         self.pipe = pipe
         self.idx = CsvIndex.instance()
-        self.last_results = None
+        self._local = threading.local()
+
+    @property
+    def last_results(self):
+        """兼容旧接口的线程本地缓存; 分类器已不再依赖它。"""
+        return getattr(self._local, "last_results", None)
+
+    @last_results.setter
+    def last_results(self, value):
+        self._local.last_results = value
 
     def _lookup_suffix_category(self, d4):
         if not d4 or not self.pipe.suffix_table:

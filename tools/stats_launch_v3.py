@@ -4,6 +4,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.pipeline_base import launch_parallel
 
+if not os.environ.get("STATS_VERSION"):
+    print("STATS_VERSION is required, e.g. STATS_VERSION=v1.4.3", file=sys.stderr)
+    sys.exit(2)
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ITER_DIR = os.path.join(BASE, "dicts", f"iter_{os.environ.get('DICT_VERSION', 'v1.5.0')}")
 
