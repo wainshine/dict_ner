@@ -18,6 +18,23 @@ DEFAULT_MODEL = os.path.join(BASE, "models", "clf_v3.pkl")
 _ORG_TYPE_REMAP = {"POI": "ORG_SUFFIX"}
 
 
+def finalize_proba(proba, mult, reject_t):
+    """统一 tuned argmax + reject 规则, 返回 (pred_index, confidence)。
+
+    proba: (n, 4) 校准后概率; mult: (4,); reject_t: 低于阈值的样本归 UNKNOWN。
+    所有评估/推理路径共用该函数, 避免 clean_eval/calibration_audit 口径分叉。
+    """
+    tuned = proba * mult
+    pred_i = np.argmax(tuned, axis=1)
+    if reject_t > 0:
+        low = proba.max(axis=1) < reject_t
+        pred_i = np.where(low, L2I["UNKNOWN"], pred_i)
+    denom = tuned.sum(axis=1)
+    denom = np.where(denom == 0, 1.0, denom)
+    conf = tuned[np.arange(len(pred_i)), pred_i] / denom
+    return pred_i, conf
+
+
 class V3Classifier:
     def __init__(self, model_path: str = DEFAULT_MODEL):
         with open(model_path, "rb") as f:
@@ -27,6 +44,10 @@ class V3Classifier:
         self.reject_t = bundle.get("reject_t", 0.0)
         self.labels = bundle["labels"]
         self.feature_names = bundle["feature_names"]
+        if list(self.feature_names) != list(FEATURE_NAMES):
+            raise ValueError(
+                "模型特征与当前 FEATURE_NAMES 不一致, 拒绝加载: "
+                f"model={len(self.feature_names)} current={len(FEATURE_NAMES)}")
         self.classes_ = [int(c) for c in self.clf.classes_]
         try:
             from v3.fast_predict import FastCalibrated
@@ -42,19 +63,16 @@ class V3Classifier:
         return self.clf.predict_proba(X)
 
     def _predict(self, text):
-        f = self.extractor.extract(text)
+        f, loc_res, org_res, poi_res = self.extractor.extract_with_results(text)
         vec = np.array([[f.get(name, np.nan) for name in self.feature_names]],
                        dtype=np.float64)
         raw = self._proba(vec)[0]
         proba = np.zeros(len(LABELS))
         for col, cls in enumerate(self.classes_):
             proba[cls] = raw[col]
-        tuned = proba * self.mult
-        cat_i = int(np.argmax(tuned))
-        if proba.max() < self.reject_t:
-            cat_i = L2I["UNKNOWN"]
-        confidence = float(tuned[cat_i] / tuned.sum())
-        return self.labels[cat_i], confidence, proba, f
+        pred_i, conf = finalize_proba(proba[None, :], self.mult, self.reject_t)
+        return (self.labels[int(pred_i[0])], float(conf[0]), proba, f,
+                (loc_res, org_res, poi_res))
 
     def _select_best(self, category, loc_res, org_res, poi_res):
         if category == "ORG":
@@ -73,8 +91,8 @@ class V3Classifier:
         if not text:
             return {"text": "", "category": "UNKNOWN", "confidence": 1.0,
                     "best": None, "all": None}
-        category, confidence, proba, _ = self._predict(text)
-        loc_res, org_res, poi_res = self.extractor.last_results
+        category, confidence, proba, _, results = self._predict(text)
+        loc_res, org_res, poi_res = results
 
         return {
             "text": text,
@@ -98,9 +116,9 @@ class V3Classifier:
                 vecs.append(None)
                 seg_results.append(None)
                 continue
-            f = self.extractor.extract(t)
+            f, loc_res, org_res, poi_res = self.extractor.extract_with_results(t)
             vecs.append([f.get(name, np.nan) for name in self.feature_names])
-            seg_results.append(self.extractor.last_results)
+            seg_results.append((loc_res, org_res, poi_res))
         idx_valid = [i for i, v in enumerate(vecs) if v is not None]
         probas = np.zeros((len(idx_valid), len(LABELS)))
         if idx_valid:
@@ -117,12 +135,9 @@ class V3Classifier:
                 continue
             proba = probas[res_i]
             res_i += 1
-            tuned = proba * self.mult
-            cat_i = int(np.argmax(tuned))
-            if proba.max() < self.reject_t:
-                cat_i = L2I["UNKNOWN"]
-            category = self.labels[cat_i]
-            confidence = float(tuned[cat_i] / tuned.sum())
+            pred_i, conf = finalize_proba(proba[None, :], self.mult, self.reject_t)
+            category = self.labels[int(pred_i[0])]
+            confidence = float(conf[0])
             loc_res, org_res, poi_res = seg_results[i]
             out.append({
                 "text": t,

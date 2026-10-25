@@ -6,11 +6,14 @@
   build_poi_engine(dict_name="poi_v1.2.3.pkl") → 等价 PoiRecognizer
 """
 import csv
+import logging
 import os
 import warnings
 
 from core.types import SegType, ADMIN_SUFFIX_MAP, LEVEL_ORDER
 from v3.engine.dp import DPEngine, EngineConfig
+
+logger = logging.getLogger(__name__)
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_DIR = os.path.join(BASE, "data")
@@ -314,21 +317,27 @@ def _load_org_dicts(dict_name, version, apply_poi_prune=False, baked=False,
     if dict_name:
         cache_path = os.path.join(DICT_DIR, dict_name)
     else:
-        cache_path = os.path.join(DICT_DIR, f"org_{version}.pkl")
+        expected_path = os.path.join(DICT_DIR, f"org_{version}.pkl")
+        cache_path = expected_path
         if not os.path.exists(cache_path):
             for fallback in ("v1.1.1", ""):
                 fb = os.path.join(DICT_DIR,
                                   f"org_{fallback}.pkl" if fallback else "org.pkl")
                 if os.path.exists(fb):
+                    logger.warning("dictionary %s missing; fallback to %s",
+                                   expected_path, fb)
                     cache_path = fb
                     break
+    if not os.path.exists(cache_path):
+        raise FileNotFoundError(
+            f"dictionary not found: {cache_path} "
+            f"(version={version!r}, dict_name={dict_name!r})")
     d1_freqs, d3_freqs, d4_freqs = {}, {}, {}
-    if os.path.exists(cache_path):
-        with open(cache_path, "rb") as f:
-            cached = pickle.load(f)
-        d1_freqs = dict(cached.get("d1_freqs", {}))
-        d3_freqs = dict(cached.get("d3_freqs", {}))
-        d4_freqs = dict(cached.get("d4_freqs", {}))
+    with open(cache_path, "rb") as f:
+        cached = pickle.load(f)
+    d1_freqs = dict(cached.get("d1_freqs", {}))
+    d3_freqs = dict(cached.get("d3_freqs", {}))
+    d4_freqs = dict(cached.get("d4_freqs", {}))
 
     if not baked:
         if apply_poi_prune:

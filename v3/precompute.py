@@ -43,8 +43,15 @@ def split(in_csv):
 
 def run():
     os.makedirs(FEAT_DIR, exist_ok=True)
+    # 清掉上一轮特征, 防止本轮 chunk 数变少时 merge 混入旧文件
+    for old in (glob.glob(os.path.join(FEAT_DIR, "chunk_*.csv"))
+                + glob.glob(os.path.join(FEAT_DIR, "chunk_*.log"))):
+        os.remove(old)
     worker = os.path.join(BASE, "v3", "precompute_worker.py")
     chunks = sorted(glob.glob(os.path.join(CHUNK_DIR, "chunk_*.csv")))
+    if not chunks:
+        print(f"No chunks in {CHUNK_DIR}; run 'precompute.py split <in_csv>' first")
+        return False
     procs = []
     t0 = time.time()
     for c in chunks:
@@ -66,7 +73,19 @@ def run():
 
 
 def merge(out_csv):
-    feats = sorted(glob.glob(os.path.join(FEAT_DIR, "chunk_*.csv")))
+    expected = sorted(glob.glob(os.path.join(CHUNK_DIR, "chunk_*.csv")))
+    if not expected:
+        raise SystemExit(f"No chunks in {CHUNK_DIR}; run 'precompute.py split <in_csv>' first")
+    feats = []
+    missing = []
+    for c in expected:
+        fp = os.path.join(FEAT_DIR, os.path.basename(c))
+        if os.path.exists(fp):
+            feats.append(fp)
+        else:
+            missing.append(os.path.basename(c))
+    if missing:
+        raise SystemExit(f"Missing feature chunks: {missing}; rerun 'precompute.py run'")
     total = 0
     with open(out_csv, "w", encoding="utf-8", newline="") as fout:
         w = None

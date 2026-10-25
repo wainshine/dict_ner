@@ -121,7 +121,11 @@ class FeatureExtractor:
         for c in D4_CATEGORIES:
             f[f"{sfx_key}_{c}"] = float(sfx_cat == c) if sfx_cat else 0.0
 
-    def extract(self, text):
+    def extract_with_results(self, text):
+        """提取特征, 同时返回本次调用的三体系段结果 (无共享状态)。
+
+        并发调用安全: 所有识别结果都是局部变量, 不写入 self。
+        """
         p = self.pipe
         text = text.strip()
         n = max(1, len(text))
@@ -140,7 +144,6 @@ class FeatureExtractor:
             org_res = p._re_split_and_recognize(text, split_pos)
         has_comp = p._has_company_suffix(org_res)
         poi_res = None if has_comp else p.poi.recognize(text)
-        self.last_results = (loc_res, org_res, poi_res)
 
         loc_segs = loc_res.segments
         f["loc_n_segs"] = len(loc_segs)
@@ -233,6 +236,16 @@ class FeatureExtractor:
             f["poi_brand_score"] = (
                 self.pipe.org.brand_score(poi_brand_text) if poi_brand_text else np.nan)
 
+        return f, loc_res, org_res, poi_res
+
+    def extract(self, text):
+        """兼容旧接口: 提取特征并缓存本次段结果到 last_results。
+
+        仅供单线程/预计算使用; 并发推理请使用 extract_with_results,
+        避免共享 last_results 造成请求间串扰。
+        """
+        f, loc_res, org_res, poi_res = self.extract_with_results(text)
+        self.last_results = (loc_res, org_res, poi_res)
         return f
 
     def extract_vector(self, text):

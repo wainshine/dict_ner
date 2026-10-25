@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """v1.4.2 词典补丁 — F5 村/居委会复合词清除 + F6 d3 低频清理
 
-F5: d1 词条以 村民委员会/居民委员会/村委会/居委会 结尾, 且前缀是已知村名
-    (d1 或 areas/villages.csv 证实) → 从 d1 删除 (正确切分: XX村 VILLAGE + 委员会 d4)
+F5: d1 词条以 村民委员会/居民委员会/村委会/居委会 结尾 → 从 d1 删除
+    (正确切分: XX村 VILLAGE + 委员会 d4)
+    注意: 当前实现未校验前缀是否为已知村名 (docstring 旧描述与代码不符,
+    见审计 Batch 2; 现役 v1.5.0 词典已按当前行为固化)
 F6: d3 freq<10 删除
 输入: dicts/org_v1.4.1.pkl → 输出: dicts/org_v1.4.2.pkl + export CSV 更新
 """
@@ -12,6 +14,8 @@ import pickle
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools.pipeline_base import atomic_pickle_dump
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DICT_DIR = os.path.join(BASE, "dicts")
@@ -48,6 +52,7 @@ def main():
     d4 = dict(dd["d4_freqs"])
 
     villages = load_villages()
+    # 当前仅用于日志; 删除决策未使用该集合 (审计项, Batch 2 处理)
     print(f"areas villages: {len(villages):,}")
 
     removed = []
@@ -64,8 +69,7 @@ def main():
     print(f"F6: d3 freq<{D3_FREQ_MIN} 删除 {len(d3_removed)} 条")
 
     out = {"d1_freqs": d1, "d3_freqs": d3, "d4_freqs": d4}
-    with open(dst, "wb") as f:
-        pickle.dump(out, f)
+    atomic_pickle_dump(out, dst)
     print(f"saved: {dst} ({os.path.getsize(dst)/1024/1024:.1f}MB)")
     print(f"d1: {len(dd['d1_freqs']):,} → {len(d1):,}  d3: {len(dd['d3_freqs']):,} → {len(d3):,}")
 

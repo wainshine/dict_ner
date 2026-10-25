@@ -56,7 +56,10 @@ def main():
         sys.exit(1)
     inp, out_pkl = sys.argv[1], sys.argv[2]
 
-    version = os.environ.get("STATS_VERSION", "v1.3.0")
+    version = os.environ.get("STATS_VERSION")
+    if not version:
+        print("STATS_VERSION is required, e.g. STATS_VERSION=v1.4.3", file=sys.stderr)
+        sys.exit(2)
     from v3.engine.configs import build_poi_engine
     rec = build_poi_engine(f"poi_{version}.pkl")
     with open(os.path.join(BASE_DIR, "dicts", f"poi_{version}.pkl"), "rb") as f:

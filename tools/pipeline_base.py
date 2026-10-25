@@ -3,9 +3,29 @@ import os
 import sys
 import time
 import pickle
+import shutil
 import subprocess
 from collections import Counter
 from core.config import NUM_CHUNKS
+
+
+def atomic_pickle_dump(obj, path: str, backup: bool = True):
+    """原子写 pickle: 同目录 tmp + os.replace; 覆盖前可选 .bak 备份。
+
+    防止 aggregate/patch 中途崩溃把现役词典写成半截文件。
+    """
+    parent = os.path.dirname(path) or "."
+    os.makedirs(parent, exist_ok=True)
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "wb") as f:
+            pickle.dump(obj, f)
+        if backup and os.path.exists(path):
+            shutil.copy2(path, path + ".bak")
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
 
 
 def count_lines(path: str) -> int:

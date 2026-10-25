@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from v3.infer import finalize_proba
 
 LABELS = ("ORG", "POI", "ADDR", "UNKNOWN")
 L2I = {lb: i for i, lb in enumerate(LABELS)}
@@ -37,12 +38,8 @@ def main():
     X = df[bundle["feature_names"]].to_numpy(dtype=np.float64)
     y = df["label"].to_numpy()
     proba = fast.predict_proba(X)
-    tuned = proba * mult
-    pred_i = np.argmax(tuned, axis=1)
-    conf = tuned.max(axis=1) / tuned.sum(axis=1)
-    pred = np.array([LABELS[i] for i in pred_i])
-    if reject_t > 0:
-        pred = np.where(proba.max(axis=1) < reject_t, "UNKNOWN", pred)
+    pred_i, conf = finalize_proba(proba, mult, reject_t)
+    pred = np.array([LABELS[int(i)] for i in pred_i])
     correct = (pred == y)
 
     edges = np.linspace(0.0, 1.0, args.bins + 1)
@@ -61,7 +58,8 @@ def main():
         ece += cnt / n * abs(acc - mc)
         rows.append((f"[{lo:.1f},{hi:.1f})", cnt, mc, acc, acc - mc))
 
-    brier = float(np.mean((proba.max(axis=1) - correct.astype(float)) ** 2))
+    brier = float(np.mean(
+        (proba[np.arange(n), pred_i] - correct.astype(float)) ** 2))
     overall_acc = float(correct.mean())
     overall_conf = float(conf.mean())
 

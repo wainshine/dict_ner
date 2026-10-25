@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Aggregate per-chunk org stats → pruned dictionary with versioning"""
-import os, sys, pickle, csv as csv_mod
+import os, sys, csv as csv_mod
 from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config import BASE_DIR, DICT_DIR, DATA_DIR, VERSION as _VERSION, NUM_CHUNKS
 VERSION = os.environ.get("DICT_VERSION", _VERSION)
-from tools.pipeline_base import aggregate_stats_files, export_d2_csv
+from tools.pipeline_base import aggregate_stats_files, export_d2_csv, atomic_pickle_dump
 
 STATS_DIR = DICT_DIR
 OUT_DIR = os.path.join(STATS_DIR, f"iter_{VERSION}")
@@ -174,6 +174,12 @@ def main():
     print(f"Loaded d444 quality data: {len(quality):,} suffixes", flush=True)
 
     stats_files = [os.path.join(STATS_DIR, f"iter_{VERSION}", f"org_stats_{i:02d}.pkl") for i in range(NUM_CHUNKS)]
+    missing = [p for p in stats_files if not os.path.exists(p)]
+    if missing:
+        print(f"Missing {len(missing)}/{NUM_CHUNKS} org stats files, abort:", flush=True)
+        for p in missing[:5]:
+            print(f"  {p}", flush=True)
+        raise SystemExit(1)
     merged = aggregate_stats_files(stats_files)
     pruned = prune(merged, quality)
     pruned, split_n = split_polluted_d4(pruned, merged)
@@ -185,13 +191,11 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
     dict_path = os.path.join(STATS_DIR, f"org_{VERSION}.pkl")
-    with open(dict_path, "wb") as f:
-        pickle.dump(pruned, f)
+    atomic_pickle_dump(pruned, dict_path)
     print(f"\nSaved: {dict_path} ({os.path.getsize(dict_path)/1024/1024:.1f}MB)", flush=True)
 
     merged_path = os.path.join(OUT_DIR, "org_merged_stats.pkl")
-    with open(merged_path, "wb") as f:
-        pickle.dump(merged, f)
+    atomic_pickle_dump(merged, merged_path, backup=False)
     print(f"Saved: {merged_path}", flush=True)
 
     csv_path = os.path.join(OUT_DIR, f"org_d2_freqs_{VERSION}.csv")

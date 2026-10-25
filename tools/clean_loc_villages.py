@@ -4,6 +4,7 @@ import os, sys, pickle, csv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.types import SegType
+from tools.pipeline_base import atomic_pickle_dump
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AREAS_DIR = os.path.join(BASE, "data", "areas")
@@ -56,8 +57,7 @@ def main():
     data[SegType.CITY] = city_dict
 
     dst = os.path.join(DICT_DIR, "loc_v1.4.0_unbaked.pkl")
-    with open(dst, "wb") as f:
-        pickle.dump(data, f)
+    atomic_pickle_dump(data, dst)
 
     print(f"LOC VILLAGE cleanup: {len(removed)} entries removed")
     for word, freq, dest in removed[:20]:

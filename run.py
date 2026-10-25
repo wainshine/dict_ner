@@ -4,9 +4,12 @@ import os, sys, json
 import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-VERSION = "v4.1.2"
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
+
+from core.config import SYSTEM_VERSION
+
+VERSION = SYSTEM_VERSION
 
 from pipeline_v2 import DictNerPipeline
 

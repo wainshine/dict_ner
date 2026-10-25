@@ -18,7 +18,7 @@
 ```bash
 cd /Users/wainshine/newAI/dict_ner
 git status                                        # 应干净
-python3 -m unittest discover -s tests/            # 188 条全绿
+python3 -m unittest discover -s tests/            # 189 条全绿
 python3 run.py classify "深圳市南山区华为技术有限公司"   # → ORG (v3 默认入口)
 python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结规则链)
 ```
@@ -29,13 +29,13 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 |------|------|
 | `v3/` | **当前活代码**：engine/(统一DP引擎+gate门禁) features.py pipeline.py(自包含) brand_model.py infer.py fast_predict.py train.py labels.py 及全套评估/挖掘工具 |
 | `v2/` + 根 `pipeline_v2.py` | **v2 冻结 baseline**：识别器平铺（loc_recognizer/loc_builder/loc_importer/org_recognizer/poi_recognizer/brand_model/eval）+ v2/tools/（v2 时代 launch/worker/eval 工具） |
-| `core/` | 共享：types(SegType) / config(VERSION) / csv_index / suffix_matcher / suffix_classify |
+| `core/` | 共享：types(SegType) / config(VERSION 词典版 + SYSTEM_VERSION 系统版) / csv_index / suffix_matcher / suffix_classify |
 | `serve.py` | FastAPI 服务：POST /classify /classify_batch、GET /health；压测见 output/v4_serve_bench.md |
 | `models/` | clf_v3.pkl（GBDT+校准+乘数）+ manifest；clf_v3_compact.pkl（备选小模型） |
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
 | `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv（原始地图语料已删有异地备份，见 HANDOVER §3.1） |
 | `output/` | 评估产物；`v3_feat/` 白名单制（现役 final_train6 + train/val/test_feats + val_pred + synth_feats + unknown_*_feats + pool_clean*_stats.json，其余可再生） |
-| `tests/` | 188 条（tests/legacy/ 71 条 v2 锚定 + 根目录 117 条 v3/core/serve/metrics） |
+| `tests/` | 189 条（tests/legacy/ 71 条 v2 锚定 + 根目录 118 条 v3/core/serve/metrics） |
 | `audit/` | HANDOVER.md + 各代方案/审计报告 |
 
 ## 红线（违反即 reject）
@@ -46,7 +46,7 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 4. 发版 = 代码 + README/HANDOVER/CHANGELOG/AGENTS 四文档 + git 提交，一次完成
 5. 并行用 bash `&` 16 进程独立 .py（macOS spawn 坑）；跑性能测量前先杀干净后台 worker（OpenMP 过订阅）
 6. `open(p,'w').write(open(p).read())` 会先截断后读取 → 清空文件，禁止此写法
-7. `v3/train.py` 无条件覆盖 `output/v3_feat/val_pred.csv`：实验重训（--model 指向新文件）后必须用 baseline 模型重算恢复（踩坑 #24/#27，已踩中两次）
+7. `v3/train.py` 默认只在 `--model` 为基线 `clf_v3.pkl` 时写 `output/v3_feat/val_pred.csv`；实验模型（`--model` 指向新文件）默认跳过，需显式 `--val-pred`（踩坑 #24/#27 的代码防护）
 
 ## 常用命令
 

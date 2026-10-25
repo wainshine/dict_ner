@@ -32,6 +32,8 @@ class TestServe(unittest.TestCase):
         for k in ("version", "dict_version", "model_tag", "uptime"):
             self.assertIn(k, d)
         self.assertEqual(d["dict_version"], "v1.5.0")
+        from core.config import SYSTEM_VERSION
+        self.assertEqual(d["version"], SYSTEM_VERSION)
 
     def test_classify_contract(self):
         r = self.client.post("/classify",

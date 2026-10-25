@@ -12,6 +12,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tools.pipeline_base import atomic_pickle_dump
+
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DICT_DIR = os.path.join(BASE, "dicts")
 DATA = os.path.join(BASE, "data")
@@ -122,7 +124,7 @@ def main():
         d4, removed = f3_digit_clean(d4)
         d1, d1_removed = f2b_d1_conflict_clean(d1, rescued, d4)
 
-        print(f"== {sysname} v1.4.0 → v1.4.1 ==")
+        print(f"== {sysname} {v.src_v} → {v.dst_v} ==")
         print(f"  F1 括号归一化: {n1} 条合并")
         print(f"  F2 复合后缀回补: {len(rescued)} 条 "
               f"{[w for w, _ in rescued[:12]]}")
@@ -131,14 +133,15 @@ def main():
         print(f"  d4: {len(dd['d4_freqs']):,} → {len(d4):,}")
 
         out = {"d1_freqs": d1, "d3_freqs": dd["d3_freqs"], "d4_freqs": d4}
-        with open(dst, "wb") as f:
-            pickle.dump(out, f)
+        atomic_pickle_dump(out, dst)
         print(f"  saved: {dst} ({os.path.getsize(dst)/1024/1024:.1f}MB)")
         export_csv(sysname, out)
 
-    with open(os.path.join(DICT_DIR, "v1.4.1_patch_log.json"), "w",
-              encoding="utf-8") as f:
-        json.dump({"f1": "bracket merge", "f2_rescue": True, "f3": "digit clean"}, f)
+    log_path = os.path.join(DICT_DIR, f"{v.dst_v}_patch_log.json")
+    with open(log_path, "w", encoding="utf-8") as f:
+        json.dump({"src": v.src_v, "dst": v.dst_v,
+                   "f1": "bracket merge", "f2_rescue": True,
+                   "f3": "digit clean"}, f)
 
 
 if __name__ == "__main__":

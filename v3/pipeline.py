@@ -50,10 +50,12 @@ class _OrgAdapter:
 
 class V3Pipeline:
     def __init__(self, loc_dict="loc_v1.5.0", org_version="v1.5.0",
-                 poi_dict="poi_v1.5.0.pkl"):
+                 poi_dict="poi_v1.5.0.pkl", brand_version="v1.5.0"):
         from v3.brand_model import BrandModel
-        brand = BrandModel(DICT_DIR, version="v1.5.0")
-        brand.load()
+        brand = BrandModel(DICT_DIR, version=brand_version)
+        if not brand.load():
+            logger.warning("brand model missing: %s; brand_score falls back to 0.5",
+                           brand._path)
         self._loc_engine = build_loc_engine(loc_dict)
         self._poi_engine = build_poi_engine(poi_dict)
         self.org = _OrgAdapter(build_org_engine(org_version), brand)

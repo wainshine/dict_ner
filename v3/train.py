@@ -25,6 +25,7 @@ L2I = {lb: i for i, lb in enumerate(LABELS)}
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FEAT_DIR = os.path.join(BASE, "output", "v3_feat")
 MODEL_DIR = os.path.join(BASE, "models")
+DEFAULT_MODEL = os.path.join(MODEL_DIR, "clf_v3.pkl")
 
 
 def load_feats(path):
@@ -95,6 +96,19 @@ def file_md5(path):
     return h.hexdigest()
 
 
+def resolve_val_pred_path(model_path, explicit=None):
+    """返回 val_pred 输出路径; None 表示不写。
+
+    只有基线模型 (clf_v3.pkl) 默认写 output/v3_feat/val_pred.csv;
+    实验模型 (--model 指向新文件) 必须显式 --val-pred 才写, 避免覆盖基线产物。
+    """
+    if explicit:
+        return explicit
+    if os.path.abspath(model_path) == os.path.abspath(DEFAULT_MODEL):
+        return os.path.join(FEAT_DIR, "val_pred.csv")
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", default=os.path.join(FEAT_DIR, "train_feats.csv"))
@@ -103,6 +117,9 @@ def main():
     ap.add_argument("--val", default=os.path.join(FEAT_DIR, "val_feats.csv"))
     ap.add_argument("--model", default=os.path.join(MODEL_DIR, "clf_v3.pkl"))
     ap.add_argument("--manifest", default=os.path.join(MODEL_DIR, "manifest_v3.json"))
+    ap.add_argument("--val-pred", default=None,
+                    help="val_pred.csv 输出路径; 默认仅当 --model 为基线 clf_v3.pkl 时写 "
+                         "output/v3_feat/val_pred.csv, 实验模型默认不写 (防覆盖基线)")
     ap.add_argument("--no-calib", action="store_true")
     ap.add_argument("--max-iter", type=int, default=500)
     ap.add_argument("--max-leaf-nodes", type=int, default=63)
@@ -183,11 +200,14 @@ def main():
         }, f)
     print(f"\nSaved model: {args.model}")
 
+    pred_path = resolve_val_pred_path(args.model, args.val_pred)
+
     manifest = {
         "tag": args.tag,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "train_path": args.train, "train_md5": file_md5(args.train),
         "val_path": args.val, "val_md5": file_md5(args.val),
+        "val_pred_path": pred_path,
         "n_train": int(len(y_tr)), "n_val": int(len(y_va)),
         "n_features": len(feat_cols),
         "params": {
@@ -204,19 +224,21 @@ def main():
         json.dump(manifest, f, ensure_ascii=False, indent=2)
     print(f"Saved manifest: {args.manifest}")
 
-    pred_path = os.path.join(FEAT_DIR, "val_pred.csv")
-    with open(pred_path, "w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["text", "label", "source", "pred", "confidence"]
-                   + [f"p_{lb}" for lb in LABELS])
-        mx = proba * mult
-        conf = mx.max(axis=1) / mx.sum(axis=1)
-        for i in range(len(df_va)):
-            w.writerow([df_va.iloc[i]["text"], df_va.iloc[i]["label"],
-                        df_va.iloc[i]["source"], LABELS[pred_tuned[i]],
-                        round(float(conf[i]), 4)]
-                       + [round(float(p), 4) for p in proba[i]])
-    print(f"Saved val predictions: {pred_path}")
+    if pred_path:
+        with open(pred_path, "w", encoding="utf-8", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["text", "label", "source", "pred", "confidence"]
+                       + [f"p_{lb}" for lb in LABELS])
+            mx = proba * mult
+            conf = mx[np.arange(len(df_va)), pred_tuned] / mx.sum(axis=1)
+            for i in range(len(df_va)):
+                w.writerow([df_va.iloc[i]["text"], df_va.iloc[i]["label"],
+                            df_va.iloc[i]["source"], LABELS[pred_tuned[i]],
+                            round(float(conf[i]), 4)]
+                           + [round(float(p), 4) for p in proba[i]])
+        print(f"Saved val predictions: {pred_path}")
+    else:
+        print("Skipped val_pred.csv (non-default model; pass --val-pred to write explicitly)")
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.metrics import compute_metrics, print_metrics
+from v3.infer import finalize_proba
 
 LABELS = ("ORG", "POI", "ADDR", "UNKNOWN")
 L2I = {lb: i for i, lb in enumerate(LABELS)}
@@ -43,11 +44,8 @@ def main():
     proba = np.zeros((len(y), len(LABELS)))
     for col, cls in enumerate([int(c) for c in clf.classes_]):
         proba[:, cls] = raw[:, col]
-    tuned = proba * mult
-    pred = np.array([LABELS[i] for i in np.argmax(tuned, axis=1)])
-    if reject_t > 0:
-        pred = np.where(proba.max(axis=1) < reject_t, "UNKNOWN", pred)
-    conf = tuned.max(1) / tuned.sum(1)
+    pred_i, conf = finalize_proba(proba, mult, reject_t)
+    pred = np.array([LABELS[int(i)] for i in pred_i])
 
     pairs = list(zip(y.tolist(), pred.tolist()))
     metrics = compute_metrics(pairs)

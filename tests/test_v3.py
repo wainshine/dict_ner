@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 
@@ -84,6 +85,30 @@ class TestV3Infer(unittest.TestCase):
         r = self.clf.classify("北京市朝阳区")
         self.assertGreaterEqual(r["confidence"], 0.0)
         self.assertLessEqual(r["confidence"], 1.0)
+
+    def test_threaded_classify_no_cross_talk(self):
+        """并发下 best/all 必须属于本次请求 (serve 线程池回归)。"""
+        texts = [
+            "北京市朝阳区星巴克咖啡国贸店",
+            "麦当劳得来速餐厅",
+            "深圳市南山区华为技术有限公司",
+            "海底捞火锅三里屯店",
+            "广州市天河区体育西路",
+            "中国工商银行股份有限公司北京分行",
+            "上海市浦东新区陆家嘴环路1000号",
+            "杭州市西湖区北山街8号",
+        ]
+
+        def work(t):
+            for _ in range(10):
+                r = self.clf.classify(t)
+                self.assertIsNotNone(r["best"])
+                self.assertEqual(r["best"]["original"], t)
+                joined = "".join(s["text"] for s in r["best"]["segments"])
+                self.assertEqual(joined, t)
+
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            list(ex.map(work, texts * 4))
 
 
 if __name__ == "__main__":

@@ -9,10 +9,11 @@ loc_v1.3.0.pkl:  v1.2.3 + loc_prune(36词删除) + NUMERIC/POI_SUB注入 快照
 门禁: 补丁引擎 vs 实体化引擎 零差异 (见 v3/engine/gate.py --baked-compare)
 """
 import os
-import pickle
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools.pipeline_base import atomic_pickle_dump
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DICT_DIR = os.path.join(BASE, "dicts")
@@ -24,8 +25,7 @@ def main():
 
     d1, d3, d4 = _load_org_dicts(None, "v1.2.3", baked=False)
     out = os.path.join(DICT_DIR, "org_v1.3.0.pkl")
-    with open(out, "wb") as f:
-        pickle.dump({"d1_freqs": d1, "d3_freqs": d3, "d4_freqs": d4}, f)
+    atomic_pickle_dump({"d1_freqs": d1, "d3_freqs": d3, "d4_freqs": d4}, out)
     print(f"org_v1.3.0: d1={len(d1):,} d3={len(d3):,} d4={len(d4):,} "
           f"({os.path.getsize(out)/1024/1024:.1f}MB)")
 
@@ -34,15 +34,13 @@ def main():
                                  baked=False,
                                  poi_seed_path=seed if os.path.exists(seed) else None)
     out = os.path.join(DICT_DIR, "poi_v1.3.0.pkl")
-    with open(out, "wb") as f:
-        pickle.dump({"d1_freqs": d1, "d3_freqs": d3, "d4_freqs": d4}, f)
+    atomic_pickle_dump({"d1_freqs": d1, "d3_freqs": d3, "d4_freqs": d4}, out)
     print(f"poi_v1.3.0: d1={len(d1):,} d3={len(d3):,} d4={len(d4):,} "
           f"({os.path.getsize(out)/1024/1024:.1f}MB)")
 
     dict_data = _load_loc_dict_data("loc_v1.2.3", baked=False)
     out = os.path.join(DICT_DIR, "loc_v1.3.0.pkl")
-    with open(out, "wb") as f:
-        pickle.dump(dict_data, f)
+    atomic_pickle_dump(dict_data, out)
     sizes = {k.value: len(v) for k, v in dict_data.items()}
     print(f"loc_v1.3.0: {sizes} ({os.path.getsize(out)/1024/1024:.1f}MB)")
 

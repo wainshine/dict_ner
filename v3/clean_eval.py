@@ -20,6 +20,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.metrics import compute_metrics, print_metrics
+from v3.infer import finalize_proba
 
 LABELS = ("ORG", "POI", "ADDR", "UNKNOWN")
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -66,7 +67,8 @@ def main():
     proba = np.zeros((len(df), len(LABELS)))
     for col, cls in enumerate([int(c) for c in clf.classes_]):
         proba[:, cls] = raw[:, col]
-    pred = np.array([LABELS[i] for i in np.argmax(proba * mult, axis=1)])
+    pred_i, _ = finalize_proba(proba, mult, bundle.get("reject_t", 0.0))
+    pred = np.array([LABELS[int(i)] for i in pred_i])
     y = df["label"].to_numpy()
 
     derived = derive_clean_label(df)
