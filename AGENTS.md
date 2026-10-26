@@ -9,7 +9,7 @@
 ## 当前状态
 
 - 系统版本 **v4.2.0** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
-- 指标：test macro-F1 0.9035 | clean accuracy 0.9689 | ECE 0.0253 (val) | 单条 2.1ms / 批量 1.9ms/条
+- 指标：test macro-F1 0.9035 | clean accuracy 0.9689 | ECE 0.0253 (val) | 单条 ~1.6ms / 批量 ~1.2ms/条 (100条, 本机实测)
 - 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）+ fastapi/uvicorn（仅 serve.py）
 - v4.0.0：v2 代码已迁 `/v2/`（平铺）+ 根 `pipeline_v2.py`；v3 不再 import 任何 v2 模块；HTTP 服务 `serve.py`
 
@@ -27,11 +27,11 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 
 | 路径 | 说明 |
 |------|------|
-| `v3/` | **当前活代码**：engine/(统一DP引擎+gate门禁) features.py pipeline.py(自包含) brand_model.py infer.py fast_predict.py train.py labels.py 及全套评估/挖掘工具 |
+| `v3/` | **当前活代码**：engine/(统一DP引擎+gate门禁) features.py pipeline.py(自包含) brand_model.py infer.py fast_predict.py train.py labels.py make_group_split.py build_train7.py 及全套评估/挖掘工具 |
 | `v2/` + 根 `pipeline_v2.py` | **v2 冻结 baseline**：识别器平铺（loc_recognizer/loc_builder/loc_importer/org_recognizer/poi_recognizer/brand_model/eval）+ v2/tools/（v2 时代 launch/worker/eval 工具） |
 | `core/` | 共享：types(SegType) / config(VERSION 词典版 + SYSTEM_VERSION 系统版) / csv_index / suffix_matcher / suffix_classify |
-| `serve.py` | FastAPI 服务：POST /classify /classify_batch、GET /health；压测见 output/v4_serve_bench.md |
-| `models/` | clf_v3.pkl（GBDT+校准+乘数）+ manifest；clf_v3_compact.pkl（备选小模型） |
+| `serve.py` | FastAPI 服务：POST /classify /classify_batch、GET /health；压测见 output/v4_serve_bench.md（v4.0.3 旧模型；v4.2.0 未复测） |
+| `models/` | clf_v3.pkl（GBDT+校准+乘数）+ manifest_v3.json；clf_v3_baseline_v39/v42.pkl 归档；clf_v3_compact.pkl（备选小模型，非现役） |
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
 | `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv（原始地图语料已删有异地备份，见 HANDOVER §3.1） |
 | `output/` | 评估产物；`v3_feat/` 白名单制（现役 final_train7 + calib_feats + train/val/test_feats + val_pred + synth_feats + unknown_*_feats + pool_clean*_stats.json，其余可再生） |
@@ -44,7 +44,7 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 2. v2 文件（`/v2/` + `pipeline_v2.py`）冻结只读
 3. 词典任一变更 → 四词典版本号同升（统一版本政策）
 4. 发版 = 代码 + README/HANDOVER/CHANGELOG/AGENTS 四文档 + git 提交，一次完成
-5. 并行用 bash `&` 16 进程独立 .py（macOS spawn 坑）；跑性能测量前先杀干净后台 worker（OpenMP 过订阅）
+5. 并行用 bash `&` 16 进程独立 .py（每进程单线程，总核≤24；macOS spawn 坑）；跑性能测量前先杀干净后台 worker（OpenMP 过订阅）
 6. `open(p,'w').write(open(p).read())` 会先截断后读取 → 清空文件，禁止此写法
 7. `v3/train.py` 默认只在 `--model` 为基线 `clf_v3.pkl` 时写 `output/v3_feat/val_pred.csv`；实验模型（`--model` 指向新文件）默认跳过，需显式 `--val-pred`（踩坑 #24/#27 的代码防护）
 8. 重任务 CPU 上限：**≤10 计算线程、≤24 核**；训练用 `OMP_NUM_THREADS=10` + `nice`，特征预计算 16 进程 × 单线程；禁止满核
@@ -63,7 +63,7 @@ python3 v3/make_group_split.py --install                    # 文本分组切分
 python3 v3/build_train7.py --force                          # final_train7 + calib_feats
 python3 v3/train.py --train <final_train> --calib-set output/v3_feat/calib_feats.csv
 # 门禁/评估
-python3 v3/engine/gate.py --n 20000                        # 引擎一致性（现状下与 legacy v1.2.x 词典有代差 FAIL，验收看 diff 计数与变更前一致，见 HANDOVER §4.2）
+python3 v3/engine/gate.py --n 20000                        # 现状 FAIL: 20K diff loc 1976/org 4249/poi 2783 (词典代差, 见 HANDOVER §4.2)
 python3 v3/seg_quality.py --engine org --n 200000 --v3     # 段健康度
 python3 v3/evaluate.py --feats output/v3_feat/test_feats.csv  # test 指标
 python3 v3/seg_compare.py run <org|poi|loc> <mode>         # 全量段对比
@@ -75,4 +75,10 @@ uvicorn serve:app --port 8000 --workers 4                  # FastAPI 生产服�
 
 ## 下轮任务
 
-项目进入维护期。已关闭的方向：v1.6 词典自举（v4.1.0 验证回退，收敛确认）、eval 标签治理（v4.0.4/4.0.5 收敛）、模型侧 macro-F1（标签噪声天花板，v4_f1_error_audit.md）。可选遗留：pip 包化 pyproject.toml、多 worker 压测、Docker 化（用户暂缓）。
+v4.2.0 clean 基线已落地（group split + final_train7 + held-out calib），后续优先级：
+
+1. **Batch 2 词典链/评估工具**：`poi_prune` delete 分支、`patch_v142 --validate-villages` 默认策略（改行为需 seg_compare/gate）、`make_split` 覆盖备份、`seg_compare report` 显式 pattern、`badcase_eval` 先 `eval_cut` 再生 stats。
+2. **服务/性能**：`fast_predict` N 自适应（N>~1200 走 sklearn）、新模型 serve 复测并更新 `output/v4_serve_bench.md`、CLI 冷启动缓存。
+3. **数据重建**：补 `final_train6` 构建脚本/数据快照；修复后的蓄水池重采样需恢复原始语料并全门禁重训。
+
+可选：pip 包化 `pyproject.toml`、多 worker 压测、Docker 化（用户暂缓）。已知限制：当前 270 万池为旧采样实现、clone 无 `.bak_v42` 只能生成等价新切分、CLI 冷启动 ~9-12s。

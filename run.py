@@ -97,7 +97,16 @@ def main():
     elif c in ("classify", "v3"):
         from v3.infer import V3Classifier
         clf = V3Classifier()
-        if len(sys.argv) > 2 and sys.argv[2] == "--batch":
+        v3_batch = (c == "v3" and len(sys.argv) > 3
+                    and sys.argv[2] == "classify" and sys.argv[3] == "--batch")
+        if v3_batch:
+            if len(sys.argv) < 5:
+                print("用法: run.py v3 classify --batch <file>", file=sys.stderr)
+                sys.exit(2)
+            for chunk in _iter_batch_texts(sys.argv[4]):
+                for r in clf.classify_batch(chunk):
+                    print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
+        elif len(sys.argv) > 2 and sys.argv[2] == "--batch":
             if len(sys.argv) < 4:
                 print("用法: run.py classify --batch <file>", file=sys.stderr)
                 sys.exit(2)

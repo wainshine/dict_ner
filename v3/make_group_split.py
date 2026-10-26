@@ -8,7 +8,7 @@
   # 可选: --install 同时备份并覆盖 data/eval_split_{train,val,test}.csv
 
 方法: StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=seed), group=text;
-      fold 0-2 = train, fold 3 = val, fold 4 = test.
+      fold 0-2 = train (fold-major 顺序), fold 3 = val, fold 4 = test.
 输入/输出列: text,label,source (与现有 eval_split 一致)。
 """
 import argparse
@@ -51,14 +51,17 @@ def group_split(rows, seed=42):
             folds[i] = k
     if any(f is None for f in folds):
         raise SystemExit("internal error: some rows not assigned to a fold")
-    parts = {name: [] for name in SPLITS}
+    buckets = {k: [] for k in range(5)}
     for r, fold in zip(rows, folds):
+        buckets[fold].append(r)
+    parts = {name: [] for name in SPLITS}
+    for fold in range(5):
         if fold <= 2:
-            parts["train"].append(r)
+            parts["train"].extend(buckets[fold])
         elif fold == 3:
-            parts["val"].append(r)
+            parts["val"].extend(buckets[fold])
         else:
-            parts["test"].append(r)
+            parts["test"].extend(buckets[fold])
     return parts
 
 

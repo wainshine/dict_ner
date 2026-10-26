@@ -24,7 +24,8 @@ pip install -r requirements.txt   # v3 需要 sklearn/numpy/pandas; serve 需要
 
 # 分类 (v3 GBDT 模型, 默认入口)
 python run.py classify "深圳市南山区华为技术有限公司"     # → ORG 0.98
-python run.py classify --batch file.txt                  # 批量 (1.9ms/条)
+python run.py classify --batch file.txt                  # 批量 (~1.2ms/条, 100条)
+python run.py v3 classify --batch file.txt               # 显式 v3 批量
 
 # 段切分 (三体系视图)
 python run.py recognize "北京市朝阳区星巴克咖啡国贸店"
@@ -52,7 +53,7 @@ python run.py info
 
 ## 系统架构
 
-> 原理一句话：**切分靠词典 + Viterbi 动态规划（无学习），分类靠 GBDT 梯度提升树（500 树×4 类，78 维特征），置信度经 isotonic 校准**（ECE 0.0253 可直接当概率用）。无 GPU 依赖，单条 2.1ms。细节见 [HANDOVER §1.0](audit/HANDOVER.md)。
+> 原理一句话：**切分靠词典 + Viterbi 动态规划（无学习），分类靠 GBDT 梯度提升树（500 树×4 类，78 维特征），置信度经 isotonic 校准**（ECE 0.0253 可直接当概率用）。无 GPU 依赖，单条 ~1.6ms（本机实测）。细节见 [HANDOVER §1.0](audit/HANDOVER.md)。
 
 ```
 输入文本
@@ -141,6 +142,7 @@ dict_ner/
 │   ├── infer.py           V3Classifier 推理
 │   ├── fast_predict.py    HistGBDT 编译化快速预测器
 │   ├── train.py / labels.py / sample_pool.py / sample_unknown.py   训练链
+│   ├── make_group_split.py / build_train7.py                        文本分组切分/clean 训练集构建
 │   ├── precompute.py / precompute_worker.py                        16进程特征预计算
 │   ├── synth_unknown.py / clean_eval.py / calibration_audit.py     数据与评估
 │   ├── evaluate.py / pure_eval.py / seg_quality.py                 评估
@@ -157,7 +159,7 @@ dict_ner/
 ├── pipeline_v2.py       v2 统一总线 (冻结 baseline, run.py v2 使用)
 ├── run.py               CLI 入口
 ├── serve.py             FastAPI 服务 (POST /classify /classify_batch, GET /health)
-├── models/              GBDT 模型 (clf_v3.pkl + manifest; clf_v3_compact.pkl = 150树备选小模型, 非现役基线)
+├── models/              GBDT 模型 (clf_v3.pkl + manifest; clf_v3_baseline_v39/v42.pkl 旧基线归档; clf_v3_compact.pkl = 150树备选小模型, 非现役基线)
 ├── dicts/               词典 (v1.5.0 当前 + 历史版本 + export/ 审计表 + iter_v1.5.0/ 统计中间产物)
 ├── data/                语料与切分 (split/ 四套语料, SQL 三表, eval splits; 原始地图语料已删有备份)
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
@@ -198,15 +200,20 @@ m.save()"
 # 6. 分类器重训 (~15min; v4.2.0 clean 口径)
 #    切分: 文本分组切分 (train/val/test 文本重叠 0) → data/eval_split_*
 #    训练集: final_train7 = final_train6 去掉新 val/test/calib 文本 + 新 train 缺失行特征
+# ⚠️ make_split.py 无条件覆盖 data/eval_split_*；现役数据先备份
 python3 v3/make_split.py
 python3 v3/make_group_split.py --install
 python3 v3/build_train7.py --force
+# ⚠️ 当前 data/v3_train_pool.csv (270万) 仍是旧蓄水池实现产物; 完整重建需按修复后脚本重新采样并重训
 python3 v3/precompute.py all data/v3_train_pool.csv output/v3_feat/pool_feats.csv
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9 --out output/v3_feat/pool_feats_clean2.csv
 python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v3_feat/calib_feats.csv
+# ⚠️ final_train6 为历史产物（pool_clean2+synth+eval_train 合并脚本未入库）;
+#    无备份时需从 data/v3_train_pool.csv 重跑 precompute+labels 重建
+# ⚠️ clone/异地无 *.bak_v42 时，只能生成同方法等价新切分，行集合不保证一致
 
 # 7. 门禁
-python3 v3/engine/gate.py --n 20000        # 引擎一致性 (现状预期 FAIL: 词典代差, 看 diff 计数与变更前一致, 见 HANDOVER §4.2)
+python3 v3/engine/gate.py --n 20000        # 预期 FAIL: 20K diff loc 1976/org 4249/poi 2783 (词典代差, 见 HANDOVER §4.2)
 python3 v3/seg_quality.py --engine org --n 200000 --v3
 python3 -m unittest discover -v -s tests/  # 196 全绿
 ```
@@ -220,10 +227,10 @@ python3 -m unittest discover -v -s tests/  # 196 全绿
 | `v3/pure_eval.py` | 纯净集召回 (org_company / split_poi) | output/v3_pure_eval_report.md |
 | `v3/calibration_audit.py` | 置信度可靠性 (ECE/Brier) | output/v3_calibration_report.md |
 | `v3/seg_quality.py` | 段健康度 (后缀/行业/地址验证率/低频序列) | output/v3_seg_*.json |
-| `v3/seg_compare.py` | 两版词典全量段对比 | output/v3_seg_compare_report.md |
+| `v3/seg_compare.py` | 两版词典全量段对比 | output/v3_seg_compare_report.md (report 需显式 pattern，避免多轮产物混计) |
 | `v3/eval_cut.py` | 全量重切产出 JSONL+stats | output/*_eval/*_vX/ |
-| `v3/badcase_eval.py` | badcase 跨版修复率 | output/v*_badcase_*.md |
-| `v3/engine/gate.py` | 引擎一致性门禁 (重构类变更要求新旧零差异; **注意**: 当前 v1.5.0 词典 vs legacy v1.2.x 有代差，现状预期 FAIL，验收看 diff 计数与变更前一致，见 HANDOVER §4.2) | 终端 |
+| `v3/badcase_eval.py` | badcase 跨版修复率 (需先 eval_cut 再生 seq stats；否则空统计静默) | output/v*_badcase_*.md |
+| `v3/engine/gate.py` | 引擎一致性门禁 (重构类变更要求新旧零差异; **注意**: 当前 v1.5.0 词典 vs legacy v1.2.x 有代差，现状预期 FAIL；20K diff loc 1976/org 4249/poi 2783，见 HANDOVER §4.2) | 终端 |
 | `v2/tools/eval_classify.py` | v2 规则链评测 (baseline 对比) | 终端/JSON |
 
 ## 迭代工作流
@@ -235,7 +242,7 @@ python3 -m unittest discover -v -s tests/  # 196 全绿
     ├─ v3/seg_quality.py (三体系)                  → 段健康度不降
     ├─ v3/seg_compare.py (新旧全量对比)            → diff 逐类审查
     ├─ v3/evaluate.py --feats val_feats.csv       → val macro-F1 不降
-    └─ v3/badcase_eval.py                          → 修复率
+    └─ v3/badcase_eval.py                          → 修复率 (先 eval_cut 再生 stats)
     │
     v
 词典版本号四同升 (统一版本政策) → 全链路重训 → 文档四件套更新 → 提交
@@ -271,7 +278,7 @@ python3 -m unittest discover -v -s tests/    # 196 条 (tests/legacy/ 71 + 根�
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
-| **v4.2.0** | 2026-10-26 | Batch 0 安全修复 + Batch 1 文本分组切分 clean 重训: headline 0.9035 (旧含泄漏口径 0.9092); 旧模型归档 |
+| **v4.2.0** | 2026-10-26 | Batch 0 安全修复 + Batch 1 文本分组切分 clean 重训 + 外部审计 P1/P2/P3 修复: headline 0.9035 (旧含泄漏口径 0.9092); 旧模型归档 |
 | **v4.1.2** | 2026-09-03 | 7代会话自审计: 文档一致性修正 + 评估产物复跑确认 + HANDOVER §3.5 仓库边界 |
 | **v4.1.1** | 2026-08-06 | CLI 路由修复 (recognize/json/info 切 v3) + 技术原理入文档 + 前身项目补记 |
 | **v4.1.0** | 2026-08-05 | v1.6.0 词典自举实验: val 门禁未过回退, 收敛判断正式关闭 (留档) |
