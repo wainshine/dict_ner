@@ -49,6 +49,7 @@ def main():
     print(f"blocked: {len(blocked):,}")
 
     indoor = []
+    indoor_seen = 0
     files = sorted(f for f in os.listdir(GAODE_DIR) if f.endswith(".csv"))
     for i, fname in enumerate(files):
         path = os.path.join(GAODE_DIR, fname)
@@ -66,12 +67,13 @@ def main():
                 text = _safe_text(row[6])
                 if not text or text in blocked:
                     continue
-                if len(indoor) < args.gaode:
+                if indoor_seen < args.gaode:
                     indoor.append((text, "UNKNOWN", "gaode_indoor", "室内设施"))
                 else:
-                    j = random.randint(0, args.gaode * 20)
+                    j = random.randint(0, indoor_seen)
                     if j < args.gaode:
                         indoor[j] = (text, "UNKNOWN", "gaode_indoor", "室内设施")
+                indoor_seen += 1
         if (i + 1) % 20 == 0:
             print(f"  gaode {i+1}/{len(files)}, indoor {len(indoor):,}", flush=True)
     print(f"indoor: {len(indoor):,}", flush=True)

@@ -154,6 +154,7 @@ class V3Pipeline:
             if merged in idx.suffix or merged in idx.trade:
                 s1.text = merged
                 s1.seg_type = SegType.INDUSTRY
+                s1.end = s2.end
                 del segments[i + 1]
                 continue
             i += 1

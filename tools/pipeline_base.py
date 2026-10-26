@@ -102,7 +102,17 @@ def launch_parallel(chunk_stats_script: str, split_dir: str, stats_dir: str,
 
     failed = []
     for i, p in procs:
-        out_text = p.communicate(timeout=3600)[0]
+        try:
+            out_text = p.communicate(timeout=3600)[0]
+        except subprocess.TimeoutExpired:
+            p.kill()
+            out_text = p.communicate()[0]
+            failed.append(i)
+            print(f"  [{label}_{i:02d}] TIMEOUT (killed)", flush=True)
+            if out_text:
+                for line in out_text.strip().split("\n")[-2:]:
+                    print(f"  [{label}_{i:02d}] {line}", flush=True)
+            continue
         if out_text:
             for line in out_text.strip().split("\n")[-2:]:
                 print(f"  [{label}_{i:02d}] {line}", flush=True)

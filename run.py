@@ -47,12 +47,29 @@ def cmd_classify(text: str):
     print(json.dumps(r, ensure_ascii=False, indent=2))
 
 
+def _iter_batch_texts(path: str, chunk_size: int = 1000):
+    if not path or not os.path.exists(path):
+        print(f"batch file not found: {path}", file=sys.stderr)
+        sys.exit(2)
+    buf = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            text = line.strip()
+            if not text:
+                continue
+            buf.append(text)
+            if len(buf) >= chunk_size:
+                yield buf
+                buf = []
+    if buf:
+        yield buf
+
+
 def cmd_classify_batch(path: str):
     pipe = DictNerPipeline()
-    with open(path, encoding="utf-8") as f:
-        texts = [ln.strip() for ln in f if ln.strip()]
-    for r in pipe.classify_batch(texts):
-        print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
+    for chunk in _iter_batch_texts(path):
+        for r in pipe.classify_batch(chunk):
+            print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
 
 
 def main():
@@ -68,6 +85,9 @@ def main():
     elif c == "v2":
         if len(sys.argv) > 2 and sys.argv[2] == "classify":
             if len(sys.argv) > 3 and sys.argv[3] == "--batch":
+                if len(sys.argv) < 5:
+                    print("用法: run.py v2 classify --batch <file>", file=sys.stderr)
+                    sys.exit(2)
                 cmd_classify_batch(sys.argv[4])
             else:
                 text = sys.argv[3] if len(sys.argv) > 3 else input("输入文本: ")
@@ -78,10 +98,12 @@ def main():
         from v3.infer import V3Classifier
         clf = V3Classifier()
         if len(sys.argv) > 2 and sys.argv[2] == "--batch":
-            with open(sys.argv[3], encoding="utf-8") as f:
-                texts = [ln.strip() for ln in f if ln.strip()]
-            for r in clf.classify_batch(texts):
-                print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
+            if len(sys.argv) < 4:
+                print("用法: run.py classify --batch <file>", file=sys.stderr)
+                sys.exit(2)
+            for chunk in _iter_batch_texts(sys.argv[3]):
+                for r in clf.classify_batch(chunk):
+                    print(f"{r['category']:6s} {r['confidence']:.2f}  {r['text']}")
         elif c == "v3" and len(sys.argv) > 2 and sys.argv[2] != "classify":
             print(f"未知 v3 子命令: {sys.argv[2]} (支持: classify [--batch file])")
         else:

@@ -6,8 +6,8 @@
 ## 0. 当前状态速览
 
 - 系统版本: **v4.2.0** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
-- 测试: **195 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 124 条)
-- 关键指标: test macro-F1 **0.9092** (v4.0.4 标签治理后口径) | clean 子集 accuracy 0.9719 (v4.1.2 复跑修正) | 置信度 ECE 0.0149 | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
+- 测试: **196 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 125 条)
+- 关键指标: test macro-F1 **0.9035** / accuracy **0.9076** (v4.2.0 分组切分 clean 口径; 旧含泄漏口径 0.9092/0.9098) | clean 子集 accuracy 0.9689 | 置信度 ECE 0.0253 (val) / 0.0215 (test) | 单条延迟 2.1ms / 批量 1.9ms/条 (v4.0.3)
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
 - v4.0.0 布局: v2 冻结代码平铺于 `/v2/`（识别器/brand/eval + v2/tools/），v2 总线 = 根 `pipeline_v2.py`，legacy 测试在 `tests/legacy/`；HTTP 服务 = `serve.py`（FastAPI）
 - **v4.0.0 起 v3 不再 import 任何 v2 模块**（`v3/pipeline.py` 自包含；`classify_suffix` 在 `core/suffix_classify.py`）；仅 gate/seg_compare/badcase_eval 保留 legacy 基线对比 import（`v2.*`，属预期）
@@ -33,7 +33,7 @@
 系统不是端到端大模型，是**"传统 NLP 切分 + 机器学习分类"混合架构**：
 - **切分（无学习）**：词典 → Trie 树 + 词成本（IDF+长度惩罚）+ 转移代价表，**Viterbi 动态规划**找全局最优切分路径（与 jieba 同族）。知识全部在词典词频里，词频由语料自举统计产出（"自演化"）
 - **分类（机器学习）**：**GBDT 梯度提升树**（sklearn HistGradientBoosting，XGBoost/LightGBM 同族），500 树×4 类串行学残差；输入是 78 维手工特征（段类型计数/地理覆盖/后缀查表/亲和度/brand bigram 分），不看原始文本
-- **置信度**：isotonic 保序回归校准成真实概率（ECE 0.0149，可直接作概率路由）
+- **置信度**：isotonic 保序回归校准成真实概率（ECE 0.0253 val / 0.0215 test，可直接作概率路由）
 - **推理加速**：2000 棵树编译为 numpy 数组批量遍历（v3.8.0 编译化 + v4.0.3 树间批量化），单条 2.1ms
 
 一句话：**切分靠词典+Viterbi，分类靠 GBDT，置信度靠 isotonic 校准**。选型理由（为什么不用 BERT/CRF）见 §6 决策记录。
@@ -86,9 +86,9 @@ loc 引擎钩子: merge_orientation / strip_road_conjunction ("与X路"拆分) /
 
 ### 1.4 分类器
 
-- 训练: GBDT (max_iter=500, lr=0.08, leaves=63, l2=1.0) on 268 万样本 → CalibratedClassifierCV(FrozenEstimator, isotonic) 校准集=eval_train → 类别乘数+拒绝阈值在 val 按 macro-F1 标定
+- 训练: GBDT (max_iter=500, lr=0.08, leaves=63, l2=1.0) on **262.99 万样本** → CalibratedClassifierCV(FrozenEstimator, isotonic) **校准集=held-out calib_feats (23,609 行, 与 train 文本重叠 0)** → 类别乘数+拒绝阈值在 val 按 macro-F1 标定
 - FastGBDT 原理: sklearn 逐树 Python 调用慢 (0.7ms×2000), 编译化为 numpy 数组批量遍历; **注意 sklearn 节点值已含 learning_rate (lr=1.0)**; 叶掩码防止提前到叶的行弹回根节点; **v4.0.3 树间批量化**: 全部树 padding 统一节点数, (n_rows × n_trees) 同步遍历, 单条 50ms→2.1ms
-- 置信度: isotonic 校准, ECE=0.0149, 可直接作概率路由
+- 置信度: isotonic 校准, ECE=0.0253 (val) / 0.0215 (test), 可直接作概率路由
 
 ## 2. 训练与词典管线
 
@@ -102,8 +102,11 @@ v3/sample_pool.py     Gaode 2M + Tencent 1M 弱标注采样 (按 type 分布, �
 v3/precompute.py all  16进程特征预计算 → output/v3_feat/pool_feats.csv
 v3/labels.py          3-fold CV confident learning (--drop-org 0.55 --drop-poi 0.55
                       --drop-addr 0.65 --flip 0.9) → pool_feats_clean2.csv
-合并: clean池 + synth UNKNOWN 5万 + eval_split_train → final_train3.csv; v4.0.4 标签治理补丁版 = final_train6.csv (当前训练输入)
-v3/train.py           GBDT + FrozenEstimator isotonic (校准集=train_feats) + val 标定
+合并: clean池 + synth UNKNOWN 5万 + **新 eval_split_train (分组切分)** → final_train7.csv (当前训练输入);
+       v4.2.0: final_train6 去掉新 val/test/calib 文本 + 新 train 缺失行特征; 另划出 calib_feats (23,609, 与 train 文本重叠 0)
+v3/make_group_split.py  文本 group split (StratifiedGroupKFold 5, group=text) → data/eval_split_group_*
+v3/build_train7.py      final_train6 + group splits → final_train7 + calib_feats (自动补缺失行特征)
+v3/train.py           GBDT + FrozenEstimator isotonic (校准集=calib_feats) + val 标定
                       → models/clf_v3.pkl + manifest_v3.json + val_pred.csv
                       (仅 --model 为基线 clf_v3.pkl 时默认写; 实验模型需显式 --val-pred)
 ```
@@ -166,13 +169,13 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 - `data/areas/` 五级区划（省32/市343/区县2979/街道41353/村620574）：loc 词典 + bare 注入 + prune 证实
 - `data/gov_suffix_seed.csv` 30 条 / `data/suffix_seed.csv` 2.4 万条：种子注入
 - `dicts/d4_category_map.pkl` 8,299 条 / `dicts/suffix_category_gaode.csv` 1,520 条：Gaode 标注（特征+回补依据）
-- `data/eval_set.csv` 18万 → `eval_split_{train,val,test}.csv`（+室内设施 UNKNOWN 扩充后 11.6万/3.85万/3.85万）
+- `data/eval_set.csv` 18万 → `eval_split_{train,val,test}.csv`（v4.2.0 文本分组切分: 115,539/38,512/38,512; 文本重叠 0; 含室内设施 UNKNOWN）
 
 ### 3.5 仓库边界（git 追踪范围）与文件获取
 
 **git 追踪**：全部代码 + 文档 + `dicts/*.pkl` + `models/`。**不追踪**（.gitignore）：`/data` 全部（split 语料/SQL 三表/eval splits/种子）、`dicts/poi_suffix_category.csv`、`dicts/suffix_category_gaode.csv`、`/dicts/export`、`/dicts/iter_v*`、`/output`、`dicts/*.bak|*.tmp`。
 
-**缺失行为**：CSV 表缺失仍为静默降级——`v3/pipeline.py` suffix_table 置 `{}`、`core/csv_index.py` 亲和度 CSV 返回空 dict、`pipeline.py` sql_suffixes 置空集；git clone 后 `classify` 可运行但查表/亲和度特征全零。**词典 pkl 缺失已改为 fail-fast**（`v3/engine/configs.py:_load_org_dicts` 抛 `FileNotFoundError`；仅旧 `v1.1.1` 兜底保留 warning）；`BrandModel` 缺失仍 warning 且 `brand_score` 退 0.5；`V3Classifier` 启动时校验模型 78 维特征 schema，与 `FEATURE_NAMES` 不一致即拒绝加载。
+**缺失行为**：CSV 表缺失仍为静默降级——`v3/pipeline.py` suffix_table 置 `{}`、`core/csv_index.py` 亲和度 CSV 返回空 dict、`pipeline.py` sql_suffixes 置空集、`core/types.py` POI_SUFFIX_MAP 置空并 warning；git clone 后 `classify` 可运行但查表/亲和度特征全零。**词典 pkl 缺失已改为 fail-fast**（`v3/engine/configs.py:_load_org_dicts` 抛 `FileNotFoundError`；仅旧 `v1.1.1` 兜底保留 warning）；`BrandModel` 缺失仍 warning 且 `brand_score` 退 0.5；`V3Classifier` 启动时校验模型 78 维特征 schema，与 `FEATURE_NAMES` 不一致即拒绝加载。
 
 **文件获取**：本机完整目录为准；原始地图语料在异地备份（§3.1）；衍生产物可再生——export 审计表由 stats→aggregate 链产出，`*_eval/` 由 `v3/eval_cut.py run <system>` 从 split/ 重切，v3_feat 特征文件由 `data/v3_train_pool.csv` + eval splits 重算。
 
@@ -182,17 +185,17 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 | 视角 | 工具 | 当前值 |
 |------|------|-------:|
-| 含噪标签 macro-F1 | `v3/evaluate.py` | test 0.9092 (v4.0.4 标签治理后口径; 旧口径 0.9059) |
-| clean 子集 accuracy | `v3/clean_eval.py` | 0.9719（test 集查表确认标签, 12,477 条/32.4%; v4.1.2 复跑修正, 0.9919 系 v3.1.0 时代旧模型值） |
-| 纯净集召回 | `v3/pure_eval.py` | ORG 74.4% / POI 58.3%（语义边界, 详见报告解读） |
-| 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **85.5~87.3%** / ORG ≈100%（v4.0.1 新增, v4.0.5 刷新, 规则见 v3/poi_recall_audit.py） |
-| 置信度 | `v3/calibration_audit.py` | ECE 0.0149 |
+| clean 口径 macro-F1 | `v3/evaluate.py` | test **0.9035** / accuracy **0.9076** (v4.2.0 文本分组切分; 旧含泄漏口径 0.9092/0.9098) |
+| clean 子集 accuracy | `v3/clean_eval.py` | 0.9689（test 集查表确认标签, 12,463 条/32.4%） |
+| 纯净集召回 | `v3/pure_eval.py` | ORG **74.5%** / POI **59.3%**（v4.2.0 clean 模型复跑, 语义边界） |
+| 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **86.8~88.5%** / ORG ≈100%（v4.2.0 复跑, 规则见 v3/poi_recall_audit.py） |
+| 置信度 | `v3/calibration_audit.py` | ECE **0.0253** (val) / 0.0215 (test) |
 
 ### 4.2 段级门禁
 
 | 门禁 | 工具 | 标准 |
 |------|------|------|
-| 引擎一致性 | `v3/engine/gate.py` | 实体化/重构后新旧零差异。**注意 (v4.0.0 核实)**: 当前词典 v1.5.0 下 gate 对比 legacy 识别器（锚定 v1.2.x 词典）必然 FAIL (20K diff loc 1943/org 1753/poi 2604)，属词典代差非引擎问题；重构类变更的验收标准是 diff 计数与变更前逐项一致 |
+| 引擎一致性 | `v3/engine/gate.py` | 实体化/重构后新旧零差异。**注意 (v4.2.0 核实)**: `build_*_engine()` 默认已取 `core.config.VERSION`（v1.5.0），gate 对比 legacy 识别器（锚定 v1.2.x 词典）必然 FAIL：20K diff **loc 1976 / org 4249 / poi 2783**，属词典代差非引擎问题；重构类变更的验收标准是 diff 计数与变更前逐项一致 |
 | 段健康度 | `v3/seg_quality.py` | 后缀/行业/地址验证率不降 |
 | 全量段对比 | `v3/seg_compare.py` | diff 率 + 类型迁移逐类审查 |
 | badcase 修复率 | `v3/badcase_eval.py` | REPAIRED 提升无回归 |
@@ -201,7 +204,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 ### 4.3 磁盘治理
 
 - `output/*_eval/` v4.1.0 起整目录清除（JSONL 13.4G + stats.json 656MB 全删，只留 3 个 `*_eval_report.md` 于 output/ 根；可再生：`v3/eval_cut.py run <system>` 从 split/ 重切）
-- `output/v3_feat/chunks|feats` 临时分片可删；只留现役 `final_train6.csv` + `train/val/test_feats.csv`（pool_feats/final_train3 等历史特征文件 v4.1.0 已清，可由 `data/v3_train_pool.csv` 重算再生）
+- `output/v3_feat/chunks|feats` 临时分片可删；只留现役 `final_train7.csv` + `calib_feats.csv` + `train/val/test_feats.csv` + `val_pred.csv`（旧 final_train6 / train_feats 为 v4.2.0 前归档，可由 data/v3_train_pool.csv + group splits 重算再生）
 - `dicts/iter_vX/` 只留最新一代（现役 iter_v1.5.0；iter_v1.2.x v4.1.0 已清，iter_v1.6.0 实验结束后已清）
 - v4.1.0 大清理 (~42GB)：原始语料（高德/腾讯/地名 input）删除有异地备份；v2 评测快照 json 删除；被否实验模型一律不留（数字记档即可）
 
@@ -233,6 +236,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | A 二期强 POI 后缀特征 | **回退** | d4_strong_poi/poi_d4_strong_poi 特征 (80维) 重训: val 0.9035 < 0.9052 未过门禁 + 0/12 翻转。eval 标签在后缀上倒挂, 加显式特征反而撞 test 噪声。features.py 回滚 78 维 (v4.0.3) |
 | macro-F1 提升路径 | 评测集标签治理, 非模型调参 | P2 逐类诊断: 四大迁移类 87% 是标签噪声+体系边界; 含噪口径可修复空间仅 ~1-2pt (v4_f1_error_audit.md) |
 | eval 标签治理 | **采纳 (v4.0.4)** | 两条错误映射修正 (tencent休闲娱乐→POI; gaode风景名胜点位后缀→POI), 三 split 1,846 条 + pool 13,126 条, `.bak_v1` 备份; 重训 val +0.0037 过门禁, baseline 更换 (旧模型归档 clf_v3_baseline_v39.pkl) |
+| eval split 文本泄漏 (v4.2.0 审计) | **采纳分组切分** | 旧切分 test 9.49%/val 9.83% 行文本在 train 出现; `StratifiedGroupKFold(5, group=text, seed=42)` 后 train/val/test 文本重叠 0; 重训 clean test macro-F1 0.9035 (旧含泄漏 0.9092); 旧模型归档 `clf_v3_baseline_v42.pkl` |
+| 校准集 in-sample (v4.2.0) | **采纳 held-out calib** | 旧 `train_feats` 100% 在 final_train6 内; v4.2.0 划出 `calib_feats` 23,609 行 (与 train 文本重叠 0) 做 isotonic; ECE val 0.0253 / test 0.0215 |
 | eval 集重建注意 | splits 无 type_orig 列 | type_orig 只在 eval_set.csv/feats CSV; 关联用 text join; UNKNOWN 扩充行 (室内设施) 不在 eval_set, join 会 miss ~7K 属正常 |
 | 标签治理二轮 | **不动 (v4.0.5)** | gaode商务住宅/tencent建筑房产→ADDR 样本审查正确 (小区/楼栋); 公司企业→ORG 个体户残留无 t2 可分, 属体系边界。eval 标签治理收敛 |
 | v1.6.0 词典自举 | **回退留档 (v4.1.0)** | 推翻 v3.9.0 不做决策执行全链验证: stats 重切→bake→四词典产出; seg_quality 持平但 seg_compare org BRAND 碎化 (+6.5K/20万); 重训 val 0.9056 < 0.9091 未过门禁 → 生产保持 v1.5.0。**结论: v3.9.0 收敛判断正确, 自举正式关闭**。artifacts: dicts/*v1.6.0.pkl 留存作证伪留档；clf_v3_v160.pkl 与 iter_v1.6.0/ 已于 v4.1.0 清理（见 §4.3） |
@@ -278,6 +283,14 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 - **#29 bare 碰撞词不一定是 bare 注入**: 低频排行榜显示惠民/石屏/古城等碰撞词是真实区县名 (d1 真实词频), freq==5000 注入标记识别不到; 位置 (非头部/行政后置) 才是可靠判据——但位置判据又误伤分公司城市名 (见决策记录 demote 回退)
 - **#30 多址记载的数字刷新时漏改**: ECE 0.0129→0.0149 (v4.0.4) 与 POI 有效召回 84.0~85.8%→85.5~87.3% (v4.0.5) 刷新时只改了 README/§0, 漏了本文件 §1.4/§4.1/§6, 同文档自相矛盾直到 v4.1.2 审计发现。教训: 同一事实尽量单一出处 (一处记载+他处引用); 必须多址记载时在发版 checklist 列出全部位置
 - **#31 有状态 FeatureExtractor 在 serve 线程池并发串扰 (Batch 0 修复)**: `extract()` 把三体系结果写入实例字段 `last_results`, FastAPI 同步端点在线程池并发执行时, `classify` 读到其他请求的段结果——实测 4800 次并发 91.4% 的 `best` 错乱 (category/proba 不受影响)。修复: `extract_with_results()` 返回局部结果, 分类器不再读共享字段; 新增并发回归测试。教训: 单例推理对象不得持有跨请求可变状态
+- **#32 eval split 同文本跨集泄漏 (v4.2.0 修复)**: 旧 eval 切分按行随机, 同一文本可同时落 train/test; 实测 test 9.49%/val 9.83% 行文本在 train 出现, 旧 0.9092 因此虚高。修复: `StratifiedGroupKFold(5, group=text, seed=42)` 分组切分, 三集文本重叠 0; 重训后 clean test 0.9035。**旧/新口径不可直接比较**, 旧模型在新 group test 上 0.9181 仍属泄漏虚高
+- **#33 校准集 in-sample (v4.2.0 修复)**: 旧 `train.py --calib-set train_feats` 的 115,537 行全部在 final_train6 内, isotonic 实际在训练样本上拟合。v4.2.0 划出 held-out `calib_feats` (23,609 行, 与 train 文本重叠 0), ECE val 0.0253 / test 0.0215。教训: 校准集必须与 fit 集按文本隔离
+- **#34 训练/重任务满核 (v4.2.0 教训)**: sklearn HistGBDT 默认 OpenMP 吃满所有核 (实测 2800% CPU), 影响同机其他工作。约束: **≤10 计算线程、≤24 核**, 训练用 `OMP_NUM_THREADS=10` + `nice`; 特征预计算 16 进程 × 单线程 (≤16 核)。
+- **#35 manifest 覆盖 (v4.2.0 外部审计修复)**: 旧 `--manifest` 默认恒为 `models/manifest_v3.json`, 实验模型 `--model models/exp.pkl` 会覆盖基线血缘/调参指标。现默认按 model 路径推导 (`manifest_<stem>.json`), 基线 model 才写 `manifest_v3.json`。
+- **#36 分组切分/训练集构建不可复现 (v4.2.0 外部审计修复)**: 首版 group split 与 final_train7 由一次性脚本生成, 仓库无 `StratifiedGroupKFold` 引用; 已补 `v3/make_group_split.py` + `v3/build_train7.py`, 实测复现 2,629,943 行/calib 23,609/文本重叠 0。
+- **#37 蓄水池采样错误 (v4.2.0 外部审计修复)**: `sample_pool` 满池后 `randint(0, len-1)` 恒替换, 严重偏向扫描尾部; `sample_unknown` 同理。已改标准蓄水池; **当前 data/v3_train_pool.csv (270万) 仍是旧实现产物, 原始语料已删, 偏差不可回溯**, 仅影响历史训练分布。
+- **#38 懒加载并发/默认版本陈旧 (v4.2.0 外部审计修复)**: `CsvIndex` 三表无锁, 4 线程首访重复加载 addr 4 次 (~4.2s/次); 已双检锁 + serve lifespan 预热。`build_*_engine()` 默认 v1.3.0 导致 gate 口径与文档不符; 现默认取 `core.config.VERSION` (v1.5.0), 20K diff 更新为 loc 1976/org 4249/poi 2783。
+- **#39 CLI 冷启动 ~11.5s (v4.2.0 已知限制)**: `run.py classify` 需加载 loc 词典 3.3s + org/poi 引擎 + addr 表 4.2s + 模型; 已做 bare/sql suffix lru 缓存、CsvIndex csv.reader 解析、serve lifespan 预热, CLI 仍 ~11.5s。彻底优化需引擎 pickle/trie 快照或常驻进程, 留待后续。
 
 ## 8. 重建速查（从零到当前版）
 
@@ -298,9 +311,11 @@ python3 tools/patch_v142.py --src-v v1.5.0 --dst-v v1.5.0
 #    跳过采样直接用库内 data/v3_train_pool.csv + eval splits 即可
 python3 v3/sample_pool.py && python3 v3/synth_unknown.py && python3 v3/sample_unknown.py
 python3 v3/make_split.py
+python3 v3/make_group_split.py --install    # 备份旧 split 并覆盖 data/eval_split_* (文本重叠 0)
+python3 v3/build_train7.py --force          # final_train7 + calib_feats (与 val/test/calib 文本隔离)
 python3 v3/precompute.py all <输入> <输出>   # ×6 (pool/train/val/test/unknown_*)
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9 --out output/v3_feat/pool_feats_clean2.csv
-python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v3_feat/train_feats.csv
+python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v3_feat/calib_feats.csv
 
 # 门禁 (详见 §4.2)
 python3 v3/engine/gate.py --n 20000

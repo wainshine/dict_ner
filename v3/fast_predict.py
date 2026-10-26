@@ -104,9 +104,10 @@ class FastCalibrated:
         return proba
 
 
-def validate(clf_bundle, X, n=1000):
-    fast = FastCalibrated(clf_bundle)
+def validate(calibrated_clf, X, n=1000):
+    """对拍 FastCalibrated 与 sklearn; 返回最大概率误差。"""
+    fast = FastCalibrated(calibrated_clf)
     X = np.asarray(X[:n], dtype=np.float64)
-    p_sk = clf_bundle.predict_proba(X)
+    p_sk = calibrated_clf.predict_proba(X)
     p_fast = fast.predict_proba(X)
     return float(np.max(np.abs(p_sk - p_fast)))

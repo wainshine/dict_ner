@@ -1,4 +1,5 @@
 """v3 推理 — 加载 GBDT 分类器, classify/recognize 对外契约兼容 v2.x"""
+import logging
 import os
 import pickle
 import sys
@@ -9,6 +10,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.types import SegType
 from v3.features import FeatureExtractor, FEATURE_NAMES
+
+logger = logging.getLogger(__name__)
 
 LABELS = ("ORG", "POI", "ADDR", "UNKNOWN")
 L2I = {lb: i for i, lb in enumerate(LABELS)}
@@ -58,7 +61,8 @@ class V3Classifier:
         try:
             from v3.fast_predict import FastCalibrated
             self._fast = FastCalibrated(self.clf)
-        except Exception:
+        except Exception as e:
+            logger.warning("FastCalibrated unavailable, fallback to sklearn (slow): %s", e)
             self._fast = None
         self.extractor = FeatureExtractor()
         self.pipe = self.extractor.pipe

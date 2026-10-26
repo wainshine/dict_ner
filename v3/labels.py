@@ -26,18 +26,28 @@ META_COLS = ["text", "label", "source", "type_orig"]
 def load_pool(path):
     df = pd.read_csv(path)
     feat_cols = [c for c in df.columns if c not in META_COLS]
+    bad = ~df["label"].isin(LABELS)
+    if bad.any():
+        examples = df.loc[bad, "label"].astype(str).unique()[:5].tolist()
+        raise ValueError(f"unknown labels in pool: {examples} (n={int(bad.sum())})")
     X = df[feat_cols].to_numpy(dtype=np.float32)
     y = df["label"].map(L2I).to_numpy()
-    return df, feat_cols, X, y
+    texts = df["text"].astype(str).str.strip().to_numpy()
+    return df, feat_cols, X, y, texts
 
 
-def crossval_proba(X, y, folds, seed=42):
+def crossval_proba(X, y, folds, texts=None, seed=42):
     from sklearn.ensemble import HistGradientBoostingClassifier
-    from sklearn.model_selection import StratifiedKFold
+    from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
 
     proba = np.zeros((len(y), len(LABELS)), dtype=np.float32)
-    skf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
-    for i, (tr, te) in enumerate(skf.split(X, y)):
+    if texts is not None:
+        splitter = StratifiedGroupKFold(n_splits=folds, shuffle=True, random_state=seed)
+        splits = splitter.split(X, y, groups=texts)
+    else:
+        splitter = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
+        splits = splitter.split(X, y)
+    for i, (tr, te) in enumerate(splits):
         t0 = time.time()
         clf = HistGradientBoostingClassifier(
             max_iter=120, learning_rate=0.1, max_leaf_nodes=31,
@@ -69,15 +79,15 @@ def main():
     ap.add_argument("--report", default=os.path.join(BASE, "output", "v3_noise_report.md"))
     args = ap.parse_args()
 
-    drop_t = {L2I["ORG"]: args.drop_org or args.threshold,
-              L2I["POI"]: args.drop_poi or args.threshold,
-              L2I["ADDR"]: args.drop_addr or args.threshold,
+    drop_t = {L2I["ORG"]: args.drop_org if args.drop_org is not None else args.threshold,
+              L2I["POI"]: args.drop_poi if args.drop_poi is not None else args.threshold,
+              L2I["ADDR"]: args.drop_addr if args.drop_addr is not None else args.threshold,
               L2I["UNKNOWN"]: args.threshold}
 
-    df, feat_cols, X, y = load_pool(args.pool)
+    df, feat_cols, X, y, texts = load_pool(args.pool)
     print(f"pool: {X.shape}", flush=True)
 
-    proba = crossval_proba(X, y, args.folds)
+    proba = crossval_proba(X, y, args.folds, texts)
     pred = proba.argmax(1)
     conf = proba.max(1)
 

@@ -69,7 +69,7 @@ def f2_rescue(d4):
 F3_KEEP = {"4S店", "2元店", "1号店"}
 
 
-def f2b_d1_conflict_clean(d1, rescued, d4):
+def f2b_d1_conflict_clean(d1, rescued):
     from v3.engine.configs import _d1_type_infer, _build_bare_name_table
     bt = _build_bare_name_table()
     removed = []
@@ -80,9 +80,6 @@ def f2b_d1_conflict_clean(d1, rescued, d4):
             if st in (SegType.TOWN, SegType.VILLAGE, SegType.CITY, SegType.DISTRICT):
                 removed.append((w, d1.pop(w), st.value))
     return d1, removed
-
-
-F3_KEEP = {"4S店", "2元店", "1号店"}
 
 
 def f3_digit_clean(d4):
@@ -122,7 +119,7 @@ def main():
         d4, n1 = f1_bracket_merge(d4)
         d4, rescued = f2_rescue(d4)
         d4, removed = f3_digit_clean(d4)
-        d1, d1_removed = f2b_d1_conflict_clean(d1, rescued, d4)
+        d1, d1_removed = f2b_d1_conflict_clean(d1, rescued)
 
         print(f"== {sysname} {v.src_v} → {v.dst_v} ==")
         print(f"  F1 括号归一化: {n1} 条合并")

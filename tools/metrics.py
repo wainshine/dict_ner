@@ -7,8 +7,14 @@ LABELS = ("ORG", "POI", "ADDR", "UNKNOWN")
 
 
 def compute_metrics(results):
+    """混淆矩阵/逐类指标; macro_f1 为四舍五入后 per-class F1 的均值 (历史口径)。"""
+    allowed = set(LABELS)
     matrix = {exp: {pred: 0 for pred in LABELS} for exp in LABELS}
     for expected, predicted in results:
+        if expected not in allowed:
+            raise ValueError(f"unknown expected label: {expected!r}")
+        if predicted not in allowed:
+            raise ValueError(f"unknown predicted label: {predicted!r}")
         matrix[expected][predicted] += 1
 
     per_class = {}

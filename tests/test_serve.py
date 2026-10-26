@@ -72,6 +72,12 @@ class TestServe(unittest.TestCase):
     def test_classify_bad_request(self):
         r = self.client.post("/classify", json={})
         self.assertEqual(r.status_code, 422)
+        r = self.client.post("/classify", json={"text": "x" * 1025})
+        self.assertEqual(r.status_code, 422)
+        r = self.client.post("/classify_batch", json={"texts": ["x"] * 2049})
+        self.assertEqual(r.status_code, 422)
+        r = self.client.post("/classify_batch", json={"texts": ["x" * 1025]})
+        self.assertEqual(r.status_code, 422)
 
 
 if __name__ == "__main__":

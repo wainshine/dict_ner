@@ -126,8 +126,8 @@ def main():
                 last_present += 1
                 if last.text in sql_suffixes:
                     last_in_sql += 1
-                hits = sum(1 for sfx in sql_suffixes if sfx != last.text and sfx in last.text)
-                if hits >= 1 and last.text not in sql_suffixes:
+                hits = any(sfx != last.text and sfx in last.text for sfx in sql_suffixes)
+                if hits and last.text not in sql_suffixes:
                     overmerge_suspect += 1
 
         for s in segs:

@@ -217,6 +217,7 @@ def sample_gaode():
 
     # Pass 2: reservoir sample by type
     samples_by_type = {t: [] for t in type_targets}
+    seen_by_type = {t: 0 for t in type_targets}
     for fname in files:
         path = os.path.join(GAODE_DIR, fname)
         if os.path.getsize(path) == 0:
@@ -244,12 +245,14 @@ def sample_gaode():
                 if buf is None:
                     continue
                 item = (text, label, "gaode", t1)
-                if len(buf) < target:
+                seen = seen_by_type[t1]
+                if seen < target:
                     buf.append(item)
                 else:
-                    j = random.randint(0, len(buf) - 1)
+                    j = random.randint(0, seen)
                     if j < target:
                         buf[j] = item
+                seen_by_type[t1] = seen + 1
 
     # Collect natural place names
     natural = []

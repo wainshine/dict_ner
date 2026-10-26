@@ -42,6 +42,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src-v", default="v1.4.1")
     ap.add_argument("--dst-v", default="v1.4.2")
+    ap.add_argument("--validate-villages", action="store_true",
+                    help="仅删除前缀在 areas/villages.csv 中的复合词 (文档承诺的严格规则; "
+                         "默认关闭以保持 v1.5.0 重建行为)")
     v = ap.parse_args()
     src = os.path.join(DICT_DIR, f"org_{v.src_v}.pkl")
     dst = os.path.join(DICT_DIR, f"org_{v.dst_v}.pkl")
@@ -52,16 +55,21 @@ def main():
     d4 = dict(dd["d4_freqs"])
 
     villages = load_villages()
-    # 当前仅用于日志; 删除决策未使用该集合 (审计项, Batch 2 处理)
     print(f"areas villages: {len(villages):,}")
 
     removed = []
+    skipped_unknown = 0
     for w in list(d1.keys()):
         for sfx in COMMITTEE_SUFFIXES:
             if w.endswith(sfx) and len(w) > len(sfx):
+                prefix = w[:-len(sfx)]
+                if v.validate_villages and prefix not in villages:
+                    skipped_unknown += 1
+                    break
                 removed.append((w, d1.pop(w), sfx))
                 break
-    print(f"F5: 删除 {len(removed)} 条复合词")
+    print(f"F5: 删除 {len(removed)} 条复合词"
+          + (f" (跳过未知村名 {skipped_unknown})" if v.validate_villages else ""))
     for w, f, sfx in sorted(removed, key=lambda x: -x[1])[:8]:
         print(f"  {w} ({f:,}) -> {w[:-len(sfx)]} + {sfx}")
 

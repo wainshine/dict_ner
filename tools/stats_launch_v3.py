@@ -2,6 +2,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.config import VERSION as CURRENT_DICT_VERSION
 from tools.pipeline_base import launch_parallel
 
 if not os.environ.get("STATS_VERSION"):
@@ -9,7 +10,10 @@ if not os.environ.get("STATS_VERSION"):
     sys.exit(2)
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ITER_DIR = os.path.join(BASE, "dicts", f"iter_{os.environ.get('DICT_VERSION', 'v1.5.0')}")
+DICT_VERSION = os.environ.get("DICT_VERSION", CURRENT_DICT_VERSION)
+ITER_DIR = os.path.join(BASE, "dicts", f"iter_{DICT_VERSION}")
+print(f"STATS_VERSION={os.environ['STATS_VERSION']} DICT_VERSION={DICT_VERSION} "
+      f"-> {ITER_DIR}", flush=True)
 
 ok1 = launch_parallel(os.path.join(BASE, "tools", "org_chunk_stats_v3.py"),
                       os.path.join(BASE, "data", "split", "org"),

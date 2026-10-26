@@ -9,8 +9,10 @@ import csv
 import logging
 import os
 import warnings
+from functools import lru_cache
 
 from core.types import SegType, ADMIN_SUFFIX_MAP, LEVEL_ORDER
+from core.config import VERSION as DICT_VERSION
 from v3.engine.dp import DPEngine, EngineConfig
 
 logger = logging.getLogger(__name__)
@@ -133,7 +135,9 @@ def _load_loc_dict_data(dict_name="loc_v1.2.3", baked=False, prune_path=None):
     return dict_data
 
 
-def build_loc_engine(dict_name="loc_v1.3.0", baked=None):
+def build_loc_engine(dict_name=None, baked=None):
+    if dict_name is None:
+        dict_name = f"loc_{DICT_VERSION}"
     if baked is None:
         baked = _is_baked(dict_name)
     dict_data = _load_loc_dict_data(dict_name, baked=baked)
@@ -173,8 +177,8 @@ def _org_trans_table(allow_adjacent_d4):
         table[(a, SegType.UNKNOWN)] = 0.3
         table[(a, SegType.POI)] = 1.0
         table[(a, SegType.INDUSTRY)] = 0.5
-    table[(SegType.UNKNOWN, SegType.POI)] = 2.0
     table[(SegType.UNKNOWN, SegType.UNKNOWN)] = 1.5
+    # 最终值 0.2; 历史 v2 移植曾先写 2.0, 属重复赋值死代码, 已删除
     table[(SegType.UNKNOWN, SegType.POI)] = 0.2
     table[(SegType.INDUSTRY, SegType.POI)] = 0.0
     table[(SegType.UNKNOWN, SegType.INDUSTRY)] = 0.3
@@ -186,6 +190,7 @@ def _org_trans_table(allow_adjacent_d4):
     return table
 
 
+@lru_cache(maxsize=1)
 def _build_bare_name_table():
     table = {}
     areas_dir = os.path.join(DATA_DIR, "areas")
@@ -291,6 +296,7 @@ def _inject_poi_seed(d4_freqs, seed_path):
     return injected
 
 
+@lru_cache(maxsize=1)
 def _load_sql_suffix_set():
     path = os.path.join(DATA_DIR, "suffix_segments_sql.csv")
     result = set()
@@ -402,7 +408,9 @@ def _is_baked(name):
     return False
 
 
-def build_org_engine(version="v1.3.0", baked=None):
+def build_org_engine(version=None, baked=None):
+    if version is None:
+        version = DICT_VERSION
     if baked is None:
         baked = _is_baked(version)
     return _build_org_like_engine(
@@ -411,7 +419,9 @@ def build_org_engine(version="v1.3.0", baked=None):
         poi_seed_path=None, name="org", baked=baked)
 
 
-def build_poi_engine(dict_name="poi_v1.3.0.pkl", baked=None):
+def build_poi_engine(dict_name=None, baked=None):
+    if dict_name is None:
+        dict_name = f"poi_{DICT_VERSION}.pkl"
     if baked is None:
         baked = _is_baked(dict_name)
     seed_path = os.path.join(DATA_DIR, "suffix_seed.csv")

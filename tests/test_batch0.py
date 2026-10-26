@@ -22,12 +22,18 @@ class TestSystemVersion(unittest.TestCase):
 
 class TestValPredPath(unittest.TestCase):
     def test_paths(self):
-        from v3.train import DEFAULT_MODEL, resolve_val_pred_path
+        from v3.train import (DEFAULT_MANIFEST, DEFAULT_MODEL,
+                              resolve_manifest_path, resolve_val_pred_path)
         self.assertTrue(resolve_val_pred_path(DEFAULT_MODEL)
                         .endswith(os.path.join("output", "v3_feat", "val_pred.csv")))
         self.assertIsNone(resolve_val_pred_path("models/experiment.pkl"))
         self.assertEqual(resolve_val_pred_path("models/experiment.pkl", "/tmp/vp.csv"),
                          "/tmp/vp.csv")
+        self.assertEqual(resolve_manifest_path(DEFAULT_MODEL), DEFAULT_MANIFEST)
+        exp_manifest = resolve_manifest_path("models/experiment.pkl")
+        self.assertEqual(os.path.basename(exp_manifest), "manifest_experiment.json")
+        self.assertEqual(resolve_manifest_path("models/experiment.pkl", "/tmp/m.json"),
+                         "/tmp/m.json")
 
 
 class TestAtomicPickle(unittest.TestCase):
@@ -96,6 +102,35 @@ class TestDictFailFast(unittest.TestCase):
         from v3.engine.configs import _load_org_dicts
         with self.assertRaises(FileNotFoundError):
             _load_org_dicts("poi___missing__.pkl", "v1.1.2")
+
+
+class TestCsvIndexLock(unittest.TestCase):
+    def test_concurrent_first_load_once(self):
+        import threading
+        import time
+        from concurrent.futures import ThreadPoolExecutor
+
+        import core.csv_index as mod
+        from core.csv_index import CsvIndex
+
+        calls = []
+        guard = threading.Lock()
+        original = mod._load_affinity_csv
+
+        def fake(path, key):
+            with guard:
+                calls.append(path)
+            time.sleep(0.05)
+            return {}
+
+        mod._load_affinity_csv = fake
+        try:
+            idx = CsvIndex()
+            with ThreadPoolExecutor(max_workers=4) as ex:
+                list(ex.map(lambda _: idx.addr, range(4)))
+        finally:
+            mod._load_affinity_csv = original
+        self.assertEqual(len(calls), 1)
 
 
 if __name__ == "__main__":

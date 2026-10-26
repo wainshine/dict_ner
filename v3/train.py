@@ -26,6 +26,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FEAT_DIR = os.path.join(BASE, "output", "v3_feat")
 MODEL_DIR = os.path.join(BASE, "models")
 DEFAULT_MODEL = os.path.join(MODEL_DIR, "clf_v3.pkl")
+DEFAULT_MANIFEST = os.path.join(MODEL_DIR, "manifest_v3.json")
 
 
 def load_feats(path):
@@ -109,14 +110,31 @@ def resolve_val_pred_path(model_path, explicit=None):
     return None
 
 
+def resolve_manifest_path(model_path, explicit=None):
+    """返回 manifest 输出路径。
+
+    基线 model 默认写 models/manifest_v3.json;
+    实验 model 默认写同目录 manifest_<model_stem>.json, 避免覆盖基线 manifest。
+    """
+    if explicit:
+        return explicit
+    if os.path.abspath(model_path) == os.path.abspath(DEFAULT_MODEL):
+        return DEFAULT_MANIFEST
+    stem = os.path.splitext(os.path.basename(model_path))[0]
+    return os.path.join(os.path.dirname(os.path.abspath(model_path)),
+                        f"manifest_{stem}.json")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--train", default=os.path.join(FEAT_DIR, "train_feats.csv"))
-    ap.add_argument("--calib-set", default=None,
-                    help="prefit校准集 (未参与训练, 如 eval_split_train)")
+    ap.add_argument("--train", default=os.path.join(FEAT_DIR, "final_train7.csv"))
+    ap.add_argument("--calib-set", default=os.path.join(FEAT_DIR, "calib_feats.csv"),
+                    help="held-out 校准集 (与 train 文本隔离); --no-calib 时忽略")
     ap.add_argument("--val", default=os.path.join(FEAT_DIR, "val_feats.csv"))
     ap.add_argument("--model", default=os.path.join(MODEL_DIR, "clf_v3.pkl"))
-    ap.add_argument("--manifest", default=os.path.join(MODEL_DIR, "manifest_v3.json"))
+    ap.add_argument("--manifest", default=None,
+                    help="manifest 输出路径; 默认基线 model → models/manifest_v3.json, "
+                         "实验 model → 同目录 manifest_<stem>.json (防覆盖基线)")
     ap.add_argument("--val-pred", default=None,
                     help="val_pred.csv 输出路径; 默认仅当 --model 为基线 clf_v3.pkl 时写 "
                          "output/v3_feat/val_pred.csv, 实验模型默认不写 (防覆盖基线)")
@@ -201,12 +219,16 @@ def main():
     print(f"\nSaved model: {args.model}")
 
     pred_path = resolve_val_pred_path(args.model, args.val_pred)
+    manifest_path = resolve_manifest_path(args.model, args.manifest)
+    calib_path = None if args.no_calib else args.calib_set
 
     manifest = {
         "tag": args.tag,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "train_path": args.train, "train_md5": file_md5(args.train),
         "val_path": args.val, "val_md5": file_md5(args.val),
+        "calib_path": calib_path,
+        "calib_md5": file_md5(calib_path) if calib_path else None,
         "val_pred_path": pred_path,
         "n_train": int(len(y_tr)), "n_val": int(len(y_va)),
         "n_features": len(feat_cols),
@@ -220,9 +242,10 @@ def main():
         "val_argmax": {k: v for k, v in m_raw.items() if k != "confusion_matrix"},
         "val_tuned": {k: v for k, v in m_tuned.items() if k != "confusion_matrix"},
     }
-    with open(args.manifest, "w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(manifest_path) or ".", exist_ok=True)
+    with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
-    print(f"Saved manifest: {args.manifest}")
+    print(f"Saved manifest: {manifest_path}")
 
     if pred_path:
         with open(pred_path, "w", encoding="utf-8", newline="") as f:

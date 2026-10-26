@@ -65,6 +65,7 @@ def sample_gaode(target_total, blocked):
     print(f"Gaode pass1: {total_valid:,} valid, {len(type_targets)} types", flush=True)
 
     samples_by_type = {t: [] for t in type_targets}
+    seen_by_type = {t: 0 for t in type_targets}
     for i, fname in enumerate(files):
         path = os.path.join(GAODE_DIR, fname)
         if os.path.getsize(path) == 0:
@@ -92,12 +93,14 @@ def sample_gaode(target_total, blocked):
                     continue
                 target = type_targets[t1]
                 item = (text, label, "gaode", t1)
-                if len(buf) < target:
+                seen = seen_by_type[t1]
+                if seen < target:
                     buf.append(item)
                 else:
-                    j = random.randint(0, len(buf) - 1)
+                    j = random.randint(0, seen)
                     if j < target:
                         buf[j] = item
+                seen_by_type[t1] = seen + 1
         if (i + 1) % 10 == 0:
             print(f"  gaode pass2: {i+1}/{len(files)} files", flush=True)
 

@@ -2,7 +2,7 @@
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v4.2.0** | 词典: **v1.5.0**（四词典统一编号） | 测试: **195 条全绿**
+- 系统版本: **v4.2.0** | 词典: **v1.5.0**（四词典统一编号） | 测试: **196 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -35,7 +35,8 @@ python run.py v2 classify "广东省卫健委"
 
 # HTTP 服务 (FastAPI)
 uvicorn serve:app --host 0.0.0.0 --port 8000 --workers 4
-#   POST /classify {"text": ...}  POST /classify_batch {"texts": [...]}  GET /health
+#   POST /classify {"text": ...} (≤1024字)  POST /classify_batch {"texts": [...]} (≤2048条)
+#   GET /health
 
 python run.py info
 ```
@@ -51,7 +52,7 @@ python run.py info
 
 ## 系统架构
 
-> 原理一句话：**切分靠词典 + Viterbi 动态规划（无学习），分类靠 GBDT 梯度提升树（500 树×4 类，78 维特征），置信度经 isotonic 校准**（ECE 0.0149 可直接当概率用）。无 GPU 依赖，单条 2.1ms。细节见 [HANDOVER §1.0](audit/HANDOVER.md)。
+> 原理一句话：**切分靠词典 + Viterbi 动态规划（无学习），分类靠 GBDT 梯度提升树（500 树×4 类，78 维特征），置信度经 isotonic 校准**（ECE 0.0253 可直接当概率用）。无 GPU 依赖，单条 2.1ms。细节见 [HANDOVER §1.0](audit/HANDOVER.md)。
 
 ```
 输入文本
@@ -96,27 +97,27 @@ python run.py info
 
 ## 识别质量
 
-### 分类评测 (test 集 38,514 条, v4.0.4 标签治理后口径)
+### 分类评测 (test 集 38,512 条, v4.2.0 分组切分 clean 口径)
 
-| 指标 | v4.0.4 (当前) | v2.2.1 规则链 |
-|------|:---:|:---:|
-| macro-F1 | **0.9092** | 0.3702 |
-| accuracy | **0.9098** | 0.4463 |
-| ORG F1 | 0.8650 | 0.5203 |
-| POI F1 | 0.9115 | 0.5419 |
-| ADDR F1 | 0.9270 | 0.4163 |
-| UNKNOWN F1 | 0.9331 | 0.0024 |
+| 指标 | v4.2.0 clean (当前) | v4.1.2 旧口径 (含泄漏) | v2.2.1 规则链 |
+|------|:---:|:---:|:---:|
+| macro-F1 | **0.9035** | 0.9092 | 0.3702 |
+| accuracy | **0.9076** | 0.9098 | 0.4463 |
+| ORG F1 | 0.8605 | 0.8650 | 0.5203 |
+| POI F1 | 0.9103 | 0.9115 | 0.5419 |
+| ADDR F1 | 0.9276 | 0.9270 | 0.4163 |
+| UNKNOWN F1 | 0.9156 | 0.9331 | 0.0024 |
 
-> 口径说明: v4.0.4 修正了 eval 标签两条错误映射 (风景名胜/休闲娱乐倒挂, 1,846 条)。同口径下旧模型 0.9062 → 新模型 0.9092 (真实增益 +0.003); 旧口径历史值 0.9059。
+> 口径说明: v4.2.0 起 test 采用**文本分组切分**（train/val/test 文本重叠 0）；旧 v4.1.2 的 0.9092 来自含 9.49% train/test 文本重叠的旧切分，两者不可直接比较。旧模型归档 `models/clf_v3_baseline_v42.pkl`。v2.2.1 规则链为旧切分历史值。v4.0.4 的标签治理（风景名胜/休闲娱乐倒挂 1,846 条）仍保留在新切分中。
 
 ### 三视角补充指标
 
 | 视角 | 值 | 说明 |
 |------|---|------|
-| clean 子集 accuracy | **0.9719** | test 集查表确认标签的子集 (12,477 条/32.4%; 含噪标签占 ~13%)。v4.1.2 复跑修正: 0.9919 系 v3.1.0 时代旧模型值, 见 output/v3_clean_eval_report.md |
-| ORG 纯净召回 | 74.4% (有效 ≈100%) | org_company 5200万公司名抽样100万; "误判"为个体户门店 (语义边界) |
-| POI 纯净召回 | 58.3% (有效 **85.5~87.3%**) | split/poi 4000万抽样100万; 真边界剔除后口径见 output/v4_poi_recall_audit.md |
-| 置信度校准 | ECE=0.0149 | confidence 可直接作概率路由 |
+| clean 子集 accuracy | **0.9689** | test 集查表确认标签的子集 (12,463 条/32.4%; 含噪标签占 ~13%)。v4.2.0 分组切分重训后复跑，见 output/v3_clean_eval_report.md |
+| ORG 纯净召回 | 74.5% (有效 ≈100%) | org_company 5200万公司名抽样100万; "误判"为个体户门店 (语义边界) |
+| POI 纯净召回 | 59.3% (有效 **86.8~88.5%**) | split/poi 4000万抽样100万; 真边界剔除后口径见 output/v4_poi_recall_audit.md |
+| 置信度校准 | ECE=0.0253 (val) | confidence 可直接作概率路由; test ECE 0.0215 |
 
 ### 段健康度 (20万样本, `v3/seg_quality.py`; 现役产物 output/v3_seg_v412_{org,loc}.json)
 
@@ -162,7 +163,7 @@ dict_ner/
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
 ├── tools/               v3 时代训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / pipeline_base)
 ├── audit/               HANDOVER.md + 各代审计/方案报告 (temp/ 为 v1 时代中文审计存档)
-├── tests/               195 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 124 条 v3/core/serve/metrics)
+├── tests/               196 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 125 条 v3/core/serve/metrics)
 └── CHANGELOG.md         完整版本历史
 ```
 
@@ -194,15 +195,20 @@ m = BrandModel('dicts', version='v1.5.0')
 m.train_from_d2_csv('dicts/iter_v1.5.0/org_d2_freqs_v1.5.0.csv', min_freq=3, min_bigram_count=10)
 m.save()"
 
-# 6. 分类器重训 (~15min)
+# 6. 分类器重训 (~15min; v4.2.0 clean 口径)
+#    切分: 文本分组切分 (train/val/test 文本重叠 0) → data/eval_split_*
+#    训练集: final_train7 = final_train6 去掉新 val/test/calib 文本 + 新 train 缺失行特征
+python3 v3/make_split.py
+python3 v3/make_group_split.py --install
+python3 v3/build_train7.py --force
 python3 v3/precompute.py all data/v3_train_pool.csv output/v3_feat/pool_feats.csv
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9 --out output/v3_feat/pool_feats_clean2.csv
-python3 v3/train.py --train output/v3_feat/final_train6.csv --calib-set output/v3_feat/train_feats.csv
+python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v3_feat/calib_feats.csv
 
 # 7. 门禁
 python3 v3/engine/gate.py --n 20000        # 引擎一致性 (现状预期 FAIL: 词典代差, 看 diff 计数与变更前一致, 见 HANDOVER §4.2)
 python3 v3/seg_quality.py --engine org --n 200000 --v3
-python3 -m unittest discover -v -s tests/  # 195 全绿
+python3 -m unittest discover -v -s tests/  # 196 全绿
 ```
 
 ## 评估体系
@@ -225,7 +231,7 @@ python3 -m unittest discover -v -s tests/  # 195 全绿
 ```
 改词典 / 改引擎 / 改分类器
     │
-    ├─ python3 -m unittest discover -s tests/     → 195 全绿
+    ├─ python3 -m unittest discover -s tests/     → 196 全绿
     ├─ v3/seg_quality.py (三体系)                  → 段健康度不降
     ├─ v3/seg_compare.py (新旧全量对比)            → diff 逐类审查
     ├─ v3/evaluate.py --feats val_feats.csv       → val macro-F1 不降
@@ -251,10 +257,10 @@ python3 -m unittest discover -v -s tests/  # 195 全绿
 
 ## 依赖与测试
 
-Python 3.10+（实测环境 3.14）。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
+Python 3.10+（实测环境 3.14）。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5,<2.0（fast_predict 依赖 1.x 内部树结构）, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
 
 ```bash
-python3 -m unittest discover -v -s tests/    # 195 条 (tests/legacy/ 71 + 根目录 124)
+python3 -m unittest discover -v -s tests/    # 196 条 (tests/legacy/ 71 + 根目录 125)
 ```
 
 许可证: Apache License 2.0 (见 `LICENSE`)。
@@ -265,7 +271,7 @@ python3 -m unittest discover -v -s tests/    # 195 条 (tests/legacy/ 71 + 根�
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
-| **v4.2.0** | 2026-10-26 | 运行时/词典链安全修复 (Batch 0): serve 并发竞态、val_pred 防护、precompute 清理、词典 fail-fast/原子写、指标口径统一; 指标不变 |
+| **v4.2.0** | 2026-10-26 | Batch 0 安全修复 + Batch 1 文本分组切分 clean 重训: headline 0.9035 (旧含泄漏口径 0.9092); 旧模型归档 |
 | **v4.1.2** | 2026-09-03 | 7代会话自审计: 文档一致性修正 + 评估产物复跑确认 + HANDOVER §3.5 仓库边界 |
 | **v4.1.1** | 2026-08-06 | CLI 路由修复 (recognize/json/info 切 v3) + 技术原理入文档 + 前身项目补记 |
 | **v4.1.0** | 2026-08-05 | v1.6.0 词典自举实验: val 门禁未过回退, 收敛判断正式关闭 (留档) |

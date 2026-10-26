@@ -1,8 +1,11 @@
 import csv
+import logging
 import os
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class SegType(str, Enum):
@@ -93,6 +96,8 @@ LOCATION_SUFFIX_SET = {
 def _load_poi_suffix_map() -> Dict[str, str]:
     path = os.path.join(os.path.dirname(__file__), "..", "dicts", "poi_suffix_category.csv")
     if not os.path.exists(path):
+        logger.warning("poi_suffix_category.csv 缺失, POI_SUFFIX_MAP 置空 "
+                       "(classify_suffix 退化为'建筑'): %s", path)
         return {}
     with open(path, encoding="utf-8-sig") as f:
         return {row["suffix"]: row["category"] for row in csv.DictReader(f)}

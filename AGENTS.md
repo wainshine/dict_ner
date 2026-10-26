@@ -9,7 +9,7 @@
 ## 当前状态
 
 - 系统版本 **v4.2.0** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
-- 指标：test macro-F1 0.9092 | clean accuracy 0.9719 | ECE 0.0149 | 单条 2.1ms / 批量 1.9ms/条
+- 指标：test macro-F1 0.9035 | clean accuracy 0.9689 | ECE 0.0253 (val) | 单条 2.1ms / 批量 1.9ms/条
 - 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）+ fastapi/uvicorn（仅 serve.py）
 - v4.0.0：v2 代码已迁 `/v2/`（平铺）+ 根 `pipeline_v2.py`；v3 不再 import 任何 v2 模块；HTTP 服务 `serve.py`
 
@@ -18,7 +18,7 @@
 ```bash
 cd /Users/wainshine/newAI/dict_ner
 git status                                        # 应干净
-python3 -m unittest discover -s tests/            # 195 条全绿
+python3 -m unittest discover -s tests/            # 196 条全绿
 python3 run.py classify "深圳市南山区华为技术有限公司"   # → ORG (v3 默认入口)
 python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结规则链)
 ```
@@ -34,8 +34,8 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 | `models/` | clf_v3.pkl（GBDT+校准+乘数）+ manifest；clf_v3_compact.pkl（备选小模型） |
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
 | `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv（原始地图语料已删有异地备份，见 HANDOVER §3.1） |
-| `output/` | 评估产物；`v3_feat/` 白名单制（现役 final_train6 + train/val/test_feats + val_pred + synth_feats + unknown_*_feats + pool_clean*_stats.json，其余可再生） |
-| `tests/` | 195 条（tests/legacy/ 71 条 v2 锚定 + 根目录 124 条 v3/core/serve/metrics） |
+| `output/` | 评估产物；`v3_feat/` 白名单制（现役 final_train7 + calib_feats + train/val/test_feats + val_pred + synth_feats + unknown_*_feats + pool_clean*_stats.json，其余可再生） |
+| `tests/` | 196 条（tests/legacy/ 71 条 v2 锚定 + 根目录 125 条 v3/core/serve/metrics） |
 | `audit/` | HANDOVER.md + 各代方案/审计报告 |
 
 ## 红线（违反即 reject）
@@ -47,6 +47,7 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 5. 并行用 bash `&` 16 进程独立 .py（macOS spawn 坑）；跑性能测量前先杀干净后台 worker（OpenMP 过订阅）
 6. `open(p,'w').write(open(p).read())` 会先截断后读取 → 清空文件，禁止此写法
 7. `v3/train.py` 默认只在 `--model` 为基线 `clf_v3.pkl` 时写 `output/v3_feat/val_pred.csv`；实验模型（`--model` 指向新文件）默认跳过，需显式 `--val-pred`（踩坑 #24/#27 的代码防护）
+8. 重任务 CPU 上限：**≤10 计算线程、≤24 核**；训练用 `OMP_NUM_THREADS=10` + `nice`，特征预计算 16 进程 × 单线程；禁止满核
 
 ## 常用命令
 
@@ -58,7 +59,9 @@ python3 tools/patch_v141.py --src-v vX --dst-v vY          # 补丁固化
 # 分类器重训
 python3 v3/precompute.py all <输入csv> <输出csv>            # 特征 (16进程)
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --flip 0.9
-python3 v3/train.py --train <final_train> --calib-set output/v3_feat/train_feats.csv
+python3 v3/make_group_split.py --install                    # 文本分组切分 (零泄漏)
+python3 v3/build_train7.py --force                          # final_train7 + calib_feats
+python3 v3/train.py --train <final_train> --calib-set output/v3_feat/calib_feats.csv
 # 门禁/评估
 python3 v3/engine/gate.py --n 20000                        # 引擎一致性（现状下与 legacy v1.2.x 词典有代差 FAIL，验收看 diff 计数与变更前一致，见 HANDOVER §4.2）
 python3 v3/seg_quality.py --engine org --n 200000 --v3     # 段健康度
