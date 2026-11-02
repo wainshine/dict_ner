@@ -44,6 +44,30 @@ def _metrics(proba, y, mult):
     return compute_metrics(pairs), pred
 
 
+def _ece(conf, pred, y, bins=10):
+    correct = (pred == y).astype(np.float64)
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    total = 0.0
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        mask = (conf > lo) & (conf <= hi) if lo > 0 else (conf >= lo) & (conf <= hi)
+        if mask.sum() == 0:
+            continue
+        total += mask.mean() * abs(correct[mask].mean() - conf[mask].mean())
+    return float(total)
+
+
+def tune_confidence_temperature(proba, y, mult, reject_t):
+    """在 val 上拟合 confidence temperature, 只改置信度不改 argmax."""
+    from v3.infer import finalize_proba
+    best_t, best_ece = 1.0, float("inf")
+    for t in np.arange(1.0, 2.001, 0.05):
+        pred, conf = finalize_proba(proba, mult, reject_t, float(t))
+        e = _ece(conf, pred, y)
+        if e < best_ece - 1e-12:
+            best_t, best_ece = round(float(t), 2), e
+    return best_t, best_ece
+
+
 def tune_multipliers(proba, y, grid=None, reject_class=None, reject_grid=None):
     n_cls = proba.shape[1]
     if grid is None:
@@ -125,6 +149,75 @@ def resolve_manifest_path(model_path, explicit=None):
                         f"manifest_{stem}.json")
 
 
+def make_gbdt(args, random_state):
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    return HistGradientBoostingClassifier(
+        max_iter=args.max_iter, learning_rate=0.08, max_leaf_nodes=args.max_leaf_nodes,
+        min_samples_leaf=40, l2_regularization=1.0,
+        early_stopping=True, validation_fraction=0.1, random_state=random_state)
+
+
+def assign_group_folds(groups, k, seed):
+    """把整组文本随机分到 k 折 (group 不跨折).
+
+    不用 StratifiedGroupKFold: 260 万 group 时其 Python 逐组循环要 >10min.
+    组数远大于 k 时随机分组已足够均衡 (类分布偏差 <0.001), 校准只关心
+    OOF 预测的覆盖, 不要求每折严格同分布.
+    """
+    codes, _ = pd.factorize(groups)
+    n_groups = int(codes.max()) + 1
+    fold_of_group = np.empty(n_groups, dtype=np.int8)
+    fold_of_group[np.random.RandomState(seed).permutation(n_groups)] = (
+        np.arange(n_groups) % k)
+    return fold_of_group[codes]
+
+
+def cross_fit_fit(args, X_tr, y_tr, df_tr, X_ca, y_ca, df_ca):
+    """K-fold OOF isotonic 校准 + 全量 GBDT.
+
+    训练行 = train + calib (calib 不再 held-out); 每个 fold 模型对 holdout 折
+    输出 decision_function, 汇总 OOF 后拟合逐类 isotonic; 最终模型在全部行上重训.
+    返回 (CrossFitCalibrated, n_train)。
+    """
+    from v3.calibration import CrossFitCalibrated, fit_isotonic_calibrators
+
+    if args.cross_fit < 2:
+        raise SystemExit("--cross-fit must be >= 2")
+    X = np.vstack([X_tr, X_ca])
+    y = np.concatenate([y_tr, y_ca])
+    groups = np.concatenate([
+        df_tr["text"].astype(str).str.strip().to_numpy(),
+        df_ca["text"].astype(str).str.strip().to_numpy(),
+    ])
+    classes = np.unique(y)
+    oof = np.zeros((len(y), len(classes)), dtype=np.float64)
+    print(f"  assigning {len(groups):,} rows / text groups to "
+          f"{args.cross_fit} folds...", flush=True)
+    fold_ids = assign_group_folds(groups, args.cross_fit, args.random_state)
+    for fold in range(args.cross_fit):
+        tr_idx = np.flatnonzero(fold_ids != fold)
+        va_idx = np.flatnonzero(fold_ids == fold)
+        tf = time.time()
+        fold_clf = make_gbdt(args, args.random_state + fold)
+        fold_clf.fit(X[tr_idx], y[tr_idx])
+        raw = np.asarray(fold_clf.decision_function(X[va_idx]))
+        if raw.ndim == 1:
+            raw = raw[:, None]
+        if raw.shape[1] != len(classes):
+            raise SystemExit(f"OOF class width {raw.shape[1]} != {len(classes)}")
+        oof[va_idx] = raw
+        print(f"  cross-fit fold {fold + 1}/{args.cross_fit}: "
+              f"fit={len(tr_idx):,} oof={len(va_idx):,} n_iter={fold_clf.n_iter_} "
+              f"({time.time() - tf:.0f}s)", flush=True)
+
+    calibrators = fit_isotonic_calibrators(oof, y, classes)
+    print(f"  OOF isotonic fitted on {len(y):,} rows", flush=True)
+    full_clf = make_gbdt(args, args.random_state)
+    full_clf.fit(X, y)
+    print(f"  full-data fit {len(y):,} rows, n_iter={full_clf.n_iter_}", flush=True)
+    return CrossFitCalibrated(full_clf, calibrators, full_clf.classes_), len(y)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train", default=os.path.join(FEAT_DIR, "final_train7.csv"))
@@ -139,12 +232,20 @@ def main():
                     help="val_pred.csv 输出路径; 默认仅当 --model 为基线 clf_v3.pkl 时写 "
                          "output/v3_feat/val_pred.csv, 实验模型默认不写 (防覆盖基线)")
     ap.add_argument("--no-calib", action="store_true")
+    ap.add_argument("--cross-fit", type=int, default=0, metavar="K",
+                    help="cross-fit isotonic 校准: 把 --calib-set 并入训练, 用 K-fold "
+                         "OOF 预测拟合 isotonic (校准诚实且不丢训练行); 0=关闭")
     ap.add_argument("--max-iter", type=int, default=500)
     ap.add_argument("--max-leaf-nodes", type=int, default=63)
+    ap.add_argument("--random-state", type=int, default=42,
+                    help="GBDT random_state (early-stopping 内部验证集划分)")
     ap.add_argument("--tag", default="v3.0")
     args = ap.parse_args()
+    if args.cross_fit and args.no_calib:
+        raise SystemExit("--cross-fit and --no-calib are mutually exclusive")
+    if args.cross_fit and not args.calib_set:
+        raise SystemExit("--cross-fit requires --calib-set (it becomes extra train rows)")
 
-    from sklearn.ensemble import HistGradientBoostingClassifier
     from sklearn.calibration import CalibratedClassifierCV
 
     t0 = time.time()
@@ -152,29 +253,33 @@ def main():
     X_va, y_va, df_va, _ = load_feats(args.val)
     print(f"train {X_tr.shape}, val {X_va.shape}, features {len(feat_cols)}")
 
-    max_iter = args.max_iter
-    clf = HistGradientBoostingClassifier(
-        max_iter=max_iter, learning_rate=0.08, max_leaf_nodes=args.max_leaf_nodes,
-        min_samples_leaf=40, l2_regularization=1.0,
-        early_stopping=True, validation_fraction=0.1, random_state=42)
-    clf.fit(X_tr, y_tr)
-    print(f"GBDT fit done in {time.time()-t0:.0f}s, n_iter={clf.n_iter_}")
-
-    if args.no_calib:
-        pass
-    elif args.calib_set:
-        from sklearn.frozen import FrozenEstimator
-        X_ca, y_ca, _, _ = load_feats(args.calib_set)
-        keep = np.isin(y_ca, list(clf.classes_))
-        X_ca, y_ca = X_ca[keep], y_ca[keep]
-        clf = CalibratedClassifierCV(FrozenEstimator(clf), method="isotonic")
-        clf.fit(X_ca, y_ca)
-        print(f"prefit isotonic calibration on {len(y_ca):,} rows "
-              f"({time.time()-t0:.0f}s total)")
+    if args.cross_fit:
+        X_ca, y_ca, df_ca, _ = load_feats(args.calib_set)
+        print(f"cross-fit: train + calib = {len(y_tr) + len(y_ca):,} rows, "
+              f"K={args.cross_fit}")
+        clf, n_train = cross_fit_fit(args, X_tr, y_tr, df_tr, X_ca, y_ca, df_ca)
+        print(f"cross-fit calibration done in {time.time() - t0:.0f}s total")
     else:
-        clf = CalibratedClassifierCV(clf, method="isotonic", cv=3)
+        clf = make_gbdt(args, args.random_state)
         clf.fit(X_tr, y_tr)
-        print(f"isotonic calibration done in {time.time()-t0:.0f}s total")
+        n_train = len(y_tr)
+        print(f"GBDT fit done in {time.time()-t0:.0f}s, n_iter={clf.n_iter_}")
+
+        if args.no_calib:
+            pass
+        elif args.calib_set:
+            from sklearn.frozen import FrozenEstimator
+            X_ca, y_ca, _, _ = load_feats(args.calib_set)
+            keep = np.isin(y_ca, list(clf.classes_))
+            X_ca, y_ca = X_ca[keep], y_ca[keep]
+            clf = CalibratedClassifierCV(FrozenEstimator(clf), method="isotonic")
+            clf.fit(X_ca, y_ca)
+            print(f"prefit isotonic calibration on {len(y_ca):,} rows "
+                  f"({time.time()-t0:.0f}s total)")
+        else:
+            clf = CalibratedClassifierCV(clf, method="isotonic", cv=3)
+            clf.fit(X_tr, y_tr)
+            print(f"isotonic calibration done in {time.time()-t0:.0f}s total")
 
     classes = [int(c) for c in clf.classes_]
     proba_raw = clf.predict_proba(X_va)
@@ -207,12 +312,21 @@ def main():
     m_tuned = metrics_of(pred_tuned)
     print_metrics(m_tuned, "=== val: tuned ===")
 
+    temperature = 1.0
+    val_ece = None
+    if args.cross_fit:
+        temperature, val_ece = tune_confidence_temperature(
+            proba, y_va, mult, reject_t)
+        print(f"confidence temperature: {temperature:.2f} "
+              f"(val ECE {val_ece:.4f}; 只改 confidence, 不改 argmax)")
+
     os.makedirs(MODEL_DIR, exist_ok=True)
     with open(args.model, "wb") as f:
         pickle.dump({
             "clf": clf,
             "multipliers": mult.tolist(),
             "reject_t": reject_t,
+            "confidence_temperature": temperature,
             "labels": LABELS,
             "feature_names": feat_cols,
         }, f)
@@ -221,6 +335,8 @@ def main():
     pred_path = resolve_val_pred_path(args.model, args.val_pred)
     manifest_path = resolve_manifest_path(args.model, args.manifest)
     calib_path = None if args.no_calib else args.calib_set
+    calib_mode = ("isotonic_cross_fit" if args.cross_fit
+                  else ("none" if args.no_calib else "isotonic"))
 
     manifest = {
         "tag": args.tag,
@@ -229,16 +345,25 @@ def main():
         "val_path": args.val, "val_md5": file_md5(args.val),
         "calib_path": calib_path,
         "calib_md5": file_md5(calib_path) if calib_path else None,
+        "train_extra_path": args.calib_set if args.cross_fit else None,
+        "train_extra_md5": file_md5(args.calib_set) if args.cross_fit else None,
         "val_pred_path": pred_path,
-        "n_train": int(len(y_tr)), "n_val": int(len(y_va)),
+        "n_train": int(n_train), "n_val": int(len(y_va)),
         "n_features": len(feat_cols),
         "params": {
             "max_iter": args.max_iter, "learning_rate": 0.08, "max_leaf_nodes": args.max_leaf_nodes,
             "min_samples_leaf": 40, "l2_regularization": 1.0,
-            "calibration": "isotonic" if not args.no_calib else "none",
+            "random_state": args.random_state,
+            "calibration": calib_mode,
+            "cross_fit_folds": args.cross_fit or None,
         },
+        "cross_fit": ({"k": args.cross_fit, "group": "text",
+                       "seed": args.random_state,
+                       "n_oof": int(n_train)} if args.cross_fit else None),
         "multipliers": dict(zip(LABELS, [float(m) for m in mult])),
         "reject_t": reject_t,
+        "confidence_temperature": temperature,
+        "val_ece": round(val_ece, 4) if val_ece is not None else None,
         "val_argmax": {k: v for k, v in m_raw.items() if k != "confusion_matrix"},
         "val_tuned": {k: v for k, v in m_tuned.items() if k != "confusion_matrix"},
     }
@@ -248,12 +373,12 @@ def main():
     print(f"Saved manifest: {manifest_path}")
 
     if pred_path:
+        from v3.infer import finalize_proba
+        _, conf = finalize_proba(proba, mult, reject_t, temperature)
         with open(pred_path, "w", encoding="utf-8", newline="") as f:
             w = csv.writer(f)
             w.writerow(["text", "label", "source", "pred", "confidence"]
                        + [f"p_{lb}" for lb in LABELS])
-            mx = proba * mult
-            conf = mx[np.arange(len(df_va)), pred_tuned] / mx.sum(axis=1)
             for i in range(len(df_va)):
                 w.writerow([df_va.iloc[i]["text"], df_va.iloc[i]["label"],
                             df_va.iloc[i]["source"], LABELS[pred_tuned[i]],

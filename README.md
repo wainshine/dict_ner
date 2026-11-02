@@ -1,8 +1,8 @@
-# dict_ner v4.2.0
+# dict_ner v4.2.1
 
 中文地名/机构名/POI/品牌识别系统。从非结构化中文文本中切分并标注段落类型，统一分类为 ORG/POI/ADDR/UNKNOWN 四类，输出校准置信度。
 
-- 系统版本: **v4.2.0** | 词典: **v1.5.0**（四词典统一编号） | 测试: **196 条全绿**
+- 系统版本: **v4.2.1** | 词典: **v1.5.0**（四词典统一编号） | 测试: **207 条全绿**
 - 完整版本历史: [CHANGELOG.md](CHANGELOG.md) | 接手手册: [audit/HANDOVER.md](audit/HANDOVER.md) | 新会话速通: [AGENTS.md](AGENTS.md)
 
 ## 文档体系（定位与维护原则）
@@ -53,7 +53,7 @@ python run.py info
 
 ## 系统架构
 
-> 原理一句话：**切分靠词典 + Viterbi 动态规划（无学习），分类靠 GBDT 梯度提升树（500 树×4 类，78 维特征），置信度经 isotonic 校准**（ECE 0.0253 可直接当概率用）。无 GPU 依赖，单条 ~1.6ms（本机实测）。细节见 [HANDOVER §1.0](audit/HANDOVER.md)。
+> 原理一句话：**切分靠词典 + Viterbi 动态规划（无学习），分类靠 GBDT 梯度提升树（500 树×4 类，78 维特征），置信度经 isotonic 校准**（ECE 0.0129 val / 0.0110 test，可直接当概率用）。无 GPU 依赖，单条 ~1.4ms（本机实测）。细节见 [HANDOVER §1.0](audit/HANDOVER.md)。
 
 ```
 输入文本
@@ -98,27 +98,27 @@ python run.py info
 
 ## 识别质量
 
-### 分类评测 (test 集 38,512 条, v4.2.0 分组切分 clean 口径)
+### 分类评测 (test 集 38,512 条, v4.2.1 分组切分 clean 口径)
 
-| 指标 | v4.2.0 clean (当前) | v4.1.2 旧口径 (含泄漏) | v2.2.1 规则链 |
+| 指标 | v4.2.1 clean (当前) | v4.1.2 旧口径 (含泄漏) | v2.2.1 规则链 |
 |------|:---:|:---:|:---:|
-| macro-F1 | **0.9035** | 0.9092 | 0.3702 |
-| accuracy | **0.9076** | 0.9098 | 0.4463 |
-| ORG F1 | 0.8605 | 0.8650 | 0.5203 |
-| POI F1 | 0.9103 | 0.9115 | 0.5419 |
-| ADDR F1 | 0.9276 | 0.9270 | 0.4163 |
-| UNKNOWN F1 | 0.9156 | 0.9331 | 0.0024 |
+| macro-F1 | **0.9053** | 0.9092 | 0.3702 |
+| accuracy | **0.9075** | 0.9098 | 0.4463 |
+| ORG F1 | 0.8606 | 0.8650 | 0.5203 |
+| POI F1 | 0.9100 | 0.9115 | 0.5419 |
+| ADDR F1 | 0.9255 | 0.9270 | 0.4163 |
+| UNKNOWN F1 | 0.9252 | 0.9331 | 0.0024 |
 
-> 口径说明: v4.2.0 起 test 采用**文本分组切分**（train/val/test 文本重叠 0）；旧 v4.1.2 的 0.9092 来自含 9.49% train/test 文本重叠的旧切分，两者不可直接比较。旧模型归档 `models/clf_v3_baseline_v42.pkl`。v2.2.1 规则链为旧切分历史值。v4.0.4 的标签治理（风景名胜/休闲娱乐倒挂 1,846 条）仍保留在新切分中。
+> 口径说明: v4.2.0 起 test 采用**文本分组切分**（train/val/test 文本重叠 0）；旧 v4.1.2 的 0.9092 来自含 9.49% train/test 文本重叠的旧切分，两者不可直接比较。v4.2.0 模型归档 `models/clf_v3_baseline_v420.pkl`，更早的旧模型归档 `models/clf_v3_baseline_v42.pkl`。v2.2.1 规则链为旧切分历史值。v4.0.4 的标签治理（风景名胜/休闲娱乐倒挂 1,846 条）仍保留在新切分中。
 
 ### 三视角补充指标
 
 | 视角 | 值 | 说明 |
 |------|---|------|
-| clean 子集 accuracy | **0.9689** | test 集查表确认标签的子集 (12,463 条/32.4%; 含噪标签占 ~13%)。v4.2.0 分组切分重训后复跑，见 output/v3_clean_eval_report.md |
-| ORG 纯净召回 | 74.5% (有效 ≈100%) | org_company 5200万公司名抽样100万; "误判"为个体户门店 (语义边界) |
-| POI 纯净召回 | 59.3% (有效 **86.8~88.5%**) | split/poi 4000万抽样100万; 真边界剔除后口径见 output/v4_poi_recall_audit.md |
-| 置信度校准 | ECE=0.0253 (val) | confidence 可直接作概率路由; test ECE 0.0215 |
+| clean 子集 accuracy | **0.9703** | test 集查表确认标签的子集 (12,463 条/32.4%; 含噪标签占 ~13%)。v4.2.1 重训后复跑，见 output/v3_clean_eval_report.md |
+| ORG 纯净召回 | 74.5% (有效 ≈100%) | org_company 5200万公司名抽样100万; v4.2.0 模型复跑值，v4.2.1 未复跑（方法不变） |
+| POI 纯净召回 | 59.3% (有效 **86.8~88.5%**) | split/poi 4000万抽样100万; v4.2.0 模型复跑值，v4.2.1 未复跑（方法不变）; 口径见 output/v4_poi_recall_audit.md |
+| 置信度校准 | ECE=0.0129 (val) | confidence 可直接作概率路由; test ECE 0.0110 |
 
 ### 段健康度 (20万样本, `v3/seg_quality.py`; 现役产物 output/v3_seg_v412_{org,loc}.json)
 
@@ -141,11 +141,12 @@ dict_ner/
 │   ├── brand_model.py     品牌 bigram 模型 (v3 自有副本)
 │   ├── infer.py           V3Classifier 推理
 │   ├── fast_predict.py    HistGBDT 编译化快速预测器
+│   ├── calibration.py     cross-fit OOF isotonic 校准 (可选)
 │   ├── train.py / labels.py / sample_pool.py / sample_unknown.py   训练链
 │   ├── make_group_split.py / build_train7.py                        文本分组切分/clean 训练集构建
 │   ├── precompute.py / precompute_worker.py                        16进程特征预计算
 │   ├── synth_unknown.py / clean_eval.py / calibration_audit.py     数据与评估
-│   ├── evaluate.py / pure_eval.py / seg_quality.py                 评估
+│   ├── evaluate.py / pure_eval.py / seg_quality.py / honest_gate.py 评估/门禁
 │   ├── seg_compare.py / eval_cut.py / badcase_eval.py              段级对比评估
 │   ├── error_audit.py / fix_eval_labels.py / poi_recall_audit.py   v4 时代诊断与标签治理
 │   ├── seq_anomaly.py / lowfreq_mine.py / struct_badcase.py        段级异常挖掘
@@ -159,13 +160,13 @@ dict_ner/
 ├── pipeline_v2.py       v2 统一总线 (冻结 baseline, run.py v2 使用)
 ├── run.py               CLI 入口
 ├── serve.py             FastAPI 服务 (POST /classify /classify_batch, GET /health)
-├── models/              GBDT 模型 (clf_v3.pkl + manifest; clf_v3_baseline_v39/v42.pkl 旧基线归档; clf_v3_compact.pkl = 150树备选小模型, 非现役基线)
+├── models/              GBDT 模型 (clf_v3.pkl + manifest; clf_v3_baseline_v39/v42/v420.pkl 旧基线归档; clf_v3_compact.pkl = 150树备选小模型, 非现役基线)
 ├── dicts/               词典 (v1.5.0 当前 + 历史版本 + export/ 审计表 + iter_v1.5.0/ 统计中间产物)
 ├── data/                语料与切分 (split/ 四套语料, SQL 三表, eval splits; 原始地图语料已删有备份)
 ├── scripts/             数据扫描 (build_gaode_index / validate_d4_map)
 ├── tools/               v3 时代训练与词典工具 (stats_v3 / aggregate / patch_v14x / bake / pipeline_base)
 ├── audit/               HANDOVER.md + 各代审计/方案报告 (temp/ 为 v1 时代中文审计存档)
-├── tests/               196 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 125 条 v3/core/serve/metrics)
+├── tests/               207 条用例 (tests/legacy/ 71 条 v2 锚定 + 根目录 136 条 v3/core/serve/metrics)
 └── CHANGELOG.md         完整版本历史
 ```
 
@@ -197,7 +198,7 @@ m = BrandModel('dicts', version='v1.5.0')
 m.train_from_d2_csv('dicts/iter_v1.5.0/org_d2_freqs_v1.5.0.csv', min_freq=3, min_bigram_count=10)
 m.save()"
 
-# 6. 分类器重训 (~15min; v4.2.0 clean 口径)
+# 6. 分类器重训 (~5min; v4.2.1 clean 口径)
 #    切分: 文本分组切分 (train/val/test 文本重叠 0) → data/eval_split_*
 #    训练集: final_train7 = final_train6 去掉新 val/test/calib 文本 + 新 train 缺失行特征
 # ⚠️ make_split.py 无条件覆盖 data/eval_split_*；现役数据先备份
@@ -207,7 +208,10 @@ python3 v3/build_train7.py --force
 # ⚠️ 当前 data/v3_train_pool.csv (270万) 仍是旧蓄水池实现产物; 完整重建需按修复后脚本重新采样并重训
 python3 v3/precompute.py all data/v3_train_pool.csv output/v3_feat/pool_feats.csv
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9 --out output/v3_feat/pool_feats_clean2.csv
-python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v3_feat/calib_feats.csv
+python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v3_feat/calib_feats.csv --random-state 43
+# seed 43 为 v4.2.1 在 val 上对比 42/43 后选定 (单 seed 噪声 ±0.004; test 不参与选择)
+# 可选 cross-fit: calib 并回训练 + 5-fold OOF isotonic (~23min; ECE 有代价, 见 HANDOVER §1.4)
+# python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v3_feat/calib_feats.csv --cross-fit 5
 # ⚠️ final_train6 为历史产物（pool_clean2+synth+eval_train 合并脚本未入库）;
 #    无备份时需从 data/v3_train_pool.csv 重跑 precompute+labels 重建
 # ⚠️ clone/异地无 *.bak_v42 时，只能生成同方法等价新切分，行集合不保证一致
@@ -215,7 +219,8 @@ python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v
 # 7. 门禁
 python3 v3/engine/gate.py --n 20000        # 预期 FAIL: 20K diff loc 1976/org 4249/poi 2783 (词典代差, 见 HANDOVER §4.2)
 python3 v3/seg_quality.py --engine org --n 200000 --v3
-python3 -m unittest discover -v -s tests/  # 196 全绿
+python3 v3/honest_gate.py --candidate models/clf_v3.pkl --baseline models/clf_v3_baseline_v420.pkl  # 切分/训练集变更必跑
+python3 -m unittest discover -v -s tests/  # 207 全绿
 ```
 
 ## 评估体系
@@ -227,6 +232,7 @@ python3 -m unittest discover -v -s tests/  # 196 全绿
 | `v3/pure_eval.py` | 纯净集召回 (org_company / split_poi) | output/v3_pure_eval_report.md |
 | `v3/calibration_audit.py` | 置信度可靠性 (ECE/Brier) | output/v3_calibration_report.md |
 | `v3/seg_quality.py` | 段健康度 (后缀/行业/地址验证率/低频序列) | output/v3_seg_*.json |
+| `v3/honest_gate.py` | 切分/训练集变更的诚实子集门禁 (manifest 血缘 + own/shared/argmax + seed 噪声带) | output/honest_gate*.json |
 | `v3/seg_compare.py` | 两版词典全量段对比 | output/v3_seg_compare_report.md (report 需显式 pattern，避免多轮产物混计) |
 | `v3/eval_cut.py` | 全量重切产出 JSONL+stats | output/*_eval/*_vX/ |
 | `v3/badcase_eval.py` | badcase 跨版修复率 (需先 eval_cut 再生 seq stats；否则空统计静默) | output/v*_badcase_*.md |
@@ -238,10 +244,11 @@ python3 -m unittest discover -v -s tests/  # 196 全绿
 ```
 改词典 / 改引擎 / 改分类器
     │
-    ├─ python3 -m unittest discover -s tests/     → 196 全绿
+    ├─ python3 -m unittest discover -s tests/     → 207 全绿
     ├─ v3/seg_quality.py (三体系)                  → 段健康度不降
     ├─ v3/seg_compare.py (新旧全量对比)            → diff 逐类审查
     ├─ v3/evaluate.py --feats val_feats.csv       → val macro-F1 不降
+    ├─ v3/honest_gate.py (切分/训练集变更)          → 诚实子集不降, 且 seed 方差已复核
     └─ v3/badcase_eval.py                          → 修复率 (先 eval_cut 再生 stats)
     │
     v
@@ -267,7 +274,7 @@ python3 -m unittest discover -v -s tests/  # 196 全绿
 Python 3.10+（实测环境 3.14）。v2 模块 (`/v2/` + `pipeline_v2.py`) 纯标准库；`v3/` 需 scikit-learn≥1.5,<2.0（fast_predict 依赖 1.x 内部树结构）, numpy, pandas；`serve.py` 需 fastapi, uvicorn。
 
 ```bash
-python3 -m unittest discover -v -s tests/    # 196 条 (tests/legacy/ 71 + 根目录 125)
+python3 -m unittest discover -v -s tests/    # 207 条 (tests/legacy/ 71 + 根目录 136)
 ```
 
 许可证: Apache License 2.0 (见 `LICENSE`)。
@@ -278,6 +285,7 @@ python3 -m unittest discover -v -s tests/    # 196 条 (tests/legacy/ 71 + 根�
 
 | 版本 | 日期 | 一句话 |
 |------|------|------|
+| **v4.2.1** | 2026-11-02 | 诚实子集复核修正 (单 seed 噪声) + seed43 重训 (test 0.9053 / clean 0.9703 / ECE 0.0129/0.0110) + honest gate / cross-fit 可选能力 |
 | **v4.2.0** | 2026-10-26 | Batch 0 安全修复 + Batch 1 文本分组切分 clean 重训 + 外部审计 P1/P2/P3 修复: headline 0.9035 (旧含泄漏口径 0.9092); 旧模型归档 |
 | **v4.1.2** | 2026-09-03 | 7代会话自审计: 文档一致性修正 + 评估产物复跑确认 + HANDOVER §3.5 仓库边界 |
 | **v4.1.1** | 2026-08-06 | CLI 路由修复 (recognize/json/info 切 v3) + 技术原理入文档 + 前身项目补记 |

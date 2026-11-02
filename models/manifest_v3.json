@@ -1,11 +1,15 @@
 {
-  "tag": "v4.2.0-clean",
-  "timestamp": "2026-10-26 08:09:12",
+  "tag": "v4.2.1",
+  "timestamp": "2026-11-02 09:27:43",
   "train_path": "output/v3_feat/final_train7.csv",
   "train_md5": "8319138998bdc2a88b35d1ed9cca4421",
   "val_path": "output/v3_feat/val_feats.csv",
   "val_md5": "87bdda5e0ce41c04ba2af68026209a92",
-  "val_pred_path": "output/v3_feat/val_pred.csv",
+  "calib_path": "output/v3_feat/calib_feats.csv",
+  "calib_md5": "75645fcda93a80c81a21abb1a0ead769",
+  "train_extra_path": null,
+  "train_extra_md5": null,
+  "val_pred_path": "/Users/wainshine/newAI/dict_ner/output/v3_feat/val_pred.csv",
   "n_train": 2629943,
   "n_val": 38512,
   "n_features": 78,
@@ -15,79 +19,80 @@
     "max_leaf_nodes": 63,
     "min_samples_leaf": 40,
     "l2_regularization": 1.0,
-    "calibration": "isotonic"
+    "random_state": 43,
+    "calibration": "isotonic",
+    "cross_fit_folds": null
   },
+  "cross_fit": null,
   "multipliers": {
-    "ORG": 0.7,
-    "POI": 0.7,
-    "ADDR": 0.55,
-    "UNKNOWN": 1.5
+    "ORG": 0.55,
+    "POI": 0.55,
+    "ADDR": 0.7,
+    "UNKNOWN": 1.2
   },
   "reject_t": 0.0,
+  "confidence_temperature": 1.0,
+  "val_ece": null,
   "val_argmax": {
     "per_class": {
       "ORG": {
-        "precision": 0.8997,
-        "recall": 0.8384,
-        "f1": 0.868,
+        "precision": 0.8988,
+        "recall": 0.8391,
+        "f1": 0.8679,
         "support": 6763
       },
       "POI": {
-        "precision": 0.9112,
-        "recall": 0.9046,
-        "f1": 0.9079,
+        "precision": 0.9148,
+        "recall": 0.9037,
+        "f1": 0.9092,
         "support": 17761
       },
       "ADDR": {
-        "precision": 0.8889,
-        "recall": 0.9603,
-        "f1": 0.9232,
+        "precision": 0.8879,
+        "recall": 0.9621,
+        "f1": 0.9235,
         "support": 11628
       },
       "UNKNOWN": {
-        "precision": 0.9846,
-        "recall": 0.8419,
-        "f1": 0.9077,
+        "precision": 0.9825,
+        "recall": 0.8551,
+        "f1": 0.9144,
         "support": 2360
       }
     },
-    "accuracy": 0.9059,
-    "macro_f1": 0.9017,
+    "accuracy": 0.907,
+    "macro_f1": 0.9038,
     "total": 38512
   },
   "val_tuned": {
     "per_class": {
       "ORG": {
-        "precision": 0.8981,
-        "recall": 0.8408,
-        "f1": 0.8685,
+        "precision": 0.9023,
+        "recall": 0.836,
+        "f1": 0.8679,
         "support": 6763
       },
       "POI": {
-        "precision": 0.912,
-        "recall": 0.908,
-        "f1": 0.91,
+        "precision": 0.9204,
+        "recall": 0.8996,
+        "f1": 0.9099,
         "support": 17761
       },
       "ADDR": {
-        "precision": 0.8971,
-        "recall": 0.9529,
-        "f1": 0.9241,
+        "precision": 0.883,
+        "recall": 0.9653,
+        "f1": 0.9223,
         "support": 11628
       },
       "UNKNOWN": {
-        "precision": 0.9641,
-        "recall": 0.8771,
-        "f1": 0.9186,
+        "precision": 0.9724,
+        "recall": 0.8962,
+        "f1": 0.9327,
         "support": 2360
       }
     },
-    "accuracy": 0.9078,
-    "macro_f1": 0.9053,
+    "accuracy": 0.9081,
+    "macro_f1": 0.9082,
     "total": 38512
-  },
-  "calib_path": "output/v3_feat/calib_feats.csv",
-  "calib_md5": "75645fcda93a80c81a21abb1a0ead769",
-  "split_method": "group_by_text: StratifiedGroupKFold(5, seed=42); fold0-2=train,3=val,4=test",
-  "note": "v4.2.0 文本分组切分 clean 基线: val/test/calib 与 train 文本重叠=0; test macro-F1 0.9035, ECE(val) 0.0253"
+  }
 }

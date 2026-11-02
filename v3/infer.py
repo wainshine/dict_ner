@@ -21,10 +21,12 @@ DEFAULT_MODEL = os.path.join(BASE, "models", "clf_v3.pkl")
 _ORG_TYPE_REMAP = {"POI": "ORG_SUFFIX"}
 
 
-def finalize_proba(proba, mult, reject_t):
+def finalize_proba(proba, mult, reject_t, temperature=1.0):
     """统一 tuned argmax + reject 规则, 返回 (pred_index, confidence)。
 
     proba: (n, 4) 校准后概率; mult: (4,); reject_t: 低于阈值的样本归 UNKNOWN。
+    temperature: 对 tuned score 做幂变换 (p^(1/T)) 后再归一化, 只改 confidence,
+    不改 argmax (逐类单调); T=1.0 时与旧行为完全一致。
     所有评估/推理路径共用该函数, 避免 clean_eval/calibration_audit 口径分叉。
     """
     tuned = proba * mult
@@ -32,6 +34,8 @@ def finalize_proba(proba, mult, reject_t):
     if reject_t > 0:
         low = proba.max(axis=1) < reject_t
         pred_i = np.where(low, L2I["UNKNOWN"], pred_i)
+    if temperature != 1.0:
+        tuned = np.power(tuned, 1.0 / temperature)
     denom = tuned.sum(axis=1)
     denom = np.where(denom == 0, 1.0, denom)
     conf = tuned[np.arange(len(pred_i)), pred_i] / denom
@@ -45,6 +49,7 @@ class V3Classifier:
         self.clf = bundle["clf"]
         self.mult = np.array(bundle["multipliers"])
         self.reject_t = bundle.get("reject_t", 0.0)
+        self.temperature = float(bundle.get("confidence_temperature", 1.0))
         self.labels = bundle["labels"]
         self.feature_names = bundle["feature_names"]
         if list(self.feature_names) != list(FEATURE_NAMES):
@@ -80,7 +85,7 @@ class V3Classifier:
         proba = np.zeros(len(LABELS))
         for col, cls in enumerate(self.classes_):
             proba[cls] = raw[col]
-        pred_i, conf = finalize_proba(proba[None, :], self.mult, self.reject_t)
+        pred_i, conf = finalize_proba(proba[None, :], self.mult, self.reject_t, self.temperature)
         return (self.labels[int(pred_i[0])], float(conf[0]), proba, f,
                 (loc_res, org_res, poi_res))
 
@@ -145,7 +150,7 @@ class V3Classifier:
                 continue
             proba = probas[res_i]
             res_i += 1
-            pred_i, conf = finalize_proba(proba[None, :], self.mult, self.reject_t)
+            pred_i, conf = finalize_proba(proba[None, :], self.mult, self.reject_t, self.temperature)
             category = self.labels[int(pred_i[0])]
             confidence = float(conf[0])
             loc_res, org_res, poi_res = seg_results[i]

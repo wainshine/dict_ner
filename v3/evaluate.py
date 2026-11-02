@@ -44,7 +44,8 @@ def main():
     proba = np.zeros((len(y), len(LABELS)))
     for col, cls in enumerate([int(c) for c in clf.classes_]):
         proba[:, cls] = raw[:, col]
-    pred_i, conf = finalize_proba(proba, mult, reject_t)
+    pred_i, conf = finalize_proba(proba, mult, reject_t,
+                              bundle.get("confidence_temperature", 1.0))
     pred = np.array([LABELS[int(i)] for i in pred_i])
 
     pairs = list(zip(y.tolist(), pred.tolist()))

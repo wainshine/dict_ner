@@ -38,7 +38,8 @@ def main():
     X = df[bundle["feature_names"]].to_numpy(dtype=np.float64)
     y = df["label"].to_numpy()
     proba = fast.predict_proba(X)
-    pred_i, conf = finalize_proba(proba, mult, reject_t)
+    pred_i, conf = finalize_proba(proba, mult, reject_t,
+                                  bundle.get("confidence_temperature", 1.0))
     pred = np.array([LABELS[int(i)] for i in pred_i])
     correct = (pred == y)
 

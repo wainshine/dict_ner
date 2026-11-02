@@ -10,3 +10,7 @@ dicts/suffix_category_gaode.csv
 dicts/*.bak
 dicts/*.tmp
 /dicts/export
+
+# v4.2.1: 可选 cross-fit 实验模型 (审计证据, 不进版本库)
+/models/exp_*.pkl
+/models/manifest_exp_*.json

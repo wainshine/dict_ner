@@ -1,0 +1,93 @@
+{
+  "tag": "v4.2.0-clean",
+  "timestamp": "2026-10-26 08:09:12",
+  "train_path": "output/v3_feat/final_train7.csv",
+  "train_md5": "8319138998bdc2a88b35d1ed9cca4421",
+  "val_path": "output/v3_feat/val_feats.csv",
+  "val_md5": "87bdda5e0ce41c04ba2af68026209a92",
+  "val_pred_path": "output/v3_feat/val_pred.csv",
+  "n_train": 2629943,
+  "n_val": 38512,
+  "n_features": 78,
+  "params": {
+    "max_iter": 500,
+    "learning_rate": 0.08,
+    "max_leaf_nodes": 63,
+    "min_samples_leaf": 40,
+    "l2_regularization": 1.0,
+    "calibration": "isotonic"
+  },
+  "multipliers": {
+    "ORG": 0.7,
+    "POI": 0.7,
+    "ADDR": 0.55,
+    "UNKNOWN": 1.5
+  },
+  "reject_t": 0.0,
+  "val_argmax": {
+    "per_class": {
+      "ORG": {
+        "precision": 0.8997,
+        "recall": 0.8384,
+        "f1": 0.868,
+        "support": 6763
+      },
+      "POI": {
+        "precision": 0.9112,
+        "recall": 0.9046,
+        "f1": 0.9079,
+        "support": 17761
+      },
+      "ADDR": {
+        "precision": 0.8889,
+        "recall": 0.9603,
+        "f1": 0.9232,
+        "support": 11628
+      },
+      "UNKNOWN": {
+        "precision": 0.9846,
+        "recall": 0.8419,
+        "f1": 0.9077,
+        "support": 2360
+      }
+    },
+    "accuracy": 0.9059,
+    "macro_f1": 0.9017,
+    "total": 38512
+  },
+  "val_tuned": {
+    "per_class": {
+      "ORG": {
+        "precision": 0.8981,
+        "recall": 0.8408,
+        "f1": 0.8685,
+        "support": 6763
+      },
+      "POI": {
+        "precision": 0.912,
+        "recall": 0.908,
+        "f1": 0.91,
+        "support": 17761
+      },
+      "ADDR": {
+        "precision": 0.8971,
+        "recall": 0.9529,
+        "f1": 0.9241,
+        "support": 11628
+      },
+      "UNKNOWN": {
+        "precision": 0.9641,
+        "recall": 0.8771,
+        "f1": 0.9186,
+        "support": 2360
+      }
+    },
+    "accuracy": 0.9078,
+    "macro_f1": 0.9053,
+    "total": 38512
+  },
+  "calib_path": "output/v3_feat/calib_feats.csv",
+  "calib_md5": "75645fcda93a80c81a21abb1a0ead769",
+  "split_method": "group_by_text: StratifiedGroupKFold(5, seed=42); fold0-2=train,3=val,4=test",
+  "note": "v4.2.0 文本分组切分 clean 基线: val/test/calib 与 train 文本重叠=0; test macro-F1 0.9035, ECE(val) 0.0253"
+}

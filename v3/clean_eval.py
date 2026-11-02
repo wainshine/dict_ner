@@ -67,7 +67,8 @@ def main():
     proba = np.zeros((len(df), len(LABELS)))
     for col, cls in enumerate([int(c) for c in clf.classes_]):
         proba[:, cls] = raw[:, col]
-    pred_i, _ = finalize_proba(proba, mult, bundle.get("reject_t", 0.0))
+    pred_i, _ = finalize_proba(proba, mult, bundle.get("reject_t", 0.0),
+                               bundle.get("confidence_temperature", 1.0))
     pred = np.array([LABELS[int(i)] for i in pred_i])
     y = df["label"].to_numpy()
 

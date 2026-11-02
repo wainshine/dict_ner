@@ -3,6 +3,17 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.2.1 (2026-11-02) — 诚实子集复核修正 + seed 方差控制 + honest gate / cross-fit
+
+词典未变；模型在 v4.2.0 clean 切分上以 `random_state=43` 重训（seed 42/43 在 val 对比后选定，test 仅确认）。headline：clean test **0.9035→0.9053** / accuracy **0.9076→0.9075**，clean 子集 **0.9689→0.9703**，ECE **0.0253/0.0215→0.0129/0.0110**，测试 **207**；本机实测单条 **1.41ms** / 批量(100) **1.39ms/条**（median；Python 3.14 + `OMP_NUM_THREADS=10`，预热 20 次，单条 n=200 / 批量 n=100）。v4.2.0 模型归档 `models/clf_v3_baseline_v420.pkl`。复核报告 `audit/audit_v421_honest_subset.md`。
+
+- **三代审计结论复核（重要修正）**: 原报告「重训真实回退 ~0.45pt，约一半降幅不是口径切换」不成立（至少被显著高估）。同一 `final_train7` + held-out calib，只把 `random_state` 42→43：诚实子集 val 0.9017→**0.9061**（+0.0044）、test 0.8956→**0.8981**（+0.0025），与「回退」同量级；seed42 是一次偏差抽样。原报告的 -0.0047/-0.0043 应改为「~0.25~0.45pt 单 seed 噪声 + ~0.2~0.3pt calib 剥离 + ~0.1~0.2pt clean 必要成本」，没有证据支持系统性模型退化
+- **calib 剥离量化**: v4.2.0 为 held-out 校准从训练剥离 23,609 行（含 1,398 条 UNKNOWN，占训练 UNKNOWN 2.5%）。并回训练（cross-fit K=5，OOF isotonic）→ test **0.9069** / clean **0.9738**，诚实子集 0.9069/0.9013（旧模型 0.9073/0.9022，差 -0.0004/-0.0009）；但 OOF（80% 数据模型）与最终全量模型分数尺度不一致，ECE 0.0325/0.0332，即使加 val temperature 也只回到 0.0258/0.0251。故 `--cross-fit K` 作为**可选能力**保留，不作生产模型
+- **生产重训**: seed 43（val 0.9082 > seed42 0.9053；test 不参与选择）。test 0.9053 / clean 0.9703 / ECE 0.0129 (val) / 0.0110 (test)；`honest_gate` vs 旧模型 own Δ = **-0.0005 / -0.0017**（噪声带内 PASS），vs v4.2.0 **+0.0029 / +0.0018**（PASS）
+- **新增 `v3/honest_gate.py`**: manifest 读取双方 train 文本 + md5 血缘校验 → 排除集并集 → 诚实子集 own/shared/argmax 三口径对比；默认 own（部署口径）tol=0.002，单 seed 噪声带 ±0.004 提示。切分/训练集变更必跑（AGENTS 红线 #9）
+- **新增 `v3/train.py --cross-fit K` + `v3/calibration.py`**: calib 行并入训练，K-fold OOF decision_function 拟合逐类 isotonic，校准诚实且不丢训练行；推理仍是单 GBDT，延迟不变。另加 `--random-state`，`finalize_proba` 支持 confidence temperature（默认 1.0，cross-fit 自动在 val 拟合）
+- **文档/测试**: README/HANDOVER/AGENTS/CHANGELOG 四件套同步；HANDOVER 新增踩坑 #40（单 seed 对比）/ #41（OOF 校准与全量模型分数尺度）；测试 196→**207**（cross-fit 校准、honest gate、temperature 回归）
+
 ## v4.2.0 (2026-10-26) — 运行时安全修复 + 文本分组切分 clean 重训 (Batch 0 + Batch 1)
 
 词典未变；分类器在 clean 切分上重训（`final_train7`）。评测口径切换：旧 test **0.9092 / 0.9098**（含 9.49% train/test 文本重叠）→ clean test **0.9035 / 0.9076**；clean 子集 **0.9689**；ECE **0.0253 (val) / 0.0215 (test)**；测试 **196**；本机实测单条 ~1.6ms / 批量(100) ~1.2ms/条。旧模型归档 `models/clf_v3_baseline_v42.pkl`。
