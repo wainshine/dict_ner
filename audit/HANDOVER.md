@@ -1,13 +1,15 @@
-# HANDOVER.md v4.2.1
+# HANDOVER.md v4.2.2
 
 > 接手手册：架构 / 管线 / 数据血缘 / 门禁 / 决策记录 / 踩坑。
 > 版本历史见根目录 `CHANGELOG.md`；项目门面见 `README.md`。
 
 ## 0. 当前状态速览
 
-- 系统版本: **v4.2.1** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
+- 系统版本: **v4.2.2** | 词典: **v1.5.0**（loc/org/poi/brand 四词典统一编号）
 - 测试: **207 条全绿** (`python3 -m unittest discover -s tests/`；tests/legacy/ 71 条 + 根目录 136 条)
-- 关键指标: test macro-F1 **0.9053** / accuracy **0.9075** (v4.2.1 分组切分 clean 口径; 旧含泄漏口径 0.9092/0.9098) | clean 子集 accuracy **0.9703** | 置信度 ECE **0.0129** (val) / **0.0110** (test) | 单条延迟 **1.41ms** / 批量 **1.39ms/条** (100条, 本机 median; 方法见 §1.4)
+- 关键指标: test macro-F1 **0.9035** / accuracy **0.9076** (v4.2.2 固定 seed42; 旧含泄漏口径 0.9092/0.9098) | clean 子集 accuracy **0.9689** | 置信度 ECE **0.0253** (val) / **0.0215** (test) | 单条延迟 **1.41ms** / 批量 **1.39ms/条** (100条, 本机 median; 方法见 §1.4)
+- **seed 分布 (42-45)**: test 0.9032~0.9053 (均值 0.9041), clean 0.9674~0.9703 (均值 0.9689), 诚实子集 test 0.8972~0.9005 (均值 0.8983); **禁止按 val 挑 seed** (v4.2.1 seed43 winner's curse, §7 #40)
+- **诚实门禁**: seed42 vs 旧模型 **FAIL** (own -0.0047 val / -0.0043 test); 真实回退未修复; cross-fit (seed42) vs 旧 -0.0004/-0.0009 但 ECE 0.0325, 暂不转正
 - 段健康度: org 后缀验证 97.9% / addr 验证 98.6% / 低频序列 4.4%
 - v4.0.0 布局: v2 冻结代码平铺于 `/v2/`（识别器/brand/eval + v2/tools/），v2 总线 = 根 `pipeline_v2.py`，legacy 测试在 `tests/legacy/`；HTTP 服务 = `serve.py`（FastAPI）
 - **v4.0.0 起 v3 不再 import 任何 v2 模块**（`v3/pipeline.py` 自包含；`classify_suffix` 在 `core/suffix_classify.py`）；仅 gate/seg_compare/badcase_eval 保留 legacy 基线对比 import（`v2.*`，属预期）
@@ -33,8 +35,8 @@
 系统不是端到端大模型，是**"传统 NLP 切分 + 机器学习分类"混合架构**：
 - **切分（无学习）**：词典 → Trie 树 + 词成本（IDF+长度惩罚）+ 转移代价表，**Viterbi 动态规划**找全局最优切分路径（与 jieba 同族）。知识全部在词典词频里，词频由语料自举统计产出（"自演化"）
 - **分类（机器学习）**：**GBDT 梯度提升树**（sklearn HistGradientBoosting，XGBoost/LightGBM 同族），500 树×4 类串行学残差；输入是 78 维手工特征（段类型计数/地理覆盖/后缀查表/亲和度/brand bigram 分），不看原始文本
-- **置信度**：isotonic 保序回归校准成真实概率（ECE 0.0129 val / 0.0110 test，可直接作概率路由）
-- **推理加速**：2000 棵树编译为 numpy 数组批量遍历（v3.8.0 编译化 + v4.0.3 树间批量化），v4.2.1 本机实测单条 1.41ms
+- **置信度**：isotonic 保序回归校准成真实概率（ECE 0.0253 val / 0.0215 test，可直接作概率路由）
+- **推理加速**：2000 棵树编译为 numpy 数组批量遍历（v3.8.0 编译化 + v4.0.3 树间批量化），v4.2.2 本机实测单条 1.41ms
 
 一句话：**切分靠词典+Viterbi，分类靠 GBDT，置信度靠 isotonic 校准**。选型理由（为什么不用 BERT/CRF）见 §6 决策记录。
 
@@ -58,7 +60,7 @@
   │     规则信号 (has_comp/has_gov/double_negative)
   │
   └─ L4 分类层: models/clf_v3.pkl
-        HistGradientBoosting (500树×4类, random_state=43) + isotonic 校准
+        HistGradientBoosting (500树×4类, random_state=42) + isotonic 校准
         (FrozenEstimator on held-out calib_feats; 可选 cross-fit OOF)
         + 类别乘数 (val 标定) + 拒绝阈值 → UNKNOWN
         v3/fast_predict.py: 编译化推理 (numpy 树遍历), 与 sklearn 零误差
@@ -87,9 +89,9 @@ loc 引擎钩子: merge_orientation / strip_road_conjunction ("与X路"拆分) /
 
 ### 1.4 分类器
 
-- 训练: GBDT (max_iter=500, lr=0.08, leaves=63, l2=1.0, **random_state=43**) on **262.99 万样本** → CalibratedClassifierCV(FrozenEstimator, isotonic) **校准集=held-out calib_feats (23,609 行, 与 train 文本重叠 0)** → 类别乘数+拒绝阈值在 val 按 macro-F1 标定。**seed 43 是 v4.2.1 在 val 上对比 42/43 后选定**（单 seed 噪声 ±0.004，见 §7 #40）；`--cross-fit K` 可把 calib 并回训练并用 OOF 校准（可选，ECE 有代价，见 §7 #41）
-- FastGBDT 原理: sklearn 逐树 Python 调用慢 (0.7ms×2000), 编译化为 numpy 数组批量遍历; **注意 sklearn 节点值已含 learning_rate (lr=1.0)**; 叶掩码防止提前到叶的行弹回根节点; **v4.0.3 树间批量化**: 全部树 padding 统一节点数, (n_rows × n_trees) 同步遍历, 历史值 50ms→2.1ms; **v4.2.1 本机实测单条 1.41ms / 批量(100) 1.39ms/条**（median，Python 3.14 + `OMP_NUM_THREADS=10`，预热 20 次，单条 n=200 / 批量 n=100）
-- 置信度: isotonic 校准, ECE=**0.0129** (val) / **0.0110** (test), 可直接作概率路由
+- 训练: GBDT (max_iter=500, lr=0.08, leaves=63, l2=1.0, **random_state=42 固定**) on **262.99 万样本** → CalibratedClassifierCV(FrozenEstimator, isotonic) **校准集=held-out calib_feats (23,609 行, 与 train 文本重叠 0)** → 类别乘数+拒绝阈值在 val 按 macro-F1 标定。**v4.2.2 固定 seed42，禁止按 val 挑 seed**（4-seed 均值/区间见 §0；winner's curse 见 §7 #40）；`--cross-fit K` 可把 calib 并回训练并用 OOF 校准（可选，ECE 有代价，见 §7 #41）
+- FastGBDT 原理: sklearn 逐树 Python 调用慢 (0.7ms×2000), 编译化为 numpy 数组批量遍历; **注意 sklearn 节点值已含 learning_rate (lr=1.0)**; 叶掩码防止提前到叶的行弹回根节点; **v4.0.3 树间批量化**: 全部树 padding 统一节点数, (n_rows × n_trees) 同步遍历, 历史值 50ms→2.1ms; **v4.2.2 本机实测单条 1.41ms / 批量(100) 1.39ms/条**（median，Python 3.14 + `OMP_NUM_THREADS=10`，预热 20 次，单条 n=200 / 批量 n=100）
+- 置信度: isotonic 校准, ECE=**0.0253** (val) / **0.0215** (test), 可直接作概率路由
 
 ## 2. 训练与词典管线
 
@@ -108,7 +110,7 @@ v3/labels.py          3-fold confident learning (v4.2.0 起 StratifiedGroupKFold
 v3/make_group_split.py  文本 group split (StratifiedGroupKFold 5, group=text) → data/eval_split_group_*
 v3/build_train7.py      final_train6 + group splits → final_train7 + calib_feats
                         (去掉新 val/test/calib 文本 + 补新 train 缺失行特征)
-v3/train.py           GBDT (random_state=43) + FrozenEstimator isotonic (校准集=calib_feats)
+v3/train.py           GBDT (random_state=42 固定) + FrozenEstimator isotonic (校准集=calib_feats)
                       + val 标定 → models/clf_v3.pkl + manifest_v3.json + val_pred.csv
                       (仅 --model 为基线 clf_v3.pkl 时默认写; 实验模型需显式 --val-pred)
                       --cross-fit K: calib 并入训练 + K-fold OOF isotonic (可选)
@@ -191,11 +193,11 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 
 | 视角 | 工具 | 当前值 |
 |------|------|-------:|
-| clean 口径 macro-F1 | `v3/evaluate.py` | test **0.9053** / accuracy **0.9075** (v4.2.1 文本分组切分; 旧含泄漏口径 0.9092/0.9098) |
-| clean 子集 accuracy | `v3/clean_eval.py` | **0.9703**（test 集查表确认标签, 12,463 条/32.4%） |
-| 纯净集召回 | `v3/pure_eval.py` | ORG **74.5%** / POI **59.3%**（v4.2.0 模型复跑；v4.2.1 未复跑, 方法不变） |
+| clean 口径 macro-F1 | `v3/evaluate.py` | test **0.9035** / accuracy **0.9076** (v4.2.2 文本分组切分; 旧含泄漏口径 0.9092/0.9098) |
+| clean 子集 accuracy | `v3/clean_eval.py` | **0.9689**（test 集查表确认标签, 12,463 条/32.4%） |
+| 纯净集召回 | `v3/pure_eval.py` | ORG **74.5%** / POI **59.3%**（v4.2.0 模型复跑；v4.2.2 未复跑, 方法不变） |
 | 有效召回 (真边界剔除) | `v3/pure_eval.py report` 分层口径 | POI **86.8~88.5%** / ORG ≈100%（v4.2.0 复跑, 规则见 v3/poi_recall_audit.py） |
-| 置信度 | `v3/calibration_audit.py` | ECE **0.0129** (val) / **0.0110** (test) |
+| 置信度 | `v3/calibration_audit.py` | ECE **0.0253** (val) / **0.0215** (test) |
 
 ### 4.2 段级门禁
 
@@ -246,8 +248,8 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 | macro-F1 提升路径 | 评测集标签治理, 非模型调参 | P2 逐类诊断: 四大迁移类 87% 是标签噪声+体系边界; 含噪口径可修复空间仅 ~1-2pt (v4_f1_error_audit.md) |
 | eval 标签治理 | **采纳 (v4.0.4)** | 两条错误映射修正 (tencent休闲娱乐→POI; gaode风景名胜点位后缀→POI), 三 split 1,846 条 + pool 13,126 条, `.bak_v1` 备份; 重训 val +0.0037 过门禁, baseline 更换 (旧模型归档 clf_v3_baseline_v39.pkl) |
 | eval split 文本泄漏 (v4.2.0 审计) | **采纳分组切分** | 旧切分 test 9.49%/val 9.83% 行文本在 train 出现; `StratifiedGroupKFold(5, group=text, seed=42)` 后 train/val/test 文本重叠 0; 重训 clean test macro-F1 0.9035 (旧含泄漏 0.9092); 旧模型归档 `clf_v3_baseline_v42.pkl` |
-| 校准集 in-sample (v4.2.0) | **采纳 held-out calib** | 旧 `train_feats` 100% 在 final_train6 内; v4.2.0 划出 `calib_feats` 23,609 行 (与 train 文本重叠 0) 做 isotonic; ECE val 0.0253 / test 0.0215。v4.2.1 复核: held-out 仍是生产默认; cross-fit 可把 calib 并回训练, 但 OOF/全量分数尺度不一致使 ECE 变差 (0.0325/0.0332), 暂不转正 |
-| 三代审计「重训真实回退」结论 (v4.2.1) | **修正: 主要是单 seed 噪声** | 同一切分/calib, random_state 42→43: val 0.9053→0.9082, test 0.9035→0.9053, 诚实子集 0.9017→0.9061 (val) / 0.8956→0.8981 (test), 与审计的 -0.0047/-0.0043 同量级; 恢复 calib 行的 cross-fit 还能再收回 ~0.3pt。原「~0.45pt 系统性退化」不成立, 详见 audit/audit_v421_honest_subset.md |
+| 校准集 in-sample (v4.2.0) | **采纳 held-out calib** | 旧 `train_feats` 100% 在 final_train6 内; v4.2.0 划出 `calib_feats` 23,609 行 (与 train 文本重叠 0) 做 isotonic; ECE val 0.0253 / test 0.0215。v4.2.2 复核: held-out 仍是生产默认; cross-fit 可把 calib 并回训练, 但 OOF/全量分数尺度不一致使 ECE 变差 (0.0325/0.0332), 暂不转正 |
+| 三代审计「重训真实回退」结论 (v4.2.2) | **成立: ~0.35~0.4pt** | 4 seeds 42-45 同一 final7/calib: 诚实子集均值 vs 旧 -0.0033 (val) / -0.0039 (test); seed42 -0.0047/-0.0043 (接近均值), seed43 -0.0005/-0.0017 (4 个 seed 最高值)。v4.2.1 挑 seed43 宣称「回退不成立」是 winner's curse, v4.2.2 已回退 seed42; cross-fit 可收回 ~0.3pt 但 ECE 0.0325, 暂不转正。详见 audit/audit_v422_self_audit.md |
 | eval 集重建注意 | splits 无 type_orig 列 | type_orig 只在 eval_set.csv/feats CSV; 关联用 text join; UNKNOWN 扩充行 (室内设施) 不在 eval_set, join 会 miss ~7K 属正常 |
 | 标签治理二轮 | **不动 (v4.0.5)** | gaode商务住宅/tencent建筑房产→ADDR 样本审查正确 (小区/楼栋); 公司企业→ORG 个体户残留无 t2 可分, 属体系边界。eval 标签治理收敛 |
 | v1.6.0 词典自举 | **回退留档 (v4.1.0)** | 推翻 v3.9.0 不做决策执行全链验证: stats 重切→bake→四词典产出; seg_quality 持平但 seg_compare org BRAND 碎化 (+6.5K/20万); 重训 val 0.9056 < 0.9091 未过门禁 → 生产保持 v1.5.0。**结论: v3.9.0 收敛判断正确, 自举正式关闭**。artifacts: dicts/*v1.6.0.pkl 留存作证伪留档；clf_v3_v160.pkl 与 iter_v1.6.0/ 已于 v4.1.0 清理（见 §4.3） |
@@ -300,7 +302,7 @@ stats 用 v(N-1) 引擎切分语料统计词频 → 产出 vN 词典 → 切分�
 - **#36 分组切分/训练集构建不可复现 (v4.2.0 外部审计修复)**: 首版 group split 与 final_train7 由一次性脚本生成, 仓库无 `StratifiedGroupKFold` 引用; 已补 `v3/make_group_split.py` + `v3/build_train7.py`, 实测复现 2,629,943 行/calib 23,609/文本重叠 0。
 - **#37 蓄水池采样错误 (v4.2.0 外部审计修复)**: `sample_pool` 满池后 `randint(0, len-1)` 恒替换, 严重偏向扫描尾部; `sample_unknown` 同理。已改标准蓄水池; **当前 data/v3_train_pool.csv (270万) 仍是旧实现产物, 原始语料已删, 偏差不可回溯**, 仅影响历史训练分布。
 - **#38 懒加载并发/默认版本陈旧 (v4.2.0 外部审计修复)**: `CsvIndex` 三表无锁, 4 线程首访重复加载 addr 4 次 (~4.2s/次); 已双检锁 + serve lifespan 预热。`build_*_engine()` 默认 v1.3.0 导致 gate 口径与文档不符; 现默认取 `core.config.VERSION` (v1.5.0), 20K diff 更新为 loc 1976/org 4249/poi 2783。
-- **#40 单 seed 对比把噪声当回归 (v4.2.1 修正)**: 同一 `final_train7`/held-out calib, 只把 `random_state` 42→43: val 0.9053→0.9082, test 0.9035→0.9053, 诚实子集 0.9017→0.9061 (val) / 0.8956→0.8981 (test)。三代审计的 -0.0047/-0.0043 与 seed 噪声同量级, 不能归因为系统性重训退化。教训: 模型对比至少 2-3 seeds; 切分变更用 `honest_gate` 排除双方 train 文本; 单次训练差异在 ±0.004 内只报「不确定」。
+- **#40 单 seed 对比 + 挑 seed 的双重陷阱 (v4.2.1/v4.2.2)**: 4 seeds 42-45 同一 final7/calib: val 0.9052~0.9082, test 0.9032~0.9053, 诚实子集 test 0.8972~0.9005。seed42 接近均值 (诚实 -0.0043 vs 均值 -0.0039), seed43 是最高值 (诚实 -0.0017)。v4.2.1 从 2 个 seed 里挑 seed43, 再用 test「确认」, 是 winner's curse; v4.2.2 回退固定 seed42。教训: 固定 seed 或 ≥3 seeds 均值/区间; **禁止挑 val 最高的 seed 再用 test 确认**; `honest_gate` 只用于固定 seed 候选; 单次训练差异在 seed 范围内只报「不确定」。
 - **#41 OOF 校准与全量模型分数尺度不一致 (v4.2.1)**: cross-fit 用 K=5 折 (80% 数据) OOF 拟合 isotonic, 最终模型在全量数据上重训、分数更 sharp → 校准概率尺度偏移; val tuned 0.9100 但 argmax (无乘数) 仅 0.8720, ECE 0.0325/0.0332。temperature 只能部分缓解 (0.0258/0.0251)。教训: OOF 校准的 fold 模型与最终模型容量/数据量不一致时, 需 quantile alignment 或直接用 fold ensemble; 不能只看 tuned macro-F1。
 - **#39 CLI 冷启动 ~9-12s (v4.2.0 已知限制)**: `run.py classify` 需加载 loc 词典 3.3s + org/poi 引擎 + addr 表 2.8-4.2s + 模型; 已做 bare/sql suffix lru 缓存、CsvIndex csv.reader 解析、serve lifespan 预热, CLI 实测 9.2~11.5s (缓存/环境相关)。彻底优化需引擎 pickle/trie 快照或常驻进程, 留待后续。
 
@@ -330,7 +332,7 @@ python3 v3/make_group_split.py --install    # 备份旧 split 并覆盖 data/eva
 python3 v3/build_train7.py --force          # final_train7 + calib_feats (与 val/test/calib 文本隔离)
 python3 v3/precompute.py all <输入> <输出>   # ×6 (pool/train/val/test/unknown_*)
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --drop-org 0.55 --drop-poi 0.55 --drop-addr 0.65 --flip 0.9 --out output/v3_feat/pool_feats_clean2.csv
-python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v3_feat/calib_feats.csv --random-state 43
+python3 v3/train.py --train output/v3_feat/final_train7.csv --calib-set output/v3_feat/calib_feats.csv --random-state 42
 # 可选 cross-fit: --cross-fit 5 (calib 并回训练 + OOF isotonic; ECE 有代价, 见 §7 #41)
 
 # 门禁 (详见 §4.2)

@@ -3,7 +3,7 @@
   "timestamp": "2026-08-05 20:13:55",
   "train_path": "output/v3_feat/final_train6.csv",
   "train_md5": "05038e69f05d35cb8c82a00736ce7dc4",
-  "val_path": "output/v3_feat/val_feats.csv",
+  "val_path": "output/v3_feat/val_feats.csv.bak_v42",
   "val_md5": "40e92a31f896ddcd3fe46b0a6b6ff475",
   "n_train": 2686496,
   "n_val": 38512,
@@ -85,5 +85,5 @@
     "macro_f1": 0.9091,
     "total": 38512
   },
-  "note": "eval 标签治理 (风景名胜/休闲娱乐倒挂修正 1846+13126 条) 后重训; test macro-F1 0.9092 (同口径 baseline 0.9062)"
+  "note": "eval 标签治理 (风景名胜/休闲娱乐倒挂修正 1846+13126 条) 后重训; test macro-F1 0.9092 (同口径 baseline 0.9062); v4.2.2 自审计: val_path 指向 v4.2.0 前旧 val 备份 (.bak_v42), 与 val_md5 匹配; 当前 val_feats.csv 已切换 group split"
 }

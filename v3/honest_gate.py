@@ -17,6 +17,10 @@
 退出码: 0=PASS, 1=FAIL. 默认要求候选在 val/test 的 own macro-F1
 不低于 baseline - tol (默认 0.002). 单 seed 噪声可达 ±0.004, 判 FAIL 前
 应至少跑 2-3 个 random_state 的候选 (见 HANDOVER 踩坑 #40).
+
+⚠️ 本工具只比较单个固定 seed 候选. 不要用它从多个 seed 中挑 val 最高的
+一个再用 test "确认" (winner's curse, v4.2.1 踩坑); 多 seed 应比较均值/区间,
+生产用固定 seed 或预注册规则.
 """
 import argparse
 import hashlib

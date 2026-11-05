@@ -8,9 +8,10 @@
 
 ## 当前状态
 
-- 系统版本 **v4.2.1** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`
-- 指标：test macro-F1 0.9053 | clean accuracy 0.9703 | ECE 0.0129 (val) / 0.0110 (test) | 单条 1.41ms / 批量 1.39ms/条 (100条, 本机 median)
-- 模型选择：`random_state=43`（v4.2.1 在 val 上对比 42/43 后选定；单 seed 噪声 ±0.004，换 seed 必须跑 honest_gate + 至少 2 个 seed）
+- 系统版本 **v4.2.2** | 词典 **v1.5.0**（loc/org/poi/brand 四词典统一编号） | 模型 `models/clf_v3.pkl`（固定 seed42）
+- 指标：test macro-F1 **0.9035** | clean accuracy **0.9689** | ECE **0.0253 (val) / 0.0215 (test)** | 单条 1.41ms / 批量 1.39ms/条 (100条, 本机 median)
+- seed 分布（42-45）：test 0.9032~0.9053（均值 0.9041）、clean 0.9674~0.9703（均值 0.9689）、诚实子集 test 0.8972~0.9005（均值 0.8983）；**禁止按 val 挑 seed**（v4.2.1 的 seed43 winner's curse）
+- **已知缺口**：seed42 vs 旧模型 `honest_gate` **FAIL**（-0.0047/-0.0043），真实回退 ~0.35~0.4pt 未修复；cross-fit 可收回但 ECE/校准尺度待解
 - 环境：macOS，Python 3.14，纯标准库 + sklearn/numpy/pandas（仅 v3/ 需要）+ fastapi/uvicorn（仅 serve.py）
 - v4.0.0：v2 代码已迁 `/v2/`（平铺）+ 根 `pipeline_v2.py`；v3 不再 import 任何 v2 模块；HTTP 服务 `serve.py`
 
@@ -31,8 +32,8 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 | `v3/` | **当前活代码**：engine/(统一DP引擎+gate门禁) features.py pipeline.py(自包含) brand_model.py infer.py fast_predict.py train.py labels.py make_group_split.py build_train7.py calibration.py(cross-fit 可选) honest_gate.py(诚实子集门禁) 及全套评估/挖掘工具 |
 | `v2/` + 根 `pipeline_v2.py` | **v2 冻结 baseline**：识别器平铺（loc_recognizer/loc_builder/loc_importer/org_recognizer/poi_recognizer/brand_model/eval）+ v2/tools/（v2 时代 launch/worker/eval 工具） |
 | `core/` | 共享：types(SegType) / config(VERSION 词典版 + SYSTEM_VERSION 系统版) / csv_index / suffix_matcher / suffix_classify |
-| `serve.py` | FastAPI 服务：POST /classify /classify_batch、GET /health；压测见 output/v4_serve_bench.md（v4.0.3 旧模型；v4.2.1 未复测） |
-| `models/` | clf_v3.pkl（GBDT+校准+乘数，seed43）+ manifest_v3.json；clf_v3_baseline_v39/v42/v420.pkl 归档；clf_v3_compact.pkl（备选小模型，非现役） |
+| `serve.py` | FastAPI 服务：POST /classify /classify_batch、GET /health；压测见 output/v4_serve_bench.md（v4.0.3 旧模型；v4.2.2 未复测） |
+| `models/` | clf_v3.pkl（GBDT+校准+乘数，固定 seed42）+ manifest_v3.json；clf_v3_baseline_v39/v42/v420.pkl 归档；clf_v3_compact.pkl（备选小模型，非现役） |
 | `dicts/` | *v1.5.0.pkl 当前；v1.2.x=v2 baseline 保留；v1.1.x 兜底不可删；export/ 可读词频审计表；iter_v1.5.0/ stats 中间产物 |
 | `data/` | 语料：split/{org,poi,loc,org_company}、SQL 三表、areas/、eval_split_*.csv（原始地图语料已删有异地备份，见 HANDOVER §3.1） |
 | `output/` | 评估产物；`v3_feat/` 白名单制（现役 final_train7 + calib_feats + train/val/test_feats + val_pred + synth_feats + unknown_*_feats + pool_clean*_stats.json，其余可再生） |
@@ -49,7 +50,7 @@ python3 run.py v2 classify "广东省卫健委"           # → ORG (v2 冻结�
 6. `open(p,'w').write(open(p).read())` 会先截断后读取 → 清空文件，禁止此写法
 7. `v3/train.py` 默认只在 `--model` 为基线 `clf_v3.pkl` 时写 `output/v3_feat/val_pred.csv`；实验模型（`--model` 指向新文件）默认跳过，需显式 `--val-pred`（踩坑 #24/#27 的代码防护）
 8. 重任务 CPU 上限：**≤10 计算线程、≤24 核**；训练用 `OMP_NUM_THREADS=10` + `nice`，特征预计算 16 进程 × 单线程；禁止满核
-9. 切分/训练集/校准集变更 → 必须跑 `v3/honest_gate.py`（排除双方 train 文本的诚实子集 + manifest md5 校验）；单 seed 差异须 ≥2 个 random_state 复核，禁止单次训练直接判回归（踩坑 #40）
+9. 切分/训练集/校准集变更 → 必须跑 `v3/honest_gate.py`（排除双方 train 文本的诚实子集 + manifest md5 校验）；模型对比用固定 seed 或 ≥3 seeds 均值/区间，**禁止挑 val 最高的 seed 再用 test 确认**（winner's curse，踩坑 #40）
 
 ## 常用命令
 
@@ -63,7 +64,7 @@ python3 v3/precompute.py all <输入csv> <输出csv>            # 特征 (16进�
 python3 v3/labels.py --pool output/v3_feat/pool_feats.csv --flip 0.9
 python3 v3/make_group_split.py --install                    # 文本分组切分 (零泄漏)
 python3 v3/build_train7.py --force                          # final_train7 + calib_feats
-python3 v3/train.py --train <final_train> --calib-set output/v3_feat/calib_feats.csv --random-state 43
+python3 v3/train.py --train <final_train> --calib-set output/v3_feat/calib_feats.csv --random-state 42
 python3 v3/train.py --train <final_train> --calib-set output/v3_feat/calib_feats.csv --cross-fit 5  # 可选, ECE 有代价
 # 门禁/评估
 python3 v3/engine/gate.py --n 20000                        # 现状 FAIL: 20K diff loc 1976/org 4249/poi 2783 (词典代差, 见 HANDOVER §4.2)
@@ -79,7 +80,7 @@ uvicorn serve:app --port 8000 --workers 4                  # FastAPI 生产服�
 
 ## 下轮任务
 
-v4.2.1 已落地（seed43 重训 + honest gate + cross-fit 可选），后续优先级：
+v4.2.2 已落地（回退 seed42 + honest gate + cross-fit 可选；确认诚实子集真实回退 ~0.35~0.4pt），后续优先级：
 
 1. **cross-fit 校准转正**：解决 OOF（80% 模型）与全量模型分数尺度不一致（候选：quantile alignment / K=10 / 全量模型 + 小 held-out 复核），目标 test macro-F1 ≥0.9069 且 ECE ≤0.02。
 2. **Batch 2 词典链/评估工具**：`poi_prune` delete 分支、`patch_v142 --validate-villages` 默认策略（改行为需 seg_compare/gate）、`make_split` 覆盖备份、`seg_compare report` 显式 pattern、`badcase_eval` 先 `eval_cut` 再生 stats。

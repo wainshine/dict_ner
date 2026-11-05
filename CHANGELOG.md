@@ -3,7 +3,21 @@
 > dict_ner 完整版本历史。文档分工见 README.md「文档体系」一节。
 > 系统版本 (vX.Y.Z) 指代码+算法版本; 词典版本 (v1.x.y) 指词典数据版本, v3.8.0 起四词典统一编号。
 
+## v4.2.2 (2026-11-02) — 自审计修正: seed43 是 winner's curse，回退 seed42
+
+词典/代码逻辑未变；生产模型回退到 v4.2.0 的固定 seed42（不按 val 挑 seed）。自审计补跑 seed44/45 后推翻 v4.2.1 的「原审计回退不成立」结论：seed42 接近 4-seed 均值，seed43 是 4 个 seed 的最高值。headline 回退为 clean test **0.9035 / 0.9076**、clean 子集 **0.9689**、ECE **0.0253 (val) / 0.0215 (test)**；4-seed 均值（test macro / clean / ECE val / ECE test）**0.9041 / 0.9689 / 0.0198 / 0.0167** 作为上下文披露。测试 **207**。复核报告 `audit/audit_v422_self_audit.md`。
+
+- **4-seed 分布（同一 final_train7 + held-out calib，只变 random_state）**: val macro-F1 0.9052~0.9082（均值 0.9060），test 0.9032~0.9053（均值 0.9041），clean 0.9674~0.9703（均值 0.9689），ECE val 0.0110~0.0300 / test 0.0078~0.0266（std ~0.009），诚实子集 val 0.9021~0.9068 / test 0.8972~0.9005。**seed42 接近均值，seed43 是最高值**
+- **真实回退成立**: 诚实子集 4-seed 均值 vs 旧模型 **-0.0033 (val) / -0.0039 (test)**；seed42 -0.0047/-0.0043（接近均值），seed43 -0.0005/-0.0017（最高值）。原审计的 -0.0047/-0.0043 不是偏差抽样，方向与量级基本正确；v4.2.1 用 seed43 宣称「回退不成立」是 winner's curse
+- **v4.2.1 结论作废**: 其「test 0.9035→0.9053 / clean 0.9689→0.9703 / ECE 减半」均为 seed43 单点；4-seed 均值 clean 仍 0.9689、test 0.9041、ECE 0.0198/0.0167。文档已回退并在 v4.2.1 节加警告
+- **诚实门禁结果**: seed42 vs 旧模型 `honest_gate` **FAIL**（own -0.0047 val / -0.0043 test，tol 0.002）——真实回退未修复，v4.2.2 不掩盖；cross-fit (seed42) vs 旧 -0.0004/-0.0009（PASS）但 OOF 校准尺度问题未解决，不转正
+- **cross-fit 仍是最有希望的修复**: seed42 cross-fit test **0.9069** / clean **0.9738** / 诚实 **0.9069/0.9013**（vs 旧 -0.0004/-0.0009，vs 4-seed 均值 +0.0028/+0.0030），但 OOF 校准 ECE 0.0325/0.0332（T=1.3 后 0.0258/0.0251），暂不转正；下一步修 OOF/全量分数尺度对齐
+- **seed 协议修正**: 固定 seed（42）或 ≥3 seeds 均值/区间；**禁止从多个 seed 中挑 val 最高的一个再用 test 确认**；`honest_gate` 只用于固定 seed 候选，不用于 seed 选择（AGENTS 红线 #9 / HANDOVER #40）
+- **测试/文档**: 测试维持 207；`audit_v421_honest_subset.md` 顶部加 superseded 警告；HANDOVER #40 改写为「单 seed 对比 + 挑 seed」双重教训
+
 ## v4.2.1 (2026-11-02) — 诚实子集复核修正 + seed 方差控制 + honest gate / cross-fit
+
+> ⚠️ **本节 seed43 选择经 v4.2.2 自审计推翻（winner's curse）**：生产已回退 seed42；本节「原审计回退不成立 / 全指标优于 v4.2.0」的结论作废，保留作过程记录。修正见 v4.2.2 与 `audit/audit_v422_self_audit.md`。
 
 词典未变；模型在 v4.2.0 clean 切分上以 `random_state=43` 重训（seed 42/43 在 val 对比后选定，test 仅确认）。headline：clean test **0.9035→0.9053** / accuracy **0.9076→0.9075**，clean 子集 **0.9689→0.9703**，ECE **0.0253/0.0215→0.0129/0.0110**，测试 **207**；本机实测单条 **1.41ms** / 批量(100) **1.39ms/条**（median；Python 3.14 + `OMP_NUM_THREADS=10`，预热 20 次，单条 n=200 / 批量 n=100）。v4.2.0 模型归档 `models/clf_v3_baseline_v420.pkl`。复核报告 `audit/audit_v421_honest_subset.md`。
 
